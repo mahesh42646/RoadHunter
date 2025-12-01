@@ -1,0 +1,299 @@
+const path = require('node:path');
+const http = require('node:http');
+
+const compression = require('compression');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const express = require('express');
+const helmet = require('helmet');
+const mongoose = require('mongoose');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+
+dotenv.config({
+  path: path.join(__dirname, '.env'),
+});
+
+const createUserRouter = require('./routes/users');
+const createPartyRouter = require('./routes/party');
+const createWalletRouter = require('./routes/wallet');
+const createGiftRouter = require('./routes/gifts');
+const gamesRouter = require('./routes/games');
+const GameEngine = require('./services/gameEngine');
+
+// Declare gameEngine at module level so it's accessible to socket handlers
+let gameEngine = null;
+
+const PORT = Number(process.env.PORT) || 5030;
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+const { JWT_SECRET = 'change-me' } = process.env;
+
+if (!MONGO_URI) {
+  throw new Error('Missing MONGODB_URI (or MONGO_URI) in backend/.env');
+}
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+];
+
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  optionsSuccessStatus: 204,
+};
+
+const app = express();
+app.set('trust proxy', 1);
+
+app.use(helmet());
+app.use(compression());
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps)
+      if (!origin) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // For mobile apps, allow any origin from local network
+      if (origin.includes('192.168.') || origin.includes('10.0.2.2') || origin.includes('localhost')) {
+        return callback(null, true);
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true, // Allow Engine.IO v3 clients
+  pingTimeout: 60000,
+  pingInterval: 25000,
+});
+
+io.use((socket, next) => {
+  const authHeader = socket.handshake.headers?.authorization;
+  const token = socket.handshake.auth?.token || (authHeader && authHeader.split(' ')[1]);
+  if (!token) {
+    next();
+    return;
+  }
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    socket.data.user = payload;
+    next();
+  } catch (error) {
+    next(new Error('Invalid auth token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`[Socket.IO] ✅ Client connected: ${socket.id}`);
+  
+  // Track client in game engine
+  if (gameEngine) {
+    gameEngine.addClient(socket.id);
+  }
+  
+  // Game prediction count updates
+  socket.on('game:get_counts', async (data) => {
+    try {
+      const { gameId } = data;
+      if (gameId && gameEngine) {
+        const counts = await gameEngine.getPredictionCounts(gameId);
+        socket.emit('game:prediction_counts', { gameId, counts });
+      }
+    } catch (error) {
+      console.error('[Socket.IO] Error getting prediction counts:', error);
+    }
+  });
+  
+  socket.on('party:join', (data) => {
+    const { partyId } = data;
+    if (partyId) {
+      socket.join(`party:${partyId}`);
+      console.log(`[Socket.IO] User ${socket.id} joined party room: party:${partyId}`);
+    }
+  });
+
+  socket.on('party:leave', (data) => {
+    const { partyId } = data;
+    if (partyId) {
+      socket.leave(`party:${partyId}`);
+      console.log(`[Socket.IO] User ${socket.id} left party room: party:${partyId}`);
+    }
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.log(`[Socket.IO] ❌ Client disconnected: ${socket.id}`);
+    // Remove client from game engine
+    if (gameEngine) {
+      gameEngine.removeClient(socket.id);
+    }
+  });
+
+  // WebRTC Signaling Events (simple-peer compatible)
+  socket.on('webrtc:offer', (data) => {
+    const { partyId, targetUserId, offer } = data;
+    const fromUserId = socket.data.user?.sub || socket.id;
+    console.log(`[WebRTC] Offer from ${fromUserId} to ${targetUserId} in party ${partyId}`);
+    
+    // Send to specific target user in the party room
+    io.to(`party:${partyId}`).emit('webrtc:offer', {
+      partyId,
+      fromUserId,
+      targetUserId,
+      offer,
+    });
+  });
+
+  socket.on('webrtc:answer', (data) => {
+    const { partyId, targetUserId, answer } = data;
+    const fromUserId = socket.data.user?.sub || socket.id;
+    console.log(`[WebRTC] Answer from ${fromUserId} to ${targetUserId} in party ${partyId}`);
+    
+    // Send to specific target user in the party room
+    io.to(`party:${partyId}`).emit('webrtc:answer', {
+      partyId,
+      fromUserId,
+      targetUserId,
+      answer,
+    });
+  });
+
+  socket.on('webrtc:ice-candidate', (data) => {
+    const { partyId, targetUserId, candidate } = data;
+    const fromUserId = socket.data.user?.sub || socket.id;
+    
+    // Send to specific target user in the party room
+    io.to(`party:${partyId}`).emit('webrtc:ice-candidate', {
+      partyId,
+      fromUserId,
+      targetUserId,
+      candidate,
+    });
+  });
+
+  // Simple-peer signal handler (handles all signal types)
+  socket.on('webrtc:signal', (data) => {
+    const { partyId, targetUserId, signal } = data;
+    const fromUserId = socket.data.user?.sub || socket.id;
+    
+    // Forward signal to target user
+    io.to(`party:${partyId}`).emit('webrtc:signal', {
+      partyId,
+      fromUserId,
+      targetUserId,
+      signal,
+    });
+  });
+
+  socket.on('webrtc:host-stream-started', (data) => {
+    const { partyId } = data;
+    socket.to(`party:${partyId}`).emit('webrtc:host-stream-started', {
+      ...data,
+      hostId: socket.data.user?.sub || socket.id,
+    });
+  });
+
+  socket.on('webrtc:host-stream-stopped', (data) => {
+    const { partyId } = data;
+    socket.to(`party:${partyId}`).emit('webrtc:host-stream-stopped', data);
+  });
+
+  socket.on('webrtc:host-mic-toggled', (data) => {
+    const { partyId } = data;
+    socket.to(`party:${partyId}`).emit('webrtc:host-mic-toggled', data);
+  });
+
+  socket.on('webrtc:host-camera-toggled', (data) => {
+    const { partyId } = data;
+    socket.to(`party:${partyId}`).emit('webrtc:host-camera-toggled', data);
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
+});
+
+app.use('/api/users', createUserRouter(io));
+app.use('/api/parties', createPartyRouter(io));
+app.use('/api/wallet', createWalletRouter(io));
+app.use('/api/gifts', createGiftRouter(io));
+app.use('/api/games', gamesRouter);
+app.use('/api/admin', require('./routes/admin'));
+
+app.use((err, req, res, _next) => {
+  const status = err.status || 500;
+  const message = status === 500 ? 'Internal server error' : err.message;
+  if (status === 500) {
+    console.error(err);
+  }
+  res.status(status).json({ error: message });
+});
+
+async function init() {
+  try {
+    await mongoose.connect(MONGO_URI, {
+      autoIndex: true,
+    });
+    console.log('Connected to MongoDB');
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`API ready on port ${PORT}`);
+    });
+
+      // Initialize game engine after server is ready
+      // Only initialize if not already initialized (e.g., on hot reload)
+      if (!gameEngine) {
+        setTimeout(() => {
+          gameEngine = new GameEngine(io);
+          gameEngine.start(); // This will set waiting state, not start immediately
+          console.log('[Game Engine] Game engine initialized (waiting for clients)');
+        }, 5000); // Wait 5 seconds for server to be fully ready
+      } else {
+        console.log('[Game Engine] Game engine already initialized.');
+      }
+  } catch (error) {
+    console.error('Startup failed', error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await mongoose.connection.close();
+  process.exit(0);
+});
+
+init();
+

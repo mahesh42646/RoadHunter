@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+/RoadHunterApp/node_modules
+/backend/node_modules
+backend/.env
 /.pnp
 .pnp.*
 .yarn/*
@@ -39,3 +42,60 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# RoadHunterApp: ignore private/confidential/heavy files
+
+# Android build folders and local secrets
+/android/app/build/
+/android/build/
+/android/app/debug.keystore
+/android/app/release.keystore
+/android/app/proguard-rules.pro
+/android/app/google-services.json
+/android/key.properties
+
+# iOS build folders and local secrets
+/ios/build/
+/ios/Pods/
+/ios/Podfile.lock
+/ios/Runner/GoogleService-Info.plist
+
+# Miscellaneous project-level secrets/custom keys
+*.keystore
+*.jks
+*.p12
+*.key
+*.crt
+
+# Heavy export/assets/bundles (if applicable)
+*.apk
+*.aab
+*.ipa
+*.zip
+*.tar
+*.tar.gz
+
+# IDE/project files
+.idea/
+.vscode/
+
+# Misc: database, logs, cache, etc.
+/*.db
+*.sqlite
+*.log
+.cache/
+.tmp/
+
+# Store backup or dump files
+*.bak
+*.tmp
+*.old
+
+# Don't track user uploads/media (if your app has it)
+/uploads/
+public/uploads/
+storage/uploads/
+media/
+user-content/
+# End of Selection
+```

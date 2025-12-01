@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "901074019084",
+    "project_id": "partyngame-vo",
+    "storage_bucket": "partyngame-vo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:901074019084:android:81a88b20429f6b03e09f29",
+        "android_client_info": {
+          "package_name": "com.PartynGame.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_zTovB5uwa68jLl3Akyj8nYXlHKGvsIk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
