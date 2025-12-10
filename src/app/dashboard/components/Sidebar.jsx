@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Nav } from "react-bootstrap";
+import { Nav, Button } from "react-bootstrap";
+import { FaBars, FaTimes } from "react-icons/fa";
 
 const items = [
   { label: "Profile", href: "/dashboard/profile", icon: "👤" },
+  { label: "Following", href: "/dashboard/friends", icon: "👥" },
+  { label: "Follow Requests", href: "/dashboard/friends/requests", icon: "📩" },
   { label: "Wallet", href: "/dashboard/wallet", icon: "💰" },
   { label: "Transactions", href: "/dashboard/transactions", icon: "📊" },
   { label: "Referrals", href: "/dashboard/referrals", icon: "🎯" },
@@ -13,16 +17,43 @@ const items = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <aside 
-      className="p-4" 
-      style={{ 
-        minWidth: 260,
-        background: "rgba(10, 14, 26, 0.8)",
-        backdropFilter: "blur(20px) saturate(180%)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.1)"
-      }}
-    >
+    <>
+      <Button
+        variant="transparent"
+        className="d-md-none position-fixed top-0 start-0 m-3 z-3"
+        style={{ color: "#FFFFFF", zIndex: 1050 }}
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        {isCollapsed ? <FaTimes size={24} /> : <FaBars size={24} />}
+      </Button>
+
+      <aside 
+        className={`p-4 ${isCollapsed ? "d-none" : ""} d-md-block`}
+        style={{ 
+          minWidth: isCollapsed ? 0 : 260,
+          width: isCollapsed ? 0 : "auto",
+          background: "rgba(10, 14, 26, 0.8)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          borderRight: "1px solid rgba(255, 255, 255, 0.1)",
+          transition: "all 0.3s ease",
+          position: "relative",
+          zIndex: 1000,
+        }}
+      >
+        <div className="d-flex justify-content-between align-items-center mb-3 d-md-none">
+          <h5 className="fw-bold rainbow-text mb-0">Dashboard</h5>
+          <Button
+            variant="transparent"
+            className="p-0"
+            style={{ color: "#FFFFFF" }}
+            onClick={() => setIsCollapsed(true)}
+          >
+            <FaTimes />
+          </Button>
+        </div>
       <div className="mb-5">
         <p className="text-uppercase small mb-2" style={{ color: "var(--accent-secondary)", letterSpacing: "2px", fontWeight: 600 }}>
           Player Center
@@ -73,7 +104,16 @@ export default function Sidebar() {
           );
         })}
       </Nav>
-    </aside>
+      </aside>
+
+      {isCollapsed && (
+        <div
+          className="position-fixed top-0 start-0 h-100 bg-dark bg-opacity-75"
+          style={{ width: "100%", zIndex: 999 }}
+          onClick={() => setIsCollapsed(false)}
+        />
+      )}
+    </>
   );
 }
 

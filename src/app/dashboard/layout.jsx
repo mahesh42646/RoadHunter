@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Sidebar from "./components/Sidebar";
+import DashboardHeader from "./components/DashboardHeader";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 
 export default function DashboardLayout({ children }) {
@@ -44,9 +45,12 @@ export default function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="d-flex min-vh-100">
-      <Sidebar />
-      <section className="flex-grow-1 p-4" style={{ background: "transparent" }}>{children}</section>
+    <div className="d-flex flex-column min-vh-100">
+      <DashboardHeader />
+      <div className="d-flex flex-grow-1">
+        <Sidebar />
+        <section className="flex-grow-1 p-4" style={{ background: "transparent" }}>{children}</section>
+      </div>
     </div>
   );
 }

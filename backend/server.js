@@ -18,8 +18,11 @@ const createUserRouter = require('./routes/users');
 const createPartyRouter = require('./routes/party');
 const createWalletRouter = require('./routes/wallet');
 const createGiftRouter = require('./routes/gifts');
+const createFriendsRouter = require('./routes/friends');
+const createMessagesRouter = require('./routes/messages');
 const gamesRouter = require('./routes/games');
 const GameEngine = require('./services/gameEngine');
+const Party = require('./schemas/party');
 
 // Declare gameEngine at module level so it's accessible to socket handlers
 let gameEngine = null;
@@ -114,6 +117,13 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] ✅ Client connected: ${socket.id}`);
   
+  // Auto-join user's personal room for notifications
+  const userId = socket.data.user?.sub;
+  if (userId) {
+    socket.join(`user:${userId}`);
+    console.log(`[Socket.IO] User ${userId} auto-joined personal room`);
+  }
+  
   // Track client in game engine
   if (gameEngine) {
     gameEngine.addClient(socket.id);
@@ -132,11 +142,32 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('party:join', (data) => {
+  socket.on('party:join', async (data) => {
     const { partyId } = data;
     if (partyId) {
       socket.join(`party:${partyId}`);
       console.log(`[Socket.IO] User ${socket.id} joined party room: party:${partyId}`);
+      
+      // Send current party stream state to the joining participant
+      try {
+        const party = await Party.findById(partyId);
+        if (party) {
+          const userId = socket.data.user?.sub;
+          const hostId = party.hostId?.toString();
+          
+          console.log(`[Socket.IO] Sending stream state to ${userId} - mic:${party.hostMicEnabled}, cam:${party.hostCameraEnabled}`);
+          
+          // Send party state to the newly joined socket (not a stream start event)
+          socket.emit('party:stream-state', {
+            partyId,
+            hostMicEnabled: party.hostMicEnabled || false,
+            hostCameraEnabled: party.hostCameraEnabled || false,
+            hostId: hostId,
+          });
+        }
+      } catch (error) {
+        console.error('[Socket.IO] Error checking party stream state:', error);
+      }
     }
   });
 
@@ -235,6 +266,97 @@ io.on('connection', (socket) => {
     const { partyId } = data;
     socket.to(`party:${partyId}`).emit('webrtc:host-camera-toggled', data);
   });
+
+  socket.on('webrtc:request-stream', (data) => {
+    const { partyId, hostId } = data;
+    const fromUserId = socket.data.user?.sub || socket.id;
+    console.log(`[WebRTC] 📞 Stream request from ${fromUserId} to host ${hostId} in party ${partyId}`);
+    
+    // Notify the host that a participant wants to receive the stream
+    socket.to(`party:${partyId}`).emit('webrtc:stream-requested', {
+      partyId,
+      fromUserId,
+      requestedBy: fromUserId,
+    });
+    console.log(`[WebRTC] ✅ Broadcasted stream-requested to party room (except sender)`);
+  });
+
+  // Friend-to-friend video call events
+  socket.on('friend:call:initiate', async (data) => {
+    const { friendId } = data;
+    const fromUserId = socket.data.user?.sub;
+    
+    if (!fromUserId) {
+      socket.emit('friend:call:error', { error: 'Not authenticated' });
+      return;
+    }
+
+    // Verify they are friends
+    try {
+      const User = require('./schemas/users');
+      const user = await User.findById(fromUserId);
+      if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
+        socket.emit('friend:call:error', { error: 'Can only call friends' });
+        return;
+      }
+
+      // Find friend's socket (they should be in a room with their userId)
+      io.to(`user:${friendId}`).emit('friend:call:incoming', {
+        fromUserId,
+        friendId,
+      });
+    } catch (error) {
+      console.error('[Socket.IO] Error initiating friend call:', error);
+      socket.emit('friend:call:error', { error: 'Failed to initiate call' });
+    }
+  });
+
+  socket.on('friend:call:accept', (data) => {
+    const { friendId } = data;
+    const fromUserId = socket.data.user?.sub;
+    io.to(`user:${friendId}`).emit('friend:call:accepted', {
+      fromUserId,
+      friendId,
+    });
+  });
+
+  socket.on('friend:call:reject', (data) => {
+    const { friendId } = data;
+    const fromUserId = socket.data.user?.sub;
+    io.to(`user:${friendId}`).emit('friend:call:rejected', {
+      fromUserId,
+      friendId,
+    });
+  });
+
+  socket.on('friend:call:end', (data) => {
+    const { friendId } = data;
+    const fromUserId = socket.data.user?.sub;
+    io.to(`user:${friendId}`).emit('friend:call:ended', {
+      fromUserId,
+      friendId,
+    });
+  });
+
+  // WebRTC signaling for friend calls
+  socket.on('friend:webrtc:signal', (data) => {
+    const { friendId, signal } = data;
+    const fromUserId = socket.data.user?.sub;
+    io.to(`user:${friendId}`).emit('friend:webrtc:signal', {
+      fromUserId,
+      friendId,
+      signal,
+    });
+  });
+
+  // Join user's personal room for friend calls and notifications
+  socket.on('user:join', () => {
+    const userId = socket.data.user?.sub;
+    if (userId) {
+      socket.join(`user:${userId}`);
+      console.log(`[Socket.IO] User ${userId} joined personal room`);
+    }
+  });
 });
 
 app.get('/health', (req, res) => {
@@ -245,6 +367,8 @@ app.use('/api/users', createUserRouter(io));
 app.use('/api/parties', createPartyRouter(io));
 app.use('/api/wallet', createWalletRouter(io));
 app.use('/api/gifts', createGiftRouter(io));
+app.use('/api/friends', createFriendsRouter(io));
+app.use('/api/messages', createMessagesRouter(io));
 app.use('/api/games', gamesRouter);
 app.use('/api/admin', require('./routes/admin'));
 

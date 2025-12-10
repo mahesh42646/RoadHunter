@@ -100,7 +100,23 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     // Get current stream for host
     const streamToUse = isHost && localStreamRef.current ? localStreamRef.current : null;
     if (streamToUse) {
-      log(`Creating peer with stream: ${streamToUse.getAudioTracks().length} audio, ${streamToUse.getVideoTracks().length} video tracks`);
+      const audioTracks = streamToUse.getAudioTracks();
+      const videoTracks = streamToUse.getVideoTracks();
+      log(`Creating peer with stream: ${audioTracks.length} audio, ${videoTracks.length} video tracks`);
+      
+      // Log track details for debugging
+      audioTracks.forEach(track => {
+        log(`  🔊 Audio track: ${track.id}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+      });
+      videoTracks.forEach(track => {
+        log(`  📹 Video track: ${track.id}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+      });
+      
+      // Ensure all tracks are enabled
+      audioTracks.forEach(track => track.enabled = true);
+      videoTracks.forEach(track => track.enabled = true);
+    } else if (isHost) {
+      logError(`⚠️ Host creating peer but no local stream available!`);
     }
 
     const peer = new Peer({
@@ -112,22 +128,9 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
         ],
-        // Prefer direct connection (no relay) for local network
         iceTransportPolicy: "all",
-        iceCandidatePoolSize: 0, // Don't pre-gather (faster for local)
-        // Optimize for low latency
         bundlePolicy: "max-bundle",
         rtcpMuxPolicy: "require",
-      },
-      // Optimize SDP for low latency
-      sdpTransform: (sdp) => {
-        // Remove buffering delays
-        sdp = sdp.replace(/a=fmtp:\d+ .*\r\n/g, (match) => {
-          return match.replace(/profile-level-id=[^\s]+/g, 'profile-level-id=42e01f'); // High profile
-        });
-        // Set low latency mode
-        sdp = sdp.replace(/a=mid:video\r\n/g, 'a=mid:video\r\na=x-google-flag:conference\r\n');
-        return sdp;
       },
     });
 
@@ -161,120 +164,75 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         track.enabled = true;
       });
       
+      // Enable all tracks
+      const audioTracks = stream.getAudioTracks();
+      const videoTracks = stream.getVideoTracks();
+      
+      log(`Stream has ${audioTracks.length} audio tracks and ${videoTracks.length} video tracks`);
+      
+      audioTracks.forEach(track => {
+        track.enabled = true;
+        log(`  🔊 Enabled audio track: ${track.id}, readyState: ${track.readyState}, muted: ${track.muted}`);
+      });
+      videoTracks.forEach(track => {
+        track.enabled = true;
+        log(`  📹 Enabled video track: ${track.id}, readyState: ${track.readyState}`);
+      });
+      
+      // Warn if no audio tracks but expecting them
+      if (audioTracks.length === 0) {
+        logError(`⚠️ WARNING: Stream received with NO audio tracks! Host mic might not be enabled or stream doesn't include audio.`);
+      }
+      
+      // Set stream - React useEffect will handle attaching to video element
       remoteStreamRef.current = stream;
       setRemoteStream(stream);
       
-      // Attach to video element immediately with low latency settings
-      const attachStream = () => {
-        if (remoteVideoRef.current) {
-          log("Attaching stream to remote video element");
-          const video = remoteVideoRef.current;
-          
-          // Configure for low latency playback
-          video.srcObject = stream;
-          video.muted = !audioEnabled;
-          video.volume = audioVolume;
-          
-          // Low latency video settings
-          video.playsInline = true;
-          video.autoplay = true;
-          
-          // Ultra low latency: minimize buffering aggressively
-          const reduceBuffer = () => {
-            if (video.buffered.length > 0) {
-              const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-              const currentTime = video.currentTime;
-              const bufferSize = bufferedEnd - currentTime;
-              
-              // Keep buffer extremely small (50ms max)
-              if (bufferSize > 0.05) {
-                video.currentTime = bufferedEnd - 0.05;
-                log(`Reduced buffer from ${bufferSize.toFixed(3)}s to 0.05s`);
-              }
-            }
-          };
-          
-          video.addEventListener('loadedmetadata', reduceBuffer, { once: true });
-          video.addEventListener('progress', reduceBuffer);
-          video.addEventListener('timeupdate', reduceBuffer);
-          
-          // Force enable tracks
-          stream.getAudioTracks().forEach(track => {
-            track.enabled = true;
-            log(`  🔊 Enabled audio track: ${track.id}`);
-          });
-          stream.getVideoTracks().forEach(track => {
-            track.enabled = true;
-            log(`  📹 Enabled video track: ${track.id}`);
-          });
-          
-          // Play immediately for low latency
-          video.play().then(() => {
-            log("✅ Remote video playing");
-            log(`  Video muted: ${video.muted}`);
-            log(`  Video volume: ${video.volume}`);
-            log(`  Video readyState: ${video.readyState}`);
-            
-            // Ensure audio and video are synchronized
-            video.addEventListener('timeupdate', () => {
-              // Keep audio and video in sync
-              if (video.audioTracks && video.audioTracks.length > 0) {
-                // Audio is part of video element, already synced
-              }
-            });
-          }).catch(err => {
-            logError("Remote video play failed:", err);
-          });
-        } else {
-          logError("Remote video element not available, will retry");
-          setTimeout(attachStream, 100); // Faster retry for lower latency
-        }
-      };
-      
-      attachStream();
+      log("✅ Remote stream set, will be attached by React");
     });
 
     // Handle connection - optimize for high quality and low latency
     peer.on("connect", () => {
       log(`✅ Connected to ${targetId}`);
       
-      // Optimize connection for ultra low latency and high quality
+      // Optimize connection for high quality (removed invalid properties)
       if (peer._pc) {
         const pc = peer._pc;
         
-        // Set ultra low latency and high quality settings
+        // Set high quality settings with valid enum values
         const senders = pc.getSenders();
         senders.forEach(sender => {
           if (sender.track && sender.track.kind === 'video') {
-            sender.getParameters().then(params => {
+            try {
+              const params = sender.getParameters();
               if (params.encodings && params.encodings.length > 0) {
-                // Maximum quality for local network
+                // High quality for local network
                 params.encodings.forEach(encoding => {
-                  encoding.maxBitrate = 10000000; // 10 Mbps for high quality
-                  encoding.maxFramerate = 60;
-                  encoding.priority = 'very-high';
-                  encoding.networkPriority = 'very-high';
-                  // Low latency mode
+                  encoding.maxBitrate = 5000000; // 5 Mbps for high quality
+                  encoding.maxFramerate = 30;
+                  encoding.priority = 'high'; // Valid: 'very-low', 'low', 'medium', 'high'
                   encoding.scaleResolutionDownBy = 1; // No downscaling
                 });
                 sender.setParameters(params).catch(err => {
-                  logError("Failed to set video encoding parameters:", err);
+                  log("Note: Could not optimize video encoding:", err.message);
                 });
               }
-            }).catch(err => {
-              logError("Failed to get sender parameters:", err);
-            });
+            } catch (err) {
+              log("Note: Video parameter optimization not supported");
+            }
           } else if (sender.track && sender.track.kind === 'audio') {
-            // Optimize audio for low latency
-            sender.getParameters().then(params => {
+            try {
+              const params = sender.getParameters();
               if (params.encodings && params.encodings.length > 0) {
                 params.encodings.forEach(encoding => {
                   encoding.maxBitrate = 128000; // High quality audio
-                  encoding.priority = 'very-high';
+                  encoding.priority = 'high';
                 });
                 sender.setParameters(params).catch(() => {});
               }
-            }).catch(() => {});
+            } catch (err) {
+              // Silently fail for audio parameter optimization
+            }
           }
         });
       }
@@ -325,25 +283,21 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
           setLocalStream(stream);
         }
         
-        // Add stream to all existing active peers, or recreate them if needed
+        // Recreate all peer connections with the new stream (includes audio now)
+        log(`Mic turned ON - recreating ${peersRef.current.size} peer connections with audio`);
         peersRef.current.forEach((peer, id) => {
-          if (peer.destroyed) {
-            log(`Peer ${id} is destroyed, recreating...`);
-            // Recreate peer with new stream
-            const newPeer = createPeer(id, false);
-            peersRef.current.set(id, newPeer);
-          } else if (localStreamRef.current) {
+          log(`Recreating peer connection for ${id} with mic enabled`);
+          // Destroy the old peer
+          if (peer && !peer.destroyed) {
             try {
-              peer.addStream(localStreamRef.current);
-              log(`✅ Added audio stream to peer ${id}`);
+              peer.destroy();
             } catch (err) {
-              logError(`Failed to add audio stream to peer ${id}:`, err);
-              // Try recreating peer
-              log(`Recreating peer ${id} due to addStream error`);
-              const newPeer = createPeer(id, false);
-              peersRef.current.set(id, newPeer);
+              log(`Error destroying old peer for ${id}:`, err);
             }
           }
+          // Create new peer as initiator (host always initiates) with the new stream
+          const newPeer = createPeer(id, true);
+          log(`✅ New peer created for ${id} with audio tracks`);
         });
         
         setIsMicEnabled(true);
@@ -381,25 +335,21 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
           setLocalStream(stream);
         }
         
-        // Add stream to all existing active peers, or recreate them if needed
+        // Recreate all peer connections with the new stream (includes video now)
+        log(`Camera turned ON - recreating ${peersRef.current.size} peer connections with video`);
         peersRef.current.forEach((peer, id) => {
-          if (peer.destroyed) {
-            log(`Peer ${id} is destroyed, recreating...`);
-            // Recreate peer with new stream
-            const newPeer = createPeer(id, false);
-            peersRef.current.set(id, newPeer);
-          } else if (localStreamRef.current) {
+          log(`Recreating peer connection for ${id} with camera enabled`);
+          // Destroy the old peer
+          if (peer && !peer.destroyed) {
             try {
-              peer.addStream(localStreamRef.current);
-              log(`✅ Added video stream to peer ${id}`);
+              peer.destroy();
             } catch (err) {
-              logError(`Failed to add video stream to peer ${id}:`, err);
-              // Try recreating peer
-              log(`Recreating peer ${id} due to addStream error`);
-              const newPeer = createPeer(id, false);
-              peersRef.current.set(id, newPeer);
+              log(`Error destroying old peer for ${id}:`, err);
             }
           }
+          // Create new peer as initiator (host always initiates) with the new stream
+          const newPeer = createPeer(id, true);
+          log(`✅ New peer created for ${id} with video tracks`);
         });
         
         setIsCameraEnabled(true);
@@ -422,8 +372,20 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
   const toggleAudio = () => {
     setAudioEnabled(prev => {
       const newValue = !prev;
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.muted = !newValue;
+      const video = remoteVideoRef.current;
+      if (video && video.srcObject) {
+        log(`Toggling audio: ${prev} -> ${newValue}`);
+        video.muted = !newValue;
+        video.volume = audioVolume;
+        
+        // If unmuting and video is paused, try to play
+        if (newValue && video.paused) {
+          video.play().then(() => {
+            log("✅ Video started playing after audio toggle");
+          }).catch(err => {
+            log("Play failed after audio toggle:", err.name);
+          });
+        }
       }
       return newValue;
     });
@@ -459,10 +421,23 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         peer = peersRef.current.get(data.fromUserId) || 
                 peersRef.current.get("host");
         
-        // If peer doesn't exist or is destroyed, create a new one
+        // If signal is an offer and we already have a peer, destroy old one and create new
+        // (This handles host toggling camera/mic which recreates connections)
+        if (data.signal?.type === 'offer' && peer && !peer.destroyed) {
+          log(`Received new offer from host - destroying old peer and creating new one`);
+          try {
+            peer.destroy();
+          } catch (err) {
+            log(`Error destroying old peer:`, err);
+          }
+          peer = createPeer(data.fromUserId, false);
+        }
+        
+        // If peer doesn't exist or is destroyed, create a new one as NON-initiator
+        // Host initiates, participant responds
         if (!peer || peer.destroyed) {
-          log(`Creating new peer for host ${data.fromUserId} (existing: ${!!peer}, destroyed: ${peer?.destroyed})`);
-          peer = createPeer(data.fromUserId, true);
+          log(`Creating new peer for host ${data.fromUserId} as responder (existing: ${!!peer}, destroyed: ${peer?.destroyed})`);
+          peer = createPeer(data.fromUserId, false); // false = responder, host initiated
         }
       }
       
@@ -472,9 +447,9 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
           log(`✅ Processed signal from ${data.fromUserId}`);
         } catch (err) {
           logError("Error processing signal:", err);
-          // Recreate peer and retry
-          log(`Recreating peer for ${data.fromUserId} due to error`);
-          const newPeer = createPeer(data.fromUserId, isHost ? false : true);
+          // Recreate peer as responder and retry (whoever sent the signal is initiator)
+          log(`Recreating peer for ${data.fromUserId} as responder due to signal error`);
+          const newPeer = createPeer(data.fromUserId, false);
           try {
             newPeer.signal(data.signal);
             log(`✅ Retried signal after recreating peer`);
@@ -491,78 +466,174 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     const handleHostStreamStarted = async (data) => {
       if (data.partyId !== partyId || isHost) return;
       
-      log(`🎬 Host stream started - audio: ${data.audio}, video: ${data.video}, hostId: ${data.hostId}`);
+      log(`🎬 Host stream state changed - audio: ${data.audio}, video: ${data.video}, hostId: ${data.hostId}`);
       
       if (data.hostId) {
         hostIdRef.current = data.hostId;
       }
       
       const hostId = data.hostId || "host";
-      
-      // Destroy existing peer if it exists
       const existing = peersRef.current.get(hostId);
+      
+      // If we already have a working connection, keep it
       if (existing && !existing.destroyed) {
-        log(`Destroying existing peer for host`);
-        try {
-          existing.destroy();
-        } catch (err) {
-          logError("Error destroying existing peer:", err);
-        }
-        peersRef.current.delete(hostId);
+        log(`Existing peer connection maintained - stream state updated`);
+        return;
       }
       
-      // Create new peer as initiator (participant initiates connection)
-      const peer = createPeer(hostId, true);
-      log(`✅ Created peer connection to host`);
+      // If no connection exists and host has active stream, request it
+      if ((data.audio || data.video) && !existing && socket) {
+        log(`No existing connection - requesting stream from host ${hostId}`);
+        log(`Emitting webrtc:request-stream for party ${partyId}`);
+        // Request stream from host
+        socket.emit('webrtc:request-stream', {
+          partyId,
+          hostId: hostId,
+        });
+        log(`✅ Stream request sent to host`);
+      } else if (!data.audio && !data.video && existing) {
+        log(`Host turned off all streams - maintaining connection for future use`);
+      } else if (!socket) {
+        logError(`Cannot request stream - socket not available`);
+      }
+    };
+
+    // Host: Handle stream requests from participants
+    const handleStreamRequested = (data) => {
+      if (data.partyId !== partyId || !isHost) return;
+      
+      const participantId = data.requestedBy;
+      log(`📞 Stream requested by participant ${participantId}`);
+      log(`  Current stream:`, localStreamRef.current ? 'exists' : 'null');
+      log(`  Mic enabled: ${isMicEnabled}, Camera enabled: ${isCameraEnabled}`);
+      
+      // Check if we already have a peer for this participant
+      const existing = peersRef.current.get(participantId);
+      if (existing && !existing.destroyed) {
+        log(`Peer connection already exists for ${participantId}, skipping`);
+        return;
+      }
+      
+      // Check if we have an active stream
+      if (localStreamRef.current && (isMicEnabled || isCameraEnabled)) {
+        // Verify stream has the expected tracks
+        const audioTracks = localStreamRef.current.getAudioTracks();
+        const videoTracks = localStreamRef.current.getVideoTracks();
+        log(`  Stream has ${audioTracks.length} audio tracks (expected: ${isMicEnabled ? 1 : 0})`);
+        log(`  Stream has ${videoTracks.length} video tracks (expected: ${isCameraEnabled ? 1 : 0})`);
+        
+        // Warn if tracks don't match expected state
+        if (isMicEnabled && audioTracks.length === 0) {
+          logError(`⚠️ WARNING: Mic is enabled but stream has no audio tracks!`);
+        }
+        if (isCameraEnabled && videoTracks.length === 0) {
+          logError(`⚠️ WARNING: Camera is enabled but stream has no video tracks!`);
+        }
+        
+        log(`✅ Creating peer connection for participant ${participantId} as initiator`);
+        // Create peer as initiator (host initiates to participant)
+        const peer = createPeer(participantId, true);
+        log(`Peer created and will send offer to ${participantId}`);
+      } else {
+        log(`❌ No active stream to share with ${participantId} - stream:${!!localStreamRef.current}, mic:${isMicEnabled}, cam:${isCameraEnabled}`);
+      }
     };
 
     socket.on("webrtc:signal", handleSignal);
     socket.on("webrtc:host-stream-started", handleHostStreamStarted);
+    socket.on("webrtc:stream-requested", handleStreamRequested);
 
     return () => {
       socket.off("webrtc:signal", handleSignal);
       socket.off("webrtc:host-stream-started", handleHostStreamStarted);
+      socket.off("webrtc:stream-requested", handleStreamRequested);
     };
-  }, [socket, partyId, isHost, userId, createPeer]);
+  }, [socket, partyId, isHost, userId, createPeer, isMicEnabled, isCameraEnabled]);
 
-  // Attach local video when camera is enabled (optimized for low latency)
+  // Attach local video when camera is enabled
   useEffect(() => {
-    if (isHost && isCameraEnabled && localStreamRef.current && localVideoRef.current) {
-      log("Attaching local stream to video preview");
+    if (isHost && localStream && localVideoRef.current) {
       const video = localVideoRef.current;
-      video.srcObject = localStreamRef.current;
-      video.muted = true;
-      video.playsInline = true;
-      video.autoplay = true;
-      video.preload = "none"; // No preloading for instant display
       
-      // Minimize buffering
-      const reduceBuffer = () => {
-        if (video.buffered.length > 0) {
-          const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-          if (bufferedEnd - video.currentTime > 0.05) {
-            video.currentTime = bufferedEnd - 0.05;
-          }
-        }
-      };
-      video.addEventListener('progress', reduceBuffer);
-      
-      video.play().catch(err => {
-        logError("Local video play failed:", err);
-      });
+      // Only attach if not already attached or stream changed
+      if (video.srcObject !== localStream) {
+        log("Attaching local stream to video preview");
+        video.srcObject = localStream;
+        video.muted = true;
+        video.playsInline = true;
+        
+        // Play the video
+        video.play().then(() => {
+          log("✅ Local video preview playing");
+        }).catch(err => {
+          log("Local video play issue:", err.name);
+        });
+      }
     }
-  }, [isHost, isCameraEnabled, localStream]);
+  }, [isHost, localStream, isCameraEnabled]);
 
   // Attach remote video when stream is received
   useEffect(() => {
     if (!isHost && remoteStream && remoteVideoRef.current) {
-      log("Updating remote video element");
-      remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.muted = !audioEnabled;
-      remoteVideoRef.current.volume = audioVolume;
-      remoteVideoRef.current.play().catch(err => {
-        logError("Remote video play failed:", err);
-      });
+      const video = remoteVideoRef.current;
+      
+      // Only attach if not already attached or stream changed
+      if (video.srcObject !== remoteStream) {
+        log("Attaching remote stream to video element");
+        video.srcObject = remoteStream;
+        video.muted = true; // Start muted to allow autoplay
+        video.playsInline = true;
+        
+        // Play the video (muted, so should work)
+        video.play().then(() => {
+          log("✅ Remote video playing (muted for autoplay)");
+          // DON'T unmute automatically - keep muted to prevent video pause
+          // User will unmute via audio controls when ready
+          video.volume = audioVolume;
+        }).catch(err => {
+          log("Remote video play failed, will retry on user interaction:", err.name);
+          
+          // Fallback: play on user interaction
+          const playOnClick = () => {
+            video.play().then(() => {
+              log("✅ Remote video playing after user interaction");
+              video.volume = audioVolume;
+              document.removeEventListener('click', playOnClick);
+            }).catch(e => log("Play still failed:", e.name));
+          };
+          document.addEventListener('click', playOnClick, { once: true });
+        });
+      } else {
+        // Stream already attached, update mute state when audioEnabled changes
+        log(`Updating video mute state - audioEnabled: ${audioEnabled}, paused: ${video.paused}`);
+        
+        if (audioEnabled) {
+          // Unmute if video is playing
+          if (!video.paused) {
+            video.muted = false;
+            video.volume = audioVolume;
+            log("✅ Audio enabled by user - unmuted video");
+            
+            // Ensure video continues playing after unmuting
+            if (video.paused) {
+              video.play().catch(err => log("Play after unmute failed:", err.name));
+            }
+          } else {
+            log("Video is paused, will unmute when it starts playing");
+            // Set up to unmute when video starts
+            const onPlay = () => {
+              video.muted = false;
+              video.volume = audioVolume;
+              log("✅ Unmuted video when it started playing");
+              video.removeEventListener('play', onPlay);
+            };
+            video.addEventListener('play', onPlay, { once: true });
+          }
+        } else {
+          video.muted = true;
+          log("Audio disabled by user - muted video");
+        }
+      }
     }
   }, [isHost, remoteStream, audioEnabled, audioVolume]);
 
@@ -573,6 +644,38 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
       setIsCameraEnabled(hostCameraEnabled);
     }
   }, [isHost, hostMicEnabled, hostCameraEnabled]);
+
+  // Participant: Sync audio enabled state with video element
+  useEffect(() => {
+    if (!isHost && remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+      const video = remoteVideoRef.current;
+      log(`Syncing audio state - audioEnabled: ${audioEnabled}, video.paused: ${video.paused}`);
+      
+      if (audioEnabled) {
+        // Unmute the video
+        if (!video.paused) {
+          video.muted = false;
+          video.volume = audioVolume;
+          log("✅ Video unmuted (audio enabled)");
+        } else {
+          // Video is paused, try to play it
+          video.muted = false;
+          video.volume = audioVolume;
+          video.play().then(() => {
+            log("✅ Video started playing and unmuted");
+          }).catch(err => {
+            log("Failed to play video when enabling audio:", err.name);
+            // Keep muted if play fails (autoplay policy)
+            video.muted = true;
+          });
+        }
+      } else {
+        // Mute the video
+        video.muted = true;
+        log("Video muted (audio disabled)");
+      }
+    }
+  }, [isHost, audioEnabled, audioVolume]);
 
   // Cleanup
   useEffect(() => {

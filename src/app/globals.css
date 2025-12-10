@@ -644,3 +644,42 @@ button:active {
     padding: 0.4rem !important;
   }
 }
+
+/* Chat Input Animation */
+@keyframes slideUpIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.chat-input-container {
+  animation: slideUpIn 0.3s ease-out;
+}
+
+/* Responsive Audio Controls */
+@media (max-width: 576px) {
+  .audio-controls-container {
+    min-width: 140px !important;
+    max-width: calc(100% - 100px) !important;
+    padding: 0.4rem 0.6rem !important;
+  }
+  
+  .audio-controls-container button {
+    width: 28px !important;
+    height: 28px !important;
+  }
+  
+  .audio-controls-container input[type="range"] {
+    height: 3px !important;
+  }
+  
+  .audio-controls-container span {
+    font-size: 0.65rem !important;
+    min-width: 30px !important;
+  }
+}

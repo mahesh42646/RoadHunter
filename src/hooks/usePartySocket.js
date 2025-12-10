@@ -25,6 +25,7 @@ export default function usePartySocket(partyId, callbacks = {}) {
     onWalletUpdated,
     onHostMicToggled,
     onHostCameraToggled,
+    onStreamState,
   } = callbacks;
 
   useEffect(() => {
@@ -168,6 +169,13 @@ export default function usePartySocket(partyId, callbacks = {}) {
     socket.on("party:hostCameraToggled", (data) => {
       if (data.partyId === partyId && onHostCameraToggled) {
         onHostCameraToggled(data);
+      }
+    });
+
+    socket.on("party:stream-state", (data) => {
+      if (data.partyId === partyId && onStreamState) {
+        console.log("[Socket] Received stream state:", data);
+        onStreamState(data);
       }
     });
 

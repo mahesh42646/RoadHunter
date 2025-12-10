@@ -48,10 +48,154 @@ module.exports = function createGiftRouter(io) {
 
   router.post('/send', authenticate, async (req, res, next) => {
     try {
-      const { partyId, giftType, quantity = 1, recipientType, recipientId, randomCount } = req.body;
+      const { partyId, giftType, quantity = 1, recipientType, recipientId, randomCount, friendId } = req.body;
 
-      if (!partyId || !giftType || !GIFT_TYPES[giftType]) {
-        res.status(400).json({ error: 'Invalid gift type or party ID' });
+      if (!giftType || !GIFT_TYPES[giftType]) {
+        res.status(400).json({ error: 'Invalid gift type' });
+        return;
+      }
+
+      // Friend-to-friend gift (no party required)
+      if (friendId) {
+        if (!mongoose.Types.ObjectId.isValid(friendId)) {
+          res.status(400).json({ error: 'Invalid friend ID' });
+          return;
+        }
+
+        const user = await User.findById(req.user._id);
+        if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
+          res.status(403).json({ error: 'Can only send gifts to friends' });
+          return;
+        }
+
+        const friend = await User.findById(friendId);
+        if (!friend) {
+          res.status(404).json({ error: 'Friend not found' });
+          return;
+        }
+
+        const gift = GIFT_TYPES[giftType];
+        const totalCost = gift.price * quantity;
+
+        // Ensure wallet is initialized
+        if (!user.wallet || !user.wallet.walletId) {
+          user.wallet = {
+            walletId: User.generateWalletId(),
+            balanceUsd: 0,
+            partyCoins: 0,
+          };
+        }
+        
+        if (typeof user.wallet.partyCoins !== 'number') {
+          user.wallet.partyCoins = 0;
+        }
+        
+        if (user.wallet.partyCoins < totalCost) {
+          res.status(400).json({ error: 'Insufficient party coins' });
+          return;
+        }
+
+        const coinsPerRecipient = gift.price * quantity;
+
+        user.wallet.partyCoins -= totalCost;
+        user.wallet.balanceUsd = Number((user.wallet.partyCoins / User.partyCoinsFromUsd(1)).toFixed(2));
+        user.wallet.lastTransactionAt = new Date();
+
+        const senderTransaction = {
+          type: 'gift_sent',
+          amountUsd: totalCost / User.partyCoinsFromUsd(1),
+          partyCoins: -totalCost,
+          status: 'completed',
+          metadata: {
+            giftType,
+            quantity,
+            recipientType: 'friend',
+            friendId: friend._id.toString(),
+          },
+          processedAt: new Date(),
+        };
+        user.transactions.push(senderTransaction);
+        await user.save();
+
+        // Ensure friend wallet is initialized
+        if (!friend.wallet || !friend.wallet.walletId) {
+          friend.wallet = {
+            walletId: User.generateWalletId(),
+            balanceUsd: 0,
+            partyCoins: 0,
+          };
+        }
+        
+        if (typeof friend.wallet.partyCoins !== 'number') {
+          friend.wallet.partyCoins = 0;
+        }
+
+        friend.wallet.partyCoins = friend.wallet.partyCoins + coinsPerRecipient;
+        friend.wallet.balanceUsd = Number(
+          (friend.wallet.partyCoins / User.partyCoinsFromUsd(1)).toFixed(2)
+        );
+        friend.wallet.lastTransactionAt = new Date();
+
+        const recipientTransaction = {
+          type: 'gift_received',
+          amountUsd: coinsPerRecipient / User.partyCoinsFromUsd(1),
+          partyCoins: coinsPerRecipient,
+          status: 'completed',
+          metadata: {
+            giftType,
+            quantity,
+            senderId: user._id.toString(),
+            senderName: user.account?.displayName || user.account?.email,
+            recipientType: 'friend',
+          },
+          processedAt: new Date(),
+        };
+        friend.transactions.push(recipientTransaction);
+        await friend.save();
+
+        io.emit('wallet:updated', {
+          userId: friend._id.toString(),
+          wallet: friend.wallet,
+        });
+
+        io.emit('friends:giftSent', {
+          fromUserId: user._id.toString(),
+          toUserId: friend._id.toString(),
+          gift: {
+            giftType,
+            quantity,
+            giftName: gift.name,
+            giftEmoji: gift.emoji,
+            totalCost,
+          },
+        });
+
+        io.emit('wallet:updated', {
+          userId: user._id.toString(),
+          wallet: user.wallet,
+        });
+
+        res.json({
+          message: 'Gift sent successfully',
+          gift: {
+            giftType,
+            quantity,
+            giftName: gift.name,
+            giftEmoji: gift.emoji,
+            totalCost,
+          },
+          wallet: {
+            walletId: user.wallet.walletId,
+            balanceUsd: user.wallet.balanceUsd,
+            partyCoins: user.wallet.partyCoins,
+          },
+        });
+        return;
+      }
+
+      // Party gift (existing logic)
+      if (!partyId) {
+        res.status(400).json({ error: 'Party ID or friend ID is required' });
         return;
       }
 

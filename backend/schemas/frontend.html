@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>30-Day Frontend Development Training Program</title>
+    
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #dbeafe, #e0e7ff);
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        
+        @media (min-width: 576px) {
+            body {
+                padding: 2rem;
+            }
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+        
+        .header-section {
+            background: linear-gradient(to right, #2563eb, #4f46e5);
+            color: white;
+            padding: 2rem;
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .header-title-section i {
+            font-size: 2.5rem;
+        }
+        
+        .header-title {
+            font-size: 1.875rem;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .header-subtitle {
+            color: #bfdbfe;
+            margin-top: 0.25rem;
+            margin: 0;
+        }
+        
+        .download-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            color: #2563eb;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        
+        .download-btn:hover {
+            background: #dbeafe;
+        }
+        
+        .progress-section {
+            margin-top: 1.5rem;
+        }
+        
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .progress-bar-container {
+            width: 100%;
+            background: #60a5fa;
+            border-radius: 9999px;
+            height: 0.75rem;
+        }
+        
+        .progress-bar-fill {
+            background: white;
+            height: 0.75rem;
+            border-radius: 9999px;
+            transition: width 0.3s;
+        }
+        
+        .overview-card {
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .overview-card.blue {
+            background: #eff6ff;
+        }
+        
+        .overview-card.green {
+            background: #f0fdf4;
+        }
+        
+        .overview-card.purple {
+            background: #faf5ff;
+        }
+        
+        .overview-card.orange {
+            background: #fff7ed;
+        }
+        
+        .overview-card i {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .overview-card.blue i {
+            color: #2563eb;
+        }
+        
+        .overview-card.green i {
+            color: #16a34a;
+        }
+        
+        .overview-card.purple i {
+            color: #9333ea;
+        }
+        
+        .overview-card.orange i {
+            color: #ea580c;
+        }
+        
+        .week-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        
+        .week-header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem;
+            background: linear-gradient(to right, #f9fafb, #f3f4f6);
+            border: none;
+            transition: background 0.3s;
+        }
+        
+        .week-header:hover {
+            background: linear-gradient(to right, #f3f4f6, #e5e7eb);
+        }
+        
+        .week-header-content {
+            text-align: left;
+        }
+        
+        .week-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin: 0;
+        }
+        
+        .week-focus {
+            font-size: 0.875rem;
+            color: #4b5563;
+            margin-top: 0.25rem;
+            margin: 0;
+        }
+        
+        .week-content {
+            padding: 1.25rem;
+            background: white;
+            display: none;
+        }
+        
+        .week-content.show {
+            display: block;
+        }
+        
+        .day-item {
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+        }
+        
+        .day-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .day-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .day-checkbox {
+            margin-top: 0.25rem;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+        
+        .day-checkbox i {
+            font-size: 1.5rem;
+            color: #10b981;
+        }
+        
+        .day-checkbox .unchecked {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            display: inline-block;
+        }
+        
+        .day-content {
+            flex: 1;
+        }
+        
+        .day-title {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 0.75rem;
+        }
+        
+        .topics-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            margin-top: 0.75rem;
+        }
+        
+        .topics-list li {
+            color: #4b5563;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .topics-list li::before {
+            content: "•";
+            color: #3b82f6;
+            margin-top: 0.25rem;
+        }
+        
+        .practice-box {
+            background: #f0fdf4;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        
+        .practice-title {
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 0.25rem;
+        }
+        
+        .practice-text {
+            color: #15803d;
+            margin: 0;
+        }
+        
+        .next-steps-section {
+            background: linear-gradient(to right, #eef2ff, #f3e8ff);
+            padding: 2rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .next-step-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 2px solid #c7d2fe;
+        }
+        
+        .next-step-title {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: #4f46e5;
+            margin-bottom: 0.5rem;
+        }
+        
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: #f9fafb;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        
+        .resource-item i {
+            font-size: 1.25rem;
+            color: #10b981;
+        }
+        
+        .footer-section {
+            background: #1f2937;
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .footer-text {
+            font-size: 0.875rem;
+            margin: 0;
+        }
+        
+        .footer-subtext {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="header-content">
+                <div class="header-title-section">
+                    <i class="bi bi-code-slash"></i>
+                    <div>
+                        <h1 class="header-title" id="syllabus-title">30-Day Frontend Development Training Program</h1>
+                        <p class="header-subtitle" id="syllabus-subtitle">HTML, CSS, Bootstrap & JavaScript - Industry Standard Curriculum</p>
+                    </div>
+                </div>
+                <button class="download-btn" onclick="handleDownloadPDF()">
+                    <i class="bi bi-download"></i>
+                    Download PDF
+                </button>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-section">
+                <div class="progress-info">
+                    <span>Training Progress</span>
+                    <span id="progress-text">0 of 30 days completed</span>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overview -->
+        <div class="p-4 p-md-5 border-bottom">
+            <h2 class="h2 fw-bold text-dark mb-4">Program Overview</h2>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="overview-card blue">
+                        <i class="bi bi-calendar-event"></i>
+                        <h3 class="fw-semibold text-dark">Duration</h3>
+                        <p class="text-secondary mb-0" id="overview-duration">30 Days</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="overview-card green">
+                        <i class="bi bi-check-circle"></i>
+                        <h3 class="fw-semibold text-dark">Level</h3>
+                        <p class="text-secondary mb-0" id="overview-level">Beginner (No Prior Technical Knowledge Required)</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="overview-card purple">
+                        <i class="bi bi-code-slash"></i>
+                        <h3 class="fw-semibold text-dark">Outcome</h3>
+                        <p class="text-secondary mb-0" id="overview-outcome">Build responsive websites and basic interactive web applications</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="overview-card orange">
+                        <i class="bi bi-calendar-event"></i>
+                        <h3 class="fw-semibold text-dark">Final Project</h3>
+                        <p class="text-secondary mb-0" id="overview-project">Complete Website Clone (e-commerce/portfolio/landing page)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Breakdown -->
+        <div class="p-4 p-md-5">
+            <h2 class="h2 fw-bold text-dark mb-5">Detailed Syllabus</h2>
+            <div id="weeks-container"></div>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="next-steps-section">
+            <h2 class="h2 fw-bold text-dark mb-4">After Completion: Choose Your Path</h2>
+            <div class="row g-4" id="next-steps-container"></div>
+        </div>
+
+        <!-- Resources -->
+        <div class="p-4 p-md-5 border-top">
+            <h2 class="h2 fw-bold text-dark mb-4">Required Tools & Resources</h2>
+            <div class="row g-3" id="resources-container"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer-section">
+            <p class="footer-text">
+                This is an industry-standard curriculum designed for beginners. Daily practice and hands-on projects are essential for success.
+            </p>
+            <p class="footer-subtext">
+                Remember: Consistency is key. Code every day, even if it's just for 30 minutes.
+            </p>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Syllabus Data
+        const syllabus = {
+            title: "30-Day Frontend Development Training Program",
+            subtitle: "HTML, CSS, Bootstrap & JavaScript - Industry Standard Curriculum",
+            overview: {
+                duration: "30 Days",
+                level: "Beginner (No Prior Technical Knowledge Required)",
+                outcome: "Build responsive websites and basic interactive web applications",
+                finalProject: "Complete Website Clone (e-commerce/portfolio/landing page)"
+            },
+            weeks: [
+                {
+                    id: "week1",
+                    title: "Week 1: HTML Fundamentals (Days 1-7)",
+                    focus: "Structure and Semantics",
+                    days: [
+                        {
+                            id: "day1",
+                            day: "Day 1: Introduction to Web Development",
+                            topics: [
+                                "How the web works (Client-Server model)",
+                                "Browser, Domain, Hosting basics",
+                                "HTML introduction and history",
+                                "Setting up development environment (VS Code, Extensions)",
+                                "Creating first HTML page",
+                                "HTML document structure (DOCTYPE, html, head, body)"
+                            ],
+                            practice: "Create a basic 'Hello World' HTML page"
+                        },
+                        {
+                            id: "day2",
+                            day: "Day 2: HTML Text Elements",
+                            topics: [
+                                "Headings (h1-h6)",
+                                "Paragraphs and line breaks",
+                                "Text formatting (bold, italic, underline, mark)",
+                                "Lists (ordered, unordered, definition)",
+                                "Blockquotes and preformatted text",
+                                "Comments in HTML"
+                            ],
+                            practice: "Build a blog post layout with proper text hierarchy"
+                        },
+                        {
+                            id: "day3",
+                            day: "Day 3: Links and Images",
+                            topics: [
+                                "Anchor tags and hyperlinks",
+                                "Absolute vs relative URLs",
+                                "Linking to different pages and sections",
+                                "Image tags and attributes (src, alt, width, height)",
+                                "Image formats and optimization basics",
+                                "Email and phone links"
+                            ],
+                            practice: "Create a multi-page website with navigation"
+                        },
+                        {
+                            id: "day4",
+                            day: "Day 4: HTML Tables",
+                            topics: [
+                                "Table structure (table, tr, td, th)",
+                                "Table headers and captions",
+                                "Colspan and rowspan",
+                                "Table styling attributes",
+                                "Semantic table markup",
+                                "When to use tables"
+                            ],
+                            practice: "Build a pricing table or timetable"
+                        },
+                        {
+                            id: "day5",
+                            day: "Day 5: HTML Forms - Part 1",
+                            topics: [
+                                "Form element and attributes",
+                                "Input types (text, password, email, number)",
+                                "Labels and accessibility",
+                                "Textarea and button elements",
+                                "Form validation attributes (required, pattern)",
+                                "Placeholder and value attributes"
+                            ],
+                            practice: "Create a contact form"
+                        },
+                        {
+                            id: "day6",
+                            day: "Day 6: HTML Forms - Part 2 & Semantic HTML",
+                            topics: [
+                                "Radio buttons and checkboxes",
+                                "Select dropdowns and options",
+                                "File upload inputs",
+                                "Semantic HTML5 elements (header, nav, main, article, section, aside, footer)",
+                                "Figure and figcaption",
+                                "Div vs semantic elements"
+                            ],
+                            practice: "Build a registration form with all input types"
+                        },
+                        {
+                            id: "day7",
+                            day: "Day 7: HTML Best Practices & Review",
+                            topics: [
+                                "HTML validation and standards",
+                                "SEO basics (meta tags, title, description)",
+                                "Accessibility fundamentals (ARIA, alt text)",
+                                "Code organization and indentation",
+                                "Favicon and meta viewport",
+                                "Week 1 review and mini-project"
+                            ],
+                            practice: "Build a complete multi-page website structure"
+                        }
+                    ]
+                },
+                {
+                    id: "week2",
+                    title: "Week 2: CSS Fundamentals (Days 8-14)",
+                    focus: "Styling and Layout",
+                    days: [
+                        {
+                            id: "day8",
+                            day: "Day 8: CSS Introduction & Selectors",
+                            topics: [
+                                "What is CSS and why use it",
+                                "Three ways to add CSS (inline, internal, external)",
+                                "CSS syntax and rules",
+                                "Basic selectors (element, class, id)",
+                                "Combining selectors",
+                                "CSS specificity basics"
+                            ],
+                            practice: "Style the HTML website from Week 1"
+                        },
+                        {
+                            id: "day9",
+                            day: "Day 9: CSS Colors, Fonts & Text",
+                            topics: [
+                                "Color values (names, hex, RGB, RGBA)",
+                                "Background colors and images",
+                                "Font properties (family, size, weight, style)",
+                                "Google Fonts integration",
+                                "Text properties (align, decoration, transform, spacing)",
+                                "Line height and letter spacing"
+                            ],
+                            practice: "Create a typography showcase page"
+                        },
+                        {
+                            id: "day10",
+                            day: "Day 10: CSS Box Model",
+                            topics: [
+                                "Understanding the box model",
+                                "Content, padding, border, margin",
+                                "Width and height properties",
+                                "Box-sizing property",
+                                "Border styles and radius",
+                                "Margins (including margin collapse)"
+                            ],
+                            practice: "Build card components using box model"
+                        },
+                        {
+                            id: "day11",
+                            day: "Day 11: CSS Display & Positioning",
+                            topics: [
+                                "Display properties (block, inline, inline-block, none)",
+                                "Position property (static, relative, absolute, fixed, sticky)",
+                                "Z-index and stacking context",
+                                "Float and clear (legacy)",
+                                "Visibility vs display",
+                                "Overflow property"
+                            ],
+                            practice: "Create a fixed header and positioned elements"
+                        },
+                        {
+                            id: "day12",
+                            day: "Day 12: Flexbox Layout",
+                            topics: [
+                                "Introduction to Flexbox",
+                                "Flex container properties (display, direction, wrap)",
+                                "Justify-content and align-items",
+                                "Align-self and align-content",
+                                "Flex-grow, flex-shrink, flex-basis",
+                                "Common flexbox patterns"
+                            ],
+                            practice: "Build a responsive navigation bar and card layout"
+                        },
+                        {
+                            id: "day13",
+                            day: "Day 13: CSS Grid Layout",
+                            topics: [
+                                "Introduction to CSS Grid",
+                                "Grid container and items",
+                                "Grid template columns and rows",
+                                "Grid gap and areas",
+                                "Spanning columns and rows",
+                                "Auto-fit and auto-fill"
+                            ],
+                            practice: "Create a photo gallery and dashboard layout"
+                        },
+                        {
+                            id: "day14",
+                            day: "Day 14: Responsive Design & Media Queries",
+                            topics: [
+                                "Mobile-first approach",
+                                "Viewport meta tag",
+                                "Media queries syntax",
+                                "Common breakpoints",
+                                "Responsive units (%, vw, vh, rem, em)",
+                                "Responsive images and videos"
+                            ],
+                            practice: "Make previous projects fully responsive"
+                        }
+                    ]
+                },
+                {
+                    id: "week3",
+                    title: "Week 3: Bootstrap & Advanced CSS (Days 15-21)",
+                    focus: "Framework and Professional Styling",
+                    days: [
+                        {
+                            id: "day15",
+                            day: "Day 15: Bootstrap Introduction",
+                            topics: [
+                                "What is Bootstrap and why use it",
+                                "Bootstrap installation (CDN vs local)",
+                                "Bootstrap grid system",
+                                "Container, row, and column classes",
+                                "Responsive breakpoints in Bootstrap",
+                                "Bootstrap utilities"
+                            ],
+                            practice: "Convert a basic layout to Bootstrap grid"
+                        },
+                        {
+                            id: "day16",
+                            day: "Day 16: Bootstrap Components - Part 1",
+                            topics: [
+                                "Typography classes",
+                                "Buttons and button groups",
+                                "Cards component",
+                                "Alerts and badges",
+                                "Breadcrumb and pagination",
+                                "List groups"
+                            ],
+                            practice: "Build a product listing page"
+                        },
+                        {
+                            id: "day17",
+                            day: "Day 17: Bootstrap Components - Part 2",
+                            topics: [
+                                "Navigation bars",
+                                "Dropdowns",
+                                "Forms in Bootstrap",
+                                "Input groups",
+                                "Form validation classes",
+                                "Modal dialogs"
+                            ],
+                            practice: "Create a complete landing page header and form"
+                        },
+                        {
+                            id: "day18",
+                            day: "Day 18: Bootstrap Advanced Components",
+                            topics: [
+                                "Carousel/Slider",
+                                "Accordion/Collapse",
+                                "Tabs and pills",
+                                "Tooltips and popovers",
+                                "Progress bars",
+                                "Spinners"
+                            ],
+                            practice: "Build an interactive portfolio page"
+                        },
+                        {
+                            id: "day19",
+                            day: "Day 19: CSS Animations & Transitions",
+                            topics: [
+                                "CSS transitions",
+                                "Transform property (translate, rotate, scale)",
+                                "CSS animations and keyframes",
+                                "Animation properties (duration, delay, iteration)",
+                                "Timing functions",
+                                "Hover effects and micro-interactions"
+                            ],
+                            practice: "Add animations to portfolio elements"
+                        },
+                        {
+                            id: "day20",
+                            day: "Day 20: Advanced CSS Techniques",
+                            topics: [
+                                "CSS variables (custom properties)",
+                                "Pseudo-classes (:hover, :focus, :nth-child)",
+                                "Pseudo-elements (::before, ::after)",
+                                "Gradient backgrounds",
+                                "Box shadows and text shadows",
+                                "CSS filters"
+                            ],
+                            practice: "Create modern styled components"
+                        },
+                        {
+                            id: "day21",
+                            day: "Day 21: CSS Best Practices & Mini Project",
+                            topics: [
+                                "BEM naming convention",
+                                "CSS organization and file structure",
+                                "Performance optimization",
+                                "Cross-browser compatibility",
+                                "CSS debugging tools",
+                                "Start mini clone project (design phase)"
+                            ],
+                            practice: "Plan and design structure for clone project"
+                        }
+                    ]
+                },
+                {
+                    id: "week4",
+                    title: "Week 4: JavaScript Basics (Days 22-28)",
+                    focus: "Programming Fundamentals",
+                    days: [
+                        {
+                            id: "day22",
+                            day: "Day 22: JavaScript Introduction",
+                            topics: [
+                                "What is JavaScript and its role",
+                                "Adding JavaScript to HTML",
+                                "Console and browser DevTools",
+                                "Variables (var, let, const)",
+                                "Data types (string, number, boolean, null, undefined)",
+                                "Basic operators (arithmetic, assignment)"
+                            ],
+                            practice: "Write simple calculations and variable exercises"
+                        },
+                        {
+                            id: "day23",
+                            day: "Day 23: JavaScript Operators & Conditionals",
+                            topics: [
+                                "Comparison operators",
+                                "Logical operators (AND, OR, NOT)",
+                                "If-else statements",
+                                "Switch statements",
+                                "Ternary operator",
+                                "Type coercion and strict equality"
+                            ],
+                            practice: "Build a simple calculator logic"
+                        },
+                        {
+                            id: "day24",
+                            day: "Day 24: JavaScript Loops & Functions",
+                            topics: [
+                                "For loops",
+                                "While and do-while loops",
+                                "Break and continue",
+                                "Function declaration and expression",
+                                "Parameters and arguments",
+                                "Return statements"
+                            ],
+                            practice: "Create pattern printing and number games"
+                        },
+                        {
+                            id: "day25",
+                            day: "Day 25: Arrays & Objects",
+                            topics: [
+                                "Array creation and access",
+                                "Array methods (push, pop, shift, unshift)",
+                                "Array iteration (forEach, map, filter)",
+                                "Object literals",
+                                "Accessing object properties",
+                                "Object methods"
+                            ],
+                            practice: "Build a todo list data structure"
+                        },
+                        {
+                            id: "day26",
+                            day: "Day 26: DOM Manipulation - Part 1",
+                            topics: [
+                                "What is the DOM",
+                                "Selecting elements (getElementById, querySelector)",
+                                "Changing content (innerHTML, textContent)",
+                                "Changing styles with JavaScript",
+                                "Adding and removing classes",
+                                "Creating and removing elements"
+                            ],
+                            practice: "Make interactive buttons that change page content"
+                        },
+                        {
+                            id: "day27",
+                            day: "Day 27: DOM Manipulation - Part 2 & Events",
+                            topics: [
+                                "Event listeners (click, input, submit)",
+                                "Event object and properties",
+                                "Form handling with JavaScript",
+                                "Preventing default behavior",
+                                "Event delegation",
+                                "Keyboard and mouse events"
+                            ],
+                            practice: "Create an interactive form with validation"
+                        },
+                        {
+                            id: "day28",
+                            day: "Day 28: JavaScript Projects & ES6 Basics",
+                            topics: [
+                                "Arrow functions",
+                                "Template literals",
+                                "Destructuring basics",
+                                "Local storage basics",
+                                "JSON parse and stringify",
+                                "Small project: Todo app or counter"
+                            ],
+                            practice: "Build a complete interactive mini-app"
+                        }
+                    ]
+                },
+                {
+                    id: "week5",
+                    title: "Days 29-30: Final Clone Project",
+                    focus: "Apply All Skills",
+                    days: [
+                        {
+                            id: "day29",
+                            day: "Day 29: Clone Project Development",
+                            topics: [
+                                "Choose a website to clone (e-commerce product page, landing page, portfolio)",
+                                "HTML structure implementation",
+                                "CSS styling with Bootstrap",
+                                "Responsive design implementation",
+                                "Add basic JavaScript interactions",
+                                "Code organization and comments"
+                            ],
+                            practice: "Build complete clone project"
+                        },
+                        {
+                            id: "day30",
+                            day: "Day 30: Project Completion & Review",
+                            topics: [
+                                "Complete JavaScript functionality",
+                                "Cross-browser testing",
+                                "Responsive testing on different devices",
+                                "Code optimization and cleanup",
+                                "Deployment basics (GitHub Pages/Netlify)",
+                                "Portfolio preparation and next steps"
+                            ],
+                            practice: "Deploy project and prepare for next phase (React/Node.js or WordPress)"
+                        }
+                    ]
+                }
+            ],
+            learningPath: {
+                nextSteps: [
+                    {
+                        option: "Option 1: React.js + Node.js (MERN Stack Path)",
+                        duration: "Next 60 days",
+                        benefits: "Full-stack development, modern frameworks, high demand"
+                    },
+                    {
+                        option: "Option 2: WordPress Development",
+                        duration: "Next 30-45 days",
+                        benefits: "Quick deployment, client work ready, CMS expertise"
+                    }
+                ]
+            },
+            resources: [
+                "VS Code Editor with extensions (Live Server, Prettier)",
+                "Chrome DevTools",
+                "MDN Web Docs (reference)",
+                "W3Schools (practice)",
+                "Bootstrap Documentation",
+                "GitHub account for version control"
+            ]
+        };
+
+        // State Management
+        let expandedWeeks = {};
+        let completedDays = {};
+
+        // Load state from localStorage
+        function loadState() {
+            const savedWeeks = localStorage.getItem('expandedWeeks');
+            const savedDays = localStorage.getItem('completedDays');
+            if (savedWeeks) {
+                expandedWeeks = JSON.parse(savedWeeks);
+            }
+            if (savedDays) {
+                completedDays = JSON.parse(savedDays);
+            }
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            localStorage.setItem('expandedWeeks', JSON.stringify(expandedWeeks));
+            localStorage.setItem('completedDays', JSON.stringify(completedDays));
+        }
+
+        // Toggle Week
+        function toggleWeek(weekId) {
+            expandedWeeks[weekId] = !expandedWeeks[weekId];
+            saveState();
+            renderWeeks();
+        }
+
+        // Toggle Day Completion
+        function toggleDay(dayId) {
+            completedDays[dayId] = !completedDays[dayId];
+            saveState();
+            updateProgress();
+            renderWeeks();
+        }
+
+        // Update Progress
+        function updateProgress() {
+            const totalDays = syllabus.weeks.reduce((acc, week) => acc + week.days.length, 0);
+            const completedCount = Object.values(completedDays).filter(Boolean).length;
+            const progress = (completedCount / totalDays) * 100;
+            
+            document.getElementById('progress-text').textContent = `${completedCount} of ${totalDays} days completed`;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+
+        // Render Weeks
+        function renderWeeks() {
+            const container = document.getElementById('weeks-container');
+            container.innerHTML = '';
+            
+            syllabus.weeks.forEach(week => {
+                const weekCard = document.createElement('div');
+                weekCard.className = 'week-card';
+                
+                const isExpanded = expandedWeeks[week.id];
+                const chevronIcon = isExpanded ? 'bi-chevron-up' : 'bi-chevron-down';
+                
+                weekCard.innerHTML = `
+                    <button class="week-header" onclick="toggleWeek('${week.id}')">
+                        <div class="week-header-content">
+                            <h3 class="week-title">${week.title}</h3>
+                            <p class="week-focus">Focus: ${week.focus}</p>
+                        </div>
+                        <i class="bi ${chevronIcon}" style="font-size: 1.5rem; color: #4b5563;"></i>
+                    </button>
+                    <div class="week-content ${isExpanded ? 'show' : ''}">
+                        ${week.days.map(day => {
+                            const isCompleted = completedDays[day.id];
+                            const checkIcon = isCompleted 
+                                ? `<i class="bi bi-check-circle"></i>` 
+                                : `<span class="unchecked"></span>`;
+                            
+                            return `
+                                <div class="day-item">
+                                    <div class="day-header">
+                                        <button class="day-checkbox" onclick="toggleDay('${day.id}')">
+                                            ${checkIcon}
+                                        </button>
+                                        <div class="day-content">
+                                            <h4 class="day-title">${day.day}</h4>
+                                            <div>
+                                                <h5 class="fw-semibold text-dark mb-2">Topics Covered:</h5>
+                                                <ul class="topics-list">
+                                                    ${day.topics.map(topic => `<li>${topic}</li>`).join('')}
+                                                </ul>
+                                            </div>
+                                            <div class="practice-box">
+                                                <h5 class="practice-title">Practice Exercise:</h5>
+                                                <p class="practice-text">${day.practice}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(weekCard);
+            });
+        }
+
+        // Render Next Steps
+        function renderNextSteps() {
+            const container = document.getElementById('next-steps-container');
+            container.innerHTML = '';
+            
+            syllabus.learningPath.nextSteps.forEach(option => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6';
+                col.innerHTML = `
+                    <div class="next-step-card">
+                        <h3 class="next-step-title">${option.option}</h3>
+                        <p class="text-secondary mb-2">
+                            <span class="fw-semibold">Duration:</span> ${option.duration}
+                        </p>
+                        <p class="text-secondary mb-0">
+                            <span class="fw-semibold">Benefits:</span> ${option.benefits}
+                        </p>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+        }
+
+        // Render Resources
+        function renderResources() {
+            const container = document.getElementById('resources-container');
+            container.innerHTML = '';
+            
+            syllabus.resources.forEach(resource => {
+                const col = document.createElement('div');
+                col.className = 'col-md-6';
+                col.innerHTML = `
+                    <div class="resource-item">
+                        <i class="bi bi-check-circle"></i>
+                        <span class="text-dark">${resource}</span>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+        }
+
+        // Handle Download PDF
+        function handleDownloadPDF() {
+            alert("Note: To create a PDF, you can:\n1. Press Ctrl+P (Windows) or Cmd+P (Mac)\n2. Select 'Save as PDF' as the destination\n3. Click 'Save'\n\nThis will save the complete syllabus as a PDF file.");
+        }
+
+        // Initialize
+        function init() {
+            loadState();
+            renderWeeks();
+            renderNextSteps();
+            renderResources();
+            updateProgress();
+        }
+
+        // Run on page load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

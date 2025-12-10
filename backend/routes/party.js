@@ -62,6 +62,12 @@ module.exports = function createPartyRouter(io) {
 
   router.post('/', authenticate, async (req, res, next) => {
     try {
+      // Check if profile is complete
+      if (!req.user.account?.profileCompleted) {
+        res.status(403).json({ error: 'Please complete your profile before creating parties' });
+        return;
+      }
+
       const { name, description, avatarUrl, privacy = 'public' } = req.body;
       if (!name || !name.trim()) {
         res.status(400).json({ error: 'Party name is required' });
@@ -103,6 +109,12 @@ module.exports = function createPartyRouter(io) {
 
   router.post('/:id/join', authenticate, async (req, res, next) => {
     try {
+      // Check if profile is complete
+      if (!req.user.account?.profileCompleted) {
+        res.status(403).json({ error: 'Please complete your profile before joining parties' });
+        return;
+      }
+
       const party = await Party.findById(req.params.id);
       if (!party) {
         res.status(404).json({ error: 'Party not found' });

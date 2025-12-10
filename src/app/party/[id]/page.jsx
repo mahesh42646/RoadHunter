@@ -458,6 +458,59 @@ export default function PartyRoomPage() {
       setHostCameraEnabled(data.enabled);
       setParty((prev) => ({ ...prev, hostCameraEnabled: data.enabled }));
     },
+    onStreamState: (data) => {
+      // Update host stream state when joining/rejoining
+      console.log("[Party] Stream state received:", data);
+      console.log("[Party] Current isHost:", isHost, "user._id:", user?._id, "party.hostId:", party?.hostId);
+      
+      setHostMicEnabled(data.hostMicEnabled);
+      setHostCameraEnabled(data.hostCameraEnabled);
+      setParty((prev) => ({ 
+        ...prev, 
+        hostMicEnabled: data.hostMicEnabled,
+        hostCameraEnabled: data.hostCameraEnabled 
+      }));
+      
+      // Check if current user is the host
+      const currentUserId = user?._id?.toString();
+      const hostUserId = data.hostId?.toString();
+      const amIHost = currentUserId && hostUserId && currentUserId === hostUserId;
+      
+      console.log("[Party] Am I host?", amIHost, "- my ID:", currentUserId, "host ID:", hostUserId);
+      
+      // If host has active stream and we're not the host, request connection
+      if (!amIHost && (data.hostMicEnabled || data.hostCameraEnabled) && data.hostId && socket) {
+        console.log("[Party] ✅ Host has active stream - I will request connection");
+        
+        // Request stream with retry mechanism
+        let retryCount = 0;
+        const maxRetries = 3;
+        const requestInterval = 1000; // 1 second between retries
+        
+        const requestStream = () => {
+          if (socket && retryCount < maxRetries) {
+            console.log(`[Party] 📞 Requesting stream (attempt ${retryCount + 1}/${maxRetries})`);
+            socket.emit('webrtc:request-stream', {
+              partyId,
+              hostId: data.hostId,
+            });
+            retryCount++;
+            
+            // Retry if needed (will stop once connection is established)
+            if (retryCount < maxRetries) {
+              setTimeout(requestStream, requestInterval);
+            }
+          } else if (!socket) {
+            console.error("[Party] ❌ Cannot request stream - socket not available");
+          }
+        };
+        
+        // Start requesting after short delay
+        setTimeout(requestStream, 500);
+      } else {
+        console.log("[Party] ⏭️ Skipping stream request - amIHost:", amIHost, "hasStream:", (data.hostMicEnabled || data.hostCameraEnabled), "hasHostId:", !!data.hostId, "hasSocket:", !!socket);
+      }
+    },
   });
 
   // Initialize WebRTC hook after socket is available
@@ -469,6 +522,25 @@ export default function PartyRoomPage() {
     hostCameraEnabled,
     user?._id?.toString()
   );
+
+  // Backup: Request stream when camera/mic state changes and we're not host
+  useEffect(() => {
+    if (!isHost && socket && party && (hostMicEnabled || hostCameraEnabled)) {
+      const hostId = party.hostId?.toString();
+      if (hostId && hostId !== user?._id?.toString()) {
+        console.log("[Party] Backup stream request - mic:", hostMicEnabled, "cam:", hostCameraEnabled);
+        setTimeout(() => {
+          if (socket) {
+            console.log("[Party] Emitting backup webrtc:request-stream");
+            socket.emit('webrtc:request-stream', {
+              partyId,
+              hostId: hostId,
+            });
+          }
+        }, 1000);
+      }
+    }
+  }, [isHost, socket, party, hostMicEnabled, hostCameraEnabled, partyId, user?._id]);
 
   // Sync host mic/camera state from party data
   useEffect(() => {
@@ -739,11 +811,11 @@ export default function PartyRoomPage() {
                           autoPlay
                           playsInline
                           muted={true}
-                          preload="none"
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
+                            display: hostCameraEnabled ? "block" : "none",
                           }}
                         />
                       ) : (
@@ -752,15 +824,28 @@ export default function PartyRoomPage() {
                           ref={webrtc.remoteVideoRef}
                           autoPlay
                           playsInline
-                          muted={!webrtc.audioEnabled}
-                          preload="none"
+                          muted={true}
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
                           }}
+                          onCanPlay={(e) => {
+                            const video = e.target;
+                            // DON'T unmute here - it causes video to pause due to autoplay policy
+                            // Keep video muted, user can toggle audio via audio controls
+                            video.volume = webrtc.audioVolume;
+                            console.log("[Video] Can play - video playing (muted for autoplay)");
+                            
+                            // Ensure video continues playing
+                            if (video.paused) {
+                              video.play().catch(err => console.log("Play retry:", err.name));
+                            }
+                          }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
+                            console.log("[Video] Metadata loaded - tracks:", video.srcObject?.getTracks().length);
+                            
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -882,7 +967,7 @@ export default function PartyRoomPage() {
           flex: "0 0 60%",
           margin: "0.1rem",
           padding: "0.1rem",
-          paddingBottom: "10px",
+          paddingBottom: isParticipant ? "75px" : "10px", // Account for bottom nav (60px) + spacing
           display: "flex",
           flexDirection: "column",
           overflow: "auto",
@@ -898,7 +983,7 @@ export default function PartyRoomPage() {
             display: "flex",
             flexDirection: "column",
             gap: "0.4rem",
-            paddingBottom: "10px",
+            paddingBottom: isParticipant && activeBottomNav === "chat" ? "90px" : "10px", // Extra space for fixed chat input
           }}
         >
             {recentMessages.map((msg, idx) => {
@@ -991,7 +1076,22 @@ export default function PartyRoomPage() {
             <div ref={chatEndRef} />
           </div>
           {isParticipant && activeBottomNav === "chat" && (
-            <div style={{ paddingBottom: "10px", position: "relative", zIndex: 1 }}>
+            <div 
+              className="chat-input-container"
+              style={{ 
+                position: "fixed",
+                bottom: "65px", // Just above the bottom nav (60px + 5px spacing)
+                left: "0.5rem",
+                right: "0.5rem",
+                paddingBottom: "10px", 
+                zIndex: 1500,
+                background: "rgba(15, 22, 36, 0.98)",
+                backdropFilter: "blur(20px)",
+                padding: "0.75rem",
+                borderRadius: "0.5rem",
+                boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.3)",
+              }}
+            >
               <Form onSubmit={handleSendChat} className="d-flex gap-2">
                 <Form.Control
                   type="text"
@@ -1256,12 +1356,15 @@ export default function PartyRoomPage() {
       )}
 
       {/* Participant Audio Controls */}
-      {isParticipant && !isHost && hostMicEnabled && (
+      {isParticipant && !isHost && (hostMicEnabled || hostCameraEnabled) && (
         <div
+          className="audio-controls-container"
           style={{
             position: "fixed",
             top: "0.75rem",
-            left: "0.75rem",
+            left: "0.5rem",
+            right: "auto",
+            maxWidth: "calc(100% - 120px)", // Leave space for wallet display
             background: "rgba(15, 22, 36, 0.95)",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -1272,7 +1375,7 @@ export default function PartyRoomPage() {
             alignItems: "center",
             gap: "0.5rem",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-            minWidth: "200px",
+            minWidth: "160px",
           }}
         >
           <button
