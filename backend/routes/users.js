@@ -201,27 +201,58 @@ module.exports = function createUserRouter(io) {
 
   router.post('/profile', authenticate, async (req, res, next) => {
     try {
-      const { fullName, phone, address, avatarUrl, status = 'verified' } = req.body;
-      if (!fullName || !phone) {
-        res.status(400).json({ error: 'fullName and phone are required' });
+      const { fullName, avatarUrl, gender, profilePrivacy } = req.body;
+      if (!fullName || !fullName.trim()) {
+        res.status(400).json({ error: 'Full name is required' });
+        return;
+      }
+      if (!gender) {
+        res.status(400).json({ error: 'Gender is required' });
+        return;
+      }
+      if (!profilePrivacy || !['public', 'private'].includes(profilePrivacy)) {
+        res.status(400).json({ error: 'Profile privacy must be public or private' });
         return;
       }
 
+      // Update account info
+      req.user.account.displayName = fullName.trim();
+      if (avatarUrl) {
+        req.user.account.photoUrl = avatarUrl;
+      }
+      req.user.account.gender = gender;
+      req.user.account.profileCompleted = true;
+
+      // Initialize social if not exists
+      if (!req.user.social) {
+        req.user.social = {
+          profilePrivacy: profilePrivacy,
+          friends: [],
+          friendRequests: { sent: [], received: [] },
+          removedFriends: [],
+          removedBy: [],
+          followers: [],
+          following: [],
+        };
+      } else {
+        req.user.social.profilePrivacy = profilePrivacy;
+      }
+
       const referralCode = req.user.referralCode || (await User.generateReferralCode());
+      req.user.referralCode = referralCode;
+
+      // Create profile entry
       const profileEntry = {
         fullName,
         email: req.user.account.email,
-        phone,
-        address,
-        avatarUrl,
+        phone: req.user.account.phone || '',
+        avatarUrl: avatarUrl || req.user.account.photoUrl,
         referralCode,
-        status,
+        status: 'verified',
         completedAt: new Date(),
       };
 
       req.user.profiles.push(profileEntry);
-      req.user.referralCode = referralCode;
-      req.user.account.profileCompleted = true;
 
       if (!req.user.wallet?.walletId) {
         req.user.wallet = {
@@ -234,7 +265,11 @@ module.exports = function createUserRouter(io) {
       await req.user.save();
       io.emit('user:profileCompleted', { userId: req.user._id, referralCode });
 
-      res.status(201).json({ profile: profileEntry, wallet: req.user.wallet });
+      res.status(201).json({ 
+        user: sanitizeUser(req.user),
+        profile: profileEntry, 
+        wallet: req.user.wallet 
+      });
     } catch (error) {
       next(error);
     }

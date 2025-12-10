@@ -63,6 +63,7 @@ const userSchema = new mongoose.Schema(
       username: { type: String, trim: true },
       photoUrl: { type: String, trim: true },
       profileCompleted: { type: Boolean, default: false },
+      gender: { type: String, enum: ['male', 'female', 'other', 'prefer-not-to-say'], trim: true },
       status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
       providers: {
         type: [
@@ -108,6 +109,18 @@ const userSchema = new mongoose.Schema(
       security: {
         mfaEnabled: { type: Boolean, default: false },
       },
+    },
+    social: {
+      profilePrivacy: { type: String, enum: ['public', 'private'], default: 'public' },
+      friends: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      friendRequests: {
+        sent: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+        received: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      },
+      removedFriends: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      removedBy: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      followers: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      following: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
     },
     audit: {
       createdBy: { type: String, trim: true },

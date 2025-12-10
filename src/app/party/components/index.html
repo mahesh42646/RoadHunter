@@ -3,529 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webinar Management Proposal - NamaAssociation</title>
+    <title>Feofo - Healthcare Digital Marketing</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap">
     <style>
-        @page {
+        * {
             margin: 0;
-            size: A4;
-        }
-        
-        @media print {
-            body { 
-                margin: 0;
-                padding: 0;
-                background: white;
-            }
-            .page-break { page-break-after: always; }
-            button, .btn-download { 
-                display: none !important; 
-            }
-            .document {
-                box-shadow: none;
-                padding: 20px;
-            }
+            padding: 0;
+            box-sizing: border-box;
         }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 210mm;
-            margin: 0 auto;
+            background: #f0f0f0;
             padding: 20px;
-            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
         
-        .document {
+        .pamphlet {
+            width: 148mm;
+            height: 210mm;
             background: white;
-            padding: 40px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            position: relative;
         }
         
+        /* Header Section */
         .header {
+            background: linear-gradient(180deg, #ffffff 0%, #f6f5fa 100%);
+            padding: 10px 20px;
             text-align: center;
-            border-bottom: 3px solid #6c5ce7;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
         }
         
-        .header h1 {
-            color: #6c5ce7;
-            margin: 0;
-            font-size: 28px;
+        .logo-section {
+            background: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            display: inline-block;
+            margin-bottom: 15px;
+            position: relative;
         }
         
-        .header p {
-            color: #7f8c8d;
-            margin: 10px 0 0 0;
+        .logo {
+            height: 50px;
+            width: auto;
         }
         
-        .to-section {
-            margin: 30px 0;
+        .hookline {
+            color: #1e40af;
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.3;
+            position: relative;
+        }
+        
+        /* Expertise Badge */
+        .expertise-badge {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            color: #1e3a8a;
+            padding: 8px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 15px 0 0 0;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        
+        /* Pricing Section */
+        .pricing-section {
             padding: 20px;
-            background: #f0e6ff;
-            border-left: 4px solid #6c5ce7;
+            background: linear-gradient(to bottom, #f8f9ff 0%, white 100%);
         }
         
-        .to-section h3 {
-            margin: 0 0 10px 0;
-            color: #6c5ce7;
+        .section-title {
+            color: #1e40af;
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
-        h2 {
-            color: #6c5ce7;
-            border-bottom: 2px solid #a29bfe;
-            padding-bottom: 10px;
-            margin-top: 30px;
+        .plans-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
         }
         
-        .service-card {
-            background: #f8f9fa;
-            padding: 25px;
-            margin: 20px 0;
-            border-radius: 8px;
-            border-left: 5px solid #6c5ce7;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        .plan-card {
+            flex: 1;
+            background: white;
+            border: 3px solid #1e40af;
+            border-radius: 15px;
+            padding: 12px;
+            position: relative;
+            box-shadow: 0 8px 20px rgba(30, 64, 175, 0.3);
+            transform: translateY(0);
         }
         
-        .service-card h3 {
-            margin-top: 0;
-            color: #2d3436;
+        .plan-card.featured {
+            border: 3px solid #1e40af;
+            background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+            transform: translateY(15px);
+            box-shadow: 0 12px 30px rgba(30, 64, 175, 0.4);
+        }
+        
+        .discount-badge {
+            position: absolute;
+            top: -8px;
+            right: 8px;
+            background: #dc2626;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+        }
+        
+        .plan-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1e40af;
+            margin-bottom: 3px;
+        }
+        
+        .plan-desc {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+        
+        .plan-price {
+            font-size: 18px;
+            font-weight: 900;
+            color: #1e40af;
+            margin-bottom: 3px;
+        }
+        
+        .plan-features {
+            font-size: 10px;
+            color: #475569;
+            line-height: 1.4;
+        }
+        
+        .plan-features div {
+            margin: 2px 0;
+        }
+        
+        .checkmark {
+            color: #10b981;
+            margin-right: 3px;
+        }
+        
+        /* Services Section */
+        .services-section {
+            padding: 2px 20px 15px 20px  ;
+            background: white;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .services-left {
+            flex: 1;
+        }
+        
+        .services-right {
+            flex: 1;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
         }
         
-        .service-number {
-            background: #6c5ce7;
-            color: white;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            display: inline-flex;
+        .services-image {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(30, 64, 175, 0.2);
+        }
+        
+        .services-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .service-item {
+            background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+        }
+        
+        .service-icon {
+            margin-right: 6px;
+            font-size: 16px;
+        }
+        
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+            padding: 20px;
+            text-align: center;
+            color: #1e40af;
+        }
+        
+        .cta-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+        
+        .contact-info {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .contact-item {
+            display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
-        }
-        
-        .what-it-is {
-            background: #e3f2fd;
-            padding: 12px;
-            border-radius: 5px;
-            margin: 15px 0;
-            border-left: 3px solid #2196f3;
-            font-style: italic;
-        }
-        
-        .what-it-is strong {
-            color: #1976d2;
-        }
-        
-        .includes {
-            background: #fff;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-        }
-        
-        .includes ul {
-            margin: 10px 0;
-            padding-left: 25px;
-        }
-        
-        .includes li {
-            margin: 8px 0;
-        }
-        
-        .pricing-box {
-            background: #f0e6ff;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
-            text-align: right;
-        }
-        
-        .price {
-            font-weight: bold;
-            color: #6c5ce7;
-            font-size: 22px;
-        }
-        
-        .price-note {
-            font-size: 14px;
-            color: #636e72;
-            margin-top: 5px;
-        }
-        
-        .pricing-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        .pricing-table th {
-            background: #6c5ce7;
-            color: white;
-            padding: 15px;
-            text-align: left;
+            margin: 6px 0;
+            font-size: 10px;
+            color: #1e40af;
             font-weight: 600;
         }
         
-        .pricing-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #ddd;
+        .contact-icon {
+            margin-right: 8px;
+            font-size: 14px;
         }
         
-        .pricing-table tr:hover {
-            background: #f5f5f5;
-        }
-        
-        .total-row {
-            background: #f0e6ff;
-            font-weight: bold;
-            font-size: 18px;
-        }
-        
-        .highlight {
-            background: #fff3cd;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border-left: 4px solid #ffc107;
-        }
-        
-        .info-box {
-            background: #e8f5e9;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border-left: 4px solid #4caf50;
-        }
-        
-        .footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 2px solid #ecf0f1;
-            text-align: center;
-            color: #7f8c8d;
-        }
-        
-        .btn-download {
-            background: #6c5ce7;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 20px 0;
-            display: block;
-            width: 200px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .btn-download:hover {
-            background: #5f4fd1;
-        }
-        
-        .flow-chart {
-            background: white;
-            padding: 5px;
-            border: 2px dashed #a29bfe;
-            border-radius: 8px;
-            margin: 0px 0;
-            text-align: center;
+        .social-icons {
             display: flex;
             justify-content: center;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .social-icon {
+            width: 28px;
+            height: 28px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
             align-items: center;
+            justify-content: center;
+            color: #1e40af;
+            font-size: 14px;
         }
         
-        .flow-step {
-            display: inline-block;
-            background: #f0e6ff;
-            padding: 10px 10px;
-            /* margin: 5px; */
-            border-radius: 5px;
-            font-weight: 500;
-        }
-        
-        .arrow {
-            display: inline-block;
-            margin: 0 5px;
-            color: #6c5ce7;
-            font-size: 16px;
+        .address {
+            font-size: 9px;
+            color: #1e40af;
+            margin-top: 10px;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
-    <button class="btn-download" onclick="window.print()">📄 Download as PDF</button>
-    
-    <div class="document">
+    <div class="pamphlet">
+        <!-- Header -->
         <div class="header">
-            <h1>Webinar Management Proposal</h1>
-            <p>Complete End-to-End Webinar Solution for 1000+ Attendees</p>
-            <p style="margin-top: 10px; font-size: 14px;">Date: November 27, 2025</p>
+            <div class="">
+                <img src="https://res.cloudinary.com/dahbnl1y3/image/upload/v1764070067/Screenshot_2025-11-25_at_4.57.40_PM_bsseye.png" alt="Feofo Logo" class="logo">
+            </div>
+            <div class="hookline">
+                Healthcare Digital Marketing<br>That Actually Works
+            </div>
+          
+        </div>
+        
+        <!-- Pricing Section -->
+        <div class="pricing-section">
+            <div class="section-title">Social Media Management Plans</div>
+            <div class="plans-container">
+                <div class="plan-card">
+                    <div class="discount-badge">15% OFF</div>
+                    <div class="plan-name">Basic</div>
+                    <div class="plan-desc">Essential Social Media</div>
+                    <div class="plan-price">₹6,000/mo</div>
+                    <div class="plan-features">
+                        <div><span class="checkmark">✓</span> 12 posts/month</div>
+                        <div><span class="checkmark">✓</span> Graphics design</div>
+                        <div><span class="checkmark">✓</span> Hashtags</div>
+                        <div><span class="checkmark">✓</span> Basic engagement</div>
+                    </div>
+                </div>
+                
+                <div class="plan-card featured">
+                    <div class="discount-badge">20% OFF</div>
+                    <div class="plan-name">Professional</div>
+                    <div class="plan-desc">Comprehensive Strategy</div>
+                    <div class="plan-price">₹8,000/mo</div>
+                    <div class="plan-features">
+                        <div><span class="checkmark">✓</span> 20 posts/month</div>
+                        <div><span class="checkmark">✓</span> Carousel posts</div>
+                        <div><span class="checkmark">✓</span> 24/7 monitoring</div>
+                        <div><span class="checkmark">✓</span> Monthly reports</div>
+                    </div>
+                </div>
+                
+                <div class="plan-card">
+                    <div class="discount-badge">25% OFF</div>
+                    <div class="plan-name">Advance</div>
+                    <div class="plan-desc">Full Management</div>
+                    <div class="plan-price">₹12,000/mo</div>
+                    <div class="plan-features">
+                        <div><span class="checkmark">✓</span> 24 posts + Reels</div>
+                        <div><span class="checkmark">✓</span> Premium design</div>
+                        <div><span class="checkmark">✓</span> 24/7 monitoring</div>
+                        <div><span class="checkmark">✓</span> Full reports</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Services Section -->
+        <div class="services-section">
+            
+            <div class="services-right">
+                <img src="https://res.cloudinary.com/dahbnl1y3/image/upload/v1757656515/WhatsApp_Image_2025-09-12_at_00.27.10_g6dnh7.jpg" alt="Healthcare Marketing" class="services-image">
+            </div>
         </div>
         
        
-        
-        <h2>Executive Summary</h2>
-        <p>We are delighted to present this comprehensive webinar management proposal for NamaAssociation. Our solution covers everything from attracting attendees through targeted advertising to hosting your webinar for thousands of participants, with automated communication keeping everyone informed throughout the journey.</p>
-        
-        <div class="info-box">
-            <strong>📊 What This Proposal Covers:</strong>
-            <ul style="margin: 10px 0;">
-                <li>Attracting registrations through Meta (Facebook/Instagram) Ads</li>
-                <li>Automated WhatsApp updates to keep attendees informed</li>
-                <li>Professional webinar hosting and recording</li>
-                <li>Post-webinar content creation for social media</li>
-                <li>Feedback collection and reporting</li>
-            </ul>
-        </div>
-        
-        <h2>How Your Webinar Journey Works</h2>
-        <div class="flow-chart ">
-            <div class="flow-step">Create Ad</div>
-            <span class="arrow">→</span>
-            <div class="flow-step">People Register</div>
-            <span class="arrow">→</span>
-            <div class="flow-step">Auto WhatsApp</div>
-            <span class="arrow">→</span>
-            <div class="flow-step">Host Webinar</div>
-            <span class="arrow">→</span>
-            <div class="flow-step">Share Content</div>
-        </div>
-        
-        <div class="page-break"></div>
-        
-        <h2>Service Breakdown</h2>
-        
-        <div class="service-card">
-            <h3><span class="service-number">1</span> Meta Ads Campaign (Facebook & Instagram Advertising)</h3>
-            
-            <div class="what-it-is">
-                <strong>What it is:</strong> Think of this as creating digital posters that appear on Facebook and Instagram. When people see these ads and are interested, they click and fill a form to register for your webinar. We create professional videos and write compelling messages to attract the right audience.
-            </div>
-            
-            <div class="includes">
-                <strong>What We'll Do:</strong>
-                <ul>
-                    <li><strong>Script Writing:</strong> We write a persuasive message that explains why people should attend your webinar</li>
-                    <li><strong>Video Shoot & Edit:</strong> Professional video creation with proper lighting, audio, and editing to make your ad stand out</li>
-                    <li><strong>Ad Setup:</strong> Creating your campaign on Facebook/Instagram with the right targeting to reach your ideal audience</li>
-                    <li><strong>Optimization:</strong> Fine-tuning the ad to get maximum registrations at minimum cost</li>
-                    <li><strong>Registration Form:</strong> A simple form where interested people submit their details to join your webinar</li>
-                    <li><strong>Campaign Management:</strong> Running the ads for 5-7 days with daily monitoring and adjustments</li>
-                </ul>
-            </div>
-            
-            <div class="pricing-box">
-                <div><strong>Setup, Shoot & Creation:</strong> <span class="price">₹2,500</span></div>
-                <div class="price-note">(One-time: Script + Video shoot + Editing + Ad setup)</div>
-                <div style="margin-top: 10px;"><strong>Ad Running Cost:</strong> <span class="price">₹1,400 - ₹2,000</span></div>
-                <div class="price-note">(₹200-300 per day for 5-7 days - This budget goes to Facebook/Instagram to show your ad)</div>
-            </div>
-        </div>
-        
-        <div class="service-card">
-            <h3><span class="service-number">2</span> WhatsApp Campaign Automation</h3>
-            
-            <div class="what-it-is">
-                <strong>What it is:</strong> Imagine having a smart assistant that automatically sends WhatsApp messages to everyone who registers. They get instant confirmation, daily reminders about the webinar, and the joining link - all without you lifting a finger. This uses a tool called AiSensy (think of it as your automated messaging helper) and WhatsApp Business API (which is like a special business version of WhatsApp that can send messages automatically).
-            </div>
-            
-            <div class="includes">
-                <strong>Automated Messages Include:</strong>
-                <ul>
-                    <li><strong>Instant Confirmation:</strong> As soon as someone registers through the form, they receive a "Thank you for registering!" message on WhatsApp</li>
-                    <li><strong>Daily Updates:</strong> Automatic reminders sent in the days leading up to the webinar to build excitement</li>
-                    <li><strong>Webinar Day Reminder:</strong> Morning reminder on the event day so attendees don't forget</li>
-                    <li><strong>Joining Link:</strong> Webinar access link sent at the right time so people can join easily</li>
-                    <li><strong>Follow-up Messages:</strong> Thank you messages and feedback requests after the webinar</li>
-                </ul>
-                
-                <strong style="margin-top: 15px; display: block;">How It Works:</strong>
-                <p style="margin: 10px 0;">When someone fills your registration form → Their details automatically go to the system → WhatsApp messages are sent to them at scheduled times → No manual work needed from your side!</p>
-            </div>
-            
-            <div class="pricing-box">
-                <div><strong>WhatsApp API Setup:</strong> <span class="price">₹1,800</span></div>
-                <div class="price-note">(One-time: Setting up your business WhatsApp account and connecting it with automation)</div>
-                <div style="margin-top: 10px;"><strong>Message Credits Recharge:</strong> <span class="price">₹1,500</span></div>
-                <div class="price-note">(One-time: This pays for sending thousands of WhatsApp messages to your attendees)</div>
-            </div>
-        </div>
-        
-        <div class="page-break"></div>
-        
-        <div class="service-card">
-            <h3><span class="service-number">3</span> Webinar Hosting & Recording</h3>
-            
-            <div class="what-it-is">
-                <strong>What it is:</strong> This is the actual event hosting! We use professional webinar platforms (like Zoom, Google Meet, or similar tools) that can handle 1000+ people watching at the same time. We manage all the technical aspects - starting the webinar, managing attendees, handling audio/video, screen sharing, and recording everything so you can focus on presenting your content.
-            </div>
-            
-            <div class="includes">
-                <strong>What We Handle:</strong>
-                <ul>
-                    <li><strong>Platform Setup:</strong> Setting up the webinar room with proper settings for large audience</li>
-                    <li><strong>Technical Management:</strong> Managing sound, video, screen sharing, and presentation slides</li>
-                    <li><strong>Attendee Management:</strong> Controlling who joins, muting/unmuting, handling Q&A</li>
-                    <li><strong>Recording:</strong> High-quality recording of the entire webinar</li>
-                    <li><strong>Troubleshooting:</strong> Fixing any technical issues that arise during the event</li>
-                    <li><strong>Backup Systems:</strong> Having backup plans if something goes wrong</li>
-                </ul>
-            </div>
-            
-            <div class="pricing-box">
-                <div><strong>Remote Management & Recording:</strong> <span class="price">₹2,000</span></div>
-                <div class="price-note">(We manage everything online from our location)</div>
-                <div style="margin-top: 10px;"><strong>On-Site Management & Recording:</strong> <span class="price">₹5,000</span></div>
-                <div class="price-note">(We come to your venue with professional equipment - price depends on distance)</div>
-            </div>
-            
-           
-        </div>
-        
-        <div class="service-card">
-            <h3><span class="service-number">4</span> Post-Webinar Video Editing & Social Media Distribution</h3>
-            
-            <div class="what-it-is">
-                <strong>What it is:</strong> After your webinar ends, we don't just give you a raw recording! We edit it professionally - removing awkward pauses, adding intro/outro, improving audio quality. We also create short highlight clips (like Instagram Reels or YouTube Shorts) to share on social media, helping you reach even more people who couldn't attend the live event.
-            </div>
-            
-            <div class="includes">
-                <strong>Editing & Distribution Includes:</strong>
-                <ul>
-                    <li><strong>Full Video Editing:</strong> Professional editing of the complete webinar recording with intro, outro, and transitions</li>
-                    <li><strong>Short Clips Creation:</strong> Creating 3-5 highlight reels (30-60 seconds each) from key moments</li>
-                    <li><strong>Captions & Graphics:</strong> Adding text overlays and graphics for better engagement</li>
-                    <li><strong>YouTube Upload:</strong> Uploading the full webinar to your YouTube channel with proper titles, descriptions, and tags</li>
-                    <li><strong>Social Media Posting:</strong> Sharing short clips on Instagram, Facebook, and LinkedIn</li>
-                    <li><strong>Thumbnail Design:</strong> Creating eye-catching thumbnails for better click rates</li>
-                </ul>
-            </div>
-            
-            <div class="pricing-box">
-                <div><strong>Complete Editing & Distribution:</strong> <span class="price">₹2,000</span></div>
-                <div class="price-note">(Full video edit + Short clips + Social media posting)</div>
-            </div>
-        </div>
-        
-        <div class="info-box">
-            <strong>✨ Bonus Included:</strong> Webinar Feedback Collection & Detailed Reports
-            <p style="margin: 10px 0 0 0;">After the webinar, we automatically collect feedback from attendees through a simple form and provide you with a comprehensive report including attendance stats, engagement metrics, and participant feedback. This helps you understand what worked well and improve future webinars!</p>
-        </div>
-        
-        <div class="page-break"></div>
-        
-        <h2>Complete Pricing Summary</h2>
-        
-        <table class="pricing-table">
-            <thead>
-                <tr>
-                    <th>Service Component</th>
-                    <th>What You Get</th>
-                    <th>Investment</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td><strong>1. Meta Ads - Setup</strong></td>
-                    <td>Script writing, video shoot, editing, and ad campaign setup</td>
-                    <td class="price">₹2,500</td>
-                </tr>
-                <tr>
-                    <td><strong>1. Meta Ads - Running</strong></td>
-                    <td>Ad budget for 5-7 days (₹200-300/day paid to Facebook/Instagram)</td>
-                    <td class="price">₹1,400 - ₹2,000</td>
-                </tr>
-                <tr>
-                    <td><strong>2. WhatsApp API Setup</strong></td>
-                    <td>Business WhatsApp account setup and automation connection</td>
-                    <td class="price">₹1,800</td>
-                </tr>
-                <tr>
-                    <td><strong>2. WhatsApp Credits</strong></td>
-                    <td>Message credits for sending thousands of automated messages</td>
-                    <td class="price">₹1,500</td>
-                </tr>
-                <tr>
-                    <td><strong>3. Webinar Hosting (Remote)</strong></td>
-                    <td>Online technical management and recording</td>
-                    <td class="price">₹2,000</td>
-                </tr>
-                <tr>
-                    <td><strong>3. Webinar Hosting (On-Site)</strong></td>
-                    <td>Physical venue support with professional equipment</td>
-                    <td class="price">₹5,000</td>
-                </tr>
-                <tr>
-                    <td><strong>4. Video Editing & Distribution</strong></td>
-                    <td>Professional editing, short clips, and social media posting</td>
-                    <td class="price">₹2,000</td>
-                </tr>
-                <tr>
-                    <td><strong>Bonus: Feedback & Reports (Collected from attendees)</strong></td>
-                    <td>Automated feedback collection and detailed analytics report collected from attendees</td>
-                    <td class="price" style="color: #27ae60;">Included FREE</td>
-                </tr>
-            </tbody>
-        </table>
-        
-        <div class="total-box" style="background: #f0e6ff; padding: 25px; border-radius: 8px; margin: 30px 0; border: 3px solid #6c5ce7;">
-            <h3 style="color: #6c5ce7; margin-top: 0; text-align: center; font-size: 22px;">💰 Total Investment</h3>
-            <div style="display: flex; justify-content: space-around; margin-top: 20px; flex-wrap: wrap; gap: 20px;">
-                <div style="background: white; padding: 20px; border-radius: 8px; flex: 1; min-width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                    <h4 style="color: #2d3436; margin-top: 0; margin-bottom: 15px; text-align: center;">📱 Remote Package</h4>
-                    <div style="text-align: center;">
-                        <div style="font-size: 22px; font-weight: bold; color: #6c5ce7; margin: 10px 0;">₹11,200 - ₹11,800</div>
-                        <div style="font-size: 14px; color: #636e72; margin-top: 5px;">(Includes all services with remote hosting)</div>
-                    </div>
-                </div>
-                <div style="background: white; padding: 20px; border-radius: 8px; flex: 1; min-width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                    <h4 style="color: #2d3436; margin-top: 0; margin-bottom: 15px; text-align: center;">🏢 On-Site Package</h4>
-                    <div style="text-align: center;">
-                        <div style="font-size: 22px; font-weight: bold; color: #6c5ce7; margin: 10px 0;">₹14,200 - ₹14,800</div>
-                        <div style="font-size: 14px; color: #636e72; margin-top: 5px;">(Includes all services with on-site hosting)</div>
-                    </div>
-                </div>
-            </div>
-            <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin-top: 20px; border-left: 4px solid #ffc107;">
-                <strong>💡 Note:</strong> The price range depends on the Meta Ads running budget (₹1,400 - ₹2,000). All other services have fixed pricing. Bonus feedback & reports are included FREE in both packages!
-            </div>
-        </div>
-        
-        <div class="page-break"></div>
-      
-        
-        <h2>What You Need to Provide</h2>
-        <ul>
-            <li>Webinar topic, target audience details, and key messages</li>
-            <li>Date and preferred time for the webinar</li>
-            <li>Your Facebook/Instagram business page (we'll help create if you don't have one)</li>
-            <li>Your logo and brand colors for consistency</li>
-            <li>Presentation slides or content outline (we can help design if needed)</li>
-            <li>Access to your social media accounts for posting (or we'll send files to you)</li>
-        </ul>
-        
-      
-        
-        <h2>Next Steps to Get Started</h2>
-        <ol>
-            <li><strong>Confirm Package:</strong> Choose between Basic (Remote) or Premium (On-Site)</li>
-            <li><strong>Kick-off Meeting:</strong> Brief 30-minute call to discuss webinar details and target audience</li>
-            <li><strong>Content Brief:</strong> Share your webinar topic, key points, and any specific requirements</li>
-            <li><strong>Payment:</strong> Process initial 50% payment to begin work</li>
-            <li><strong>Production Starts:</strong> We begin creating your ad campaign within 24 hours</li>
-        </ol>
-        
-        <div class="footer">
-            <p><strong>Let's make your webinar a huge success!</strong></p>
-         </div>
     </div>
 </body>
 </html>
