@@ -38,12 +38,12 @@ export default function Header() {
             <Link className={`nav-link ${pathname === "/" ? "active" : ""}`} href="/">
               Home
             </Link>
-            <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/test">
+            <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/aboutus">
             About Us
             </Link>
-            <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/test">
+            <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/howitworks">
             How It Works            </Link>
-            <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/test">
+            <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/contactus">
             Contact Us
             </Link>
             <Link className={`nav-link ${pathname.startsWith("/#") ? "active" : ""}`} href="/test">
