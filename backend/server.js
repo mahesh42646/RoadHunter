@@ -42,6 +42,18 @@ const allowedOrigins = [
   'http://localhost:3003',
   'http://localhost:3004',
   'http://localhost:3005',
+  'https://darkunde.in',
+  'https://api.darkunde.in',
+  'https://app.darkunde.in',
+  'https://app.darkunde.in/api',
+  'https://app.darkunde.in/api/users',
+  'https://app.darkunde.in/api/parties',
+  'https://app.darkunde.in/api/wallet',
+  'https://app.darkunde.in/api/gifts',
+  'https://app.darkunde.in/api/friends',
+  'https://app.darkunde.in/api/messages',
+  'https://app.darkunde.in/api/games',
+  'https://app.darkunde.in/api/admin',
 ];
 
 if (process.env.FRONTEND_URL) {
