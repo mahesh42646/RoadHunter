@@ -43,6 +43,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# RoadHunterApp: ignore the entire directory (it's a separate git repo)
+/RoadHunterApp/
+
 # RoadHunterApp: ignore private/confidential/heavy files
 
 # Android build folders and local secrets
