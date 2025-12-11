@@ -6,34 +6,34 @@ import { useState } from "react";
 const faqCategories = [
   {
     id: "payment",
-    title: "Payment Related",
+    title: "Virtual Currency & Entertainment",
     icon: "💰",
     color: "#ffd700",
     questions: [
       {
         id: "payment-1",
-        question: "How do I add Party Coins to my wallet?",
-        answer: "You can add Party Coins to your wallet by clicking the 'Add Coins' button in your wallet section. You can choose from preset amounts or enter a custom amount. Payments are processed securely through our payment gateway.",
+        question: "What are Party Coins and how do I get them?",
+        answer: "Party Coins are virtual currency used exclusively for entertainment purposes on our platform. They have no real-world monetary value and cannot be exchanged for real money. You can purchase Party Coins to enhance your entertainment experience, but please note: this platform is NOT a gambling, betting, or money-earning platform. All games and activities are for fun and entertainment only.",
       },
       {
         id: "payment-2",
-        question: "What payment methods are accepted?",
-        answer: "We accept all major credit cards (Visa, Mastercard, American Express), debit cards, and digital wallets like PayPal. All transactions are encrypted and secure.",
+        question: "Can I win real money or withdraw Party Coins as cash?",
+        answer: "NO. Party Coins are virtual currency for entertainment purposes only. They cannot be converted to real money, withdrawn as cash, or used for any real-world financial transactions. This platform does NOT offer gambling, betting, or any form of real money gaming. All activities are purely for entertainment and fun.",
       },
       {
         id: "payment-3",
-        question: "Can I get a refund for my Party Coins?",
-        answer: "Party Coins purchases are generally non-refundable. However, if you encounter any issues with a transaction or believe you were charged incorrectly, please contact our support team within 7 days of the purchase, and we'll review your case.",
+        question: "Is this a gambling or betting platform?",
+        answer: "ABSOLUTELY NOT. RoadHunter is an entertainment and social gaming platform only. We do NOT promote, facilitate, or allow gambling, betting, or any luck-based or knowledge-based money-earning activities. All games are optional, for fun and challenge purposes only. Party Coins are virtual tokens with no real-world value.",
       },
       {
         id: "payment-4",
-        question: "How long does it take for coins to appear in my wallet?",
-        answer: "Party Coins are added to your wallet instantly after a successful payment. If you don't see the coins within a few minutes, please refresh your wallet page or contact support.",
+        question: "How long does it take for Party Coins to appear in my wallet?",
+        answer: "Party Coins are added to your virtual wallet instantly after a successful purchase. If you don't see the coins within a few minutes, please refresh your wallet page or contact support. Remember: Party Coins are virtual currency for entertainment only and have no real monetary value.",
       },
       {
         id: "payment-5",
-        question: "Is there a minimum or maximum amount I can add?",
-        answer: "The minimum amount you can add is 100 Party Coins, and the maximum per transaction is 100,000 Party Coins. For larger amounts, you may need to make multiple transactions or contact support for assistance.",
+        question: "What payment methods are accepted for purchasing Party Coins?",
+        answer: "We accept all major credit cards (Visa, Mastercard, American Express), debit cards, and digital wallets like PayPal. All transactions are encrypted and secure. Please note: Purchases are for virtual entertainment currency only. Party Coins cannot be converted to real money or used for gambling purposes.",
       },
     ],
   },
@@ -56,7 +56,7 @@ const faqCategories = [
       {
         id: "platform-3",
         question: "How do I level up and earn XP?",
-        answer: "You earn XP by participating in party rooms, playing games, sending gifts, and completing daily activities. The more active you are, the faster you level up. Higher levels unlock exclusive badges and rewards!",
+        answer: "You earn XP (Experience Points) by participating in party rooms, playing fun games, sending virtual gifts, and completing daily activities. The more active you are, the faster you level up. Higher levels unlock exclusive badges and virtual rewards for entertainment purposes only. This is NOT a money-earning system - all rewards are virtual and for fun only.",
       },
       {
         id: "platform-4",
@@ -428,6 +428,47 @@ export default function FAQPage() {
           --bs-accordion-border-color: rgba(255, 255, 255, 0.1);
           --bs-accordion-border-radius: 0.75rem;
           --bs-accordion-inner-border-radius: 0.75rem;
+          --bs-accordion-button-bg: transparent;
+          --bs-accordion-button-active-bg: rgba(0, 0, 0, 0.4);
+          --bs-accordion-button-active-color: rgba(255, 255, 255, 0.95);
+          --bs-accordion-button-focus-border-color: rgba(255, 255, 255, 0.1);
+          --bs-accordion-button-focus-box-shadow: none;
+        }
+
+        /* Override Bootstrap's default accordion button styles */
+        .accordion-custom .accordion-button,
+        .accordion-item-custom .accordion-button {
+          background-color: transparent !important;
+          background: transparent !important;
+        }
+
+        .accordion-custom .accordion-button:not(.collapsed),
+        .accordion-item-custom .accordion-button:not(.collapsed) {
+          background-color: rgba(0, 0, 0, 0.4) !important;
+          background: rgba(0, 0, 0, 0.4) !important;
+          color: rgba(255, 255, 255, 0.95) !important;
+          box-shadow: 
+            inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            inset 0 -1px 0 rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .accordion-custom .accordion-button:hover,
+        .accordion-item-custom .accordion-button:hover {
+          background-color: rgba(0, 0, 0, 0.3) !important;
+          background: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .accordion-custom .accordion-button:not(.collapsed):hover,
+        .accordion-item-custom .accordion-button:not(.collapsed):hover {
+          background-color: rgba(0, 0, 0, 0.5) !important;
+          background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .accordion-custom .accordion-button:focus,
+        .accordion-item-custom .accordion-button:focus {
+          background-color: rgba(0, 0, 0, 0.4) !important;
+          background: rgba(0, 0, 0, 0.4) !important;
+          box-shadow: 0 0 0 0.25rem rgba(202, 0, 0, 0.25) !important;
         }
 
         .accordion-item-custom {
@@ -482,7 +523,8 @@ export default function FAQPage() {
             0 0 0 1px rgba(255, 255, 255, 0.1);
         }
 
-        .accordion-button-custom {
+        .accordion-button-custom,
+        .accordion-custom .accordion-button {
           background: transparent !important;
           color: rgba(255, 255, 255, 0.95) !important;
           border: none;
@@ -499,40 +541,48 @@ export default function FAQPage() {
         }
 
         .accordion-button-custom:not(.collapsed),
-        .accordion-button-custom.active {
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.15) 0%, 
-            rgba(255, 255, 255, 0.08) 100%) !important;
-          color: rgba(255, 255, 255, 0.98) !important;
+        .accordion-button-custom.active,
+        .accordion-custom .accordion-button:not(.collapsed),
+        .accordion-custom .accordion-button.active {
+          background: rgba(0, 0, 0, 0.4) !important;
+          background-color: rgba(0, 0, 0, 0.4) !important;
+          color: rgba(255, 255, 255, 0.95) !important;
           box-shadow: 
-            inset 0 1px 0 rgba(255, 255, 255, 0.2),
-            inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-          text-shadow: 0 2px 15px rgba(255, 255, 255, 0.25);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            inset 0 -1px 0 rgba(255, 255, 255, 0.05) !important;
+          text-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .accordion-header .accordion-button-custom:not(.collapsed),
-        .accordion-header .accordion-button-custom.active {
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.15) 0%, 
-            rgba(255, 255, 255, 0.08) 100%) !important;
+        .accordion-header .accordion-button-custom.active,
+        .accordion-header .accordion-button:not(.collapsed),
+        .accordion-header .accordion-button.active {
+          background: rgba(0, 0, 0, 0.4) !important;
+          background-color: rgba(0, 0, 0, 0.4) !important;
         }
 
-        .accordion-button-custom:hover {
-          color: rgba(255, 255, 255, 1) !important;
-          text-shadow: 0 2px 15px rgba(255, 255, 255, 0.3);
+        .accordion-button-custom:hover,
+        .accordion-custom .accordion-button:hover {
+          background: rgba(0, 0, 0, 0.3) !important;
+          background-color: rgba(0, 0, 0, 0.3) !important;
+          color: rgba(255, 255, 255, 0.95) !important;
+          text-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
           transform: translateX(3px);
         }
 
-        .accordion-button-custom:not(.collapsed):hover {
-          color: rgba(255, 255, 255, 1) !important;
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.2) 0%, 
-            rgba(255, 255, 255, 0.12) 100%) !important;
+        .accordion-button-custom:not(.collapsed):hover,
+        .accordion-custom .accordion-button:not(.collapsed):hover {
+          background: rgba(0, 0, 0, 0.5) !important;
+          background-color: rgba(0, 0, 0, 0.5) !important;
+          color: rgba(255, 255, 255, 0.95) !important;
         }
 
-        .accordion-button-custom:focus {
-          box-shadow: 0 0 0 0.25rem rgba(202, 0, 0, 0.25);
+        .accordion-button-custom:focus,
+        .accordion-custom .accordion-button:focus {
+          background: rgba(0, 0, 0, 0.4) !important;
+          background-color: rgba(0, 0, 0, 0.4) !important;
+          box-shadow: 0 0 0 0.25rem rgba(202, 0, 0, 0.25) !important;
           border-color: var(--accent);
         }
 
@@ -790,9 +840,9 @@ export default function FAQPage() {
           <div className="hero-content">
             <div className="hero-badge">
               <span>❓</span>
-              <span>Frequently Asked Questions</span>
+              <span className="text-white">Frequently Asked Questions</span>
             </div>
-            <h1 className="hero-title">
+            <h1 className=" text-white">
               Got Questions?<br />We've Got Answers
             </h1>
             <p className="hero-subtitle">

@@ -94,7 +94,10 @@ export default function WalletPage() {
                 {wallet?.partyCoins?.toLocaleString() || 0}
               </h2>
               <p className="small mb-0" style={{ color: "var(--text-muted)" }}>
-                ${wallet?.balanceUsd?.toFixed?.(2) || "0.00"} USD
+                Virtual currency only - No real money value
+              </p>
+              <p className="small mt-1" style={{ color: "rgba(202, 0, 0, 0.8)", fontSize: "0.7rem" }}>
+                ⚠️ Party Coins are for entertainment only. NOT gambling or betting.
               </p>
             </div>
           </div>

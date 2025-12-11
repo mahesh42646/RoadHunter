@@ -5,8 +5,8 @@ import { Button, Card, Col, Container, Row } from "react-bootstrap";
 
 const features = [
   {
-    title: "Realtime Wallets",
-    copy: "USD to Party Coins in a tap. Secure custody, instant payouts, audited trails.",
+    title: "Virtual Currency",
+    copy: "Party Coins are virtual tokens for entertainment only. No real money value - purely for fun and social gaming.",
     icon: "💰",
   },
   {
@@ -54,9 +54,9 @@ export default function LandingPage() {
                 }}>
                   Live snapshot
                 </span>
-                <h3 className="fw-bold mb-3" style={{ color: "var(--text-secondary)" }}>Wallet Performance</h3>
+                <h3 className="fw-bold mb-3" style={{ color: "var(--text-secondary)" }}>Virtual Wallet</h3>
                 <p className="mb-4" style={{ color: "var(--text-muted)" }}>
-                  Track balances, conversions, and payouts across multiple data centers.
+                  Track your virtual Party Coins balance. Remember: Party Coins are for entertainment only and have no real monetary value.
                 </p>
                 <Row className="gy-3">
                   <Col xs={6}>

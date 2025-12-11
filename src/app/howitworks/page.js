@@ -55,8 +55,8 @@ const steps = [
     icon: "⭐",
     title: "Earn & Level Up",
     subtitle: "Rewards & Progression",
-    description: "Earn XP from every activity. Level up to unlock exclusive badges, higher withdrawal limits, and special perks.",
-    features: ["XP Progression System", "Exclusive Badges", "Level-based Rewards"],
+    description: "Earn XP from every activity. Level up to unlock exclusive badges and special virtual perks. All rewards are for entertainment purposes only - this is NOT a money-earning platform.",
+    features: ["XP Progression System", "Exclusive Badges", "Virtual Rewards for Fun"],
     color: "#00d9ff",
   },
   {
@@ -72,7 +72,7 @@ const steps = [
 
 const features = [
   { icon: "⚡", title: "Real-time Sync", description: "Lightning-fast updates with Socket.IO technology" },
-  { icon: "🔒", title: "Secure Wallets", description: "Bank-grade security for your Party Coins" },
+  { icon: "🔒", title: "Virtual Currency", description: "Party Coins are virtual tokens for entertainment only - no real money value" },
   { icon: "🌍", title: "Global Access", description: "Play with friends from 150+ countries" },
   { icon: "📱", title: "Mobile Ready", description: "Seamless experience on any device" },
 ];

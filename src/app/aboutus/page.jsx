@@ -565,8 +565,11 @@ export default function AboutUsPage() {
                 Where Gaming<br />Meets Fun
               </h1>
               <p className="hero-subtitle">
-                We're on a mission to create the ultimate social gaming platform where 
+                We're on a mission to create the ultimate entertainment and social gaming platform where 
                 friends connect, compete, and celebrate together. Every party is an adventure!
+                <strong style={{ color: "rgba(202, 0, 0, 0.9)", display: "block", marginTop: "0.5rem" }}> 
+                  ⚠️ This is NOT a gambling or betting platform - all activities are for fun and entertainment only.
+                </strong>
               </p>
               <div className="d-flex gap-3 flex-wrap">
                 <Badge bg="dark" className="px-3 py-2" style={{ 
@@ -581,7 +584,7 @@ export default function AboutUsPage() {
                   border: '1px solid rgba(0, 245, 255, 0.4)',
                   fontSize: '0.9rem'
                 }}>
-                  💰 Secure Wallets
+                  💰 Virtual Currency
                 </Badge>
                 <Badge bg="dark" className="px-3 py-2" style={{ 
                   background: 'rgba(255, 255, 255, 0.1)', 

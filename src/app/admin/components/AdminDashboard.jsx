@@ -151,7 +151,7 @@ export default function AdminDashboard({ adminToken }) {
                 <th>Predictions</th>
                 <th>Wins</th>
                 <th>Win Rate</th>
-                <th>Wagered</th>
+                <th>Virtual Coins Used</th>
                 <th>Won</th>
                 <th>Net Profit</th>
               </tr>
@@ -163,7 +163,7 @@ export default function AdminDashboard({ adminToken }) {
                   <td>{user.totalPredictions}</td>
                   <td>{user.wins}</td>
                   <td>{user.winRate}%</td>
-                  <td>{user.totalWagered.toLocaleString()}</td>
+                  <td>{user.totalWagered.toLocaleString()} (Virtual)</td>
                   <td>{user.totalWon.toLocaleString()}</td>
                   <td className={user.netProfit >= 0 ? "text-success" : "text-danger"}>
                     {user.netProfit >= 0 ? "+" : ""}{user.netProfit.toLocaleString()}

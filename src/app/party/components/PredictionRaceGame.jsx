@@ -824,7 +824,7 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
           textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
           fontWeight: "bold"
         }}>
-          🏎️ LUCKY RACE
+          🏎️ PREDICTION RACE
         </h4>
         <p className="text-white mb-2">No active game at the moment</p>
         <p className="small text-white-50">A new race will start soon...</p>
@@ -862,6 +862,20 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
       position: "relative",
       minHeight: 0, // Allow flex shrinking
     }}>
+      {/* Entertainment Disclaimer */}
+      <div style={{
+        padding: "0.5rem 1rem",
+        background: "rgba(202, 0, 0, 0.2)",
+        borderBottom: "2px solid rgba(202, 0, 0, 0.4)",
+        color: "#ffffff",
+        fontSize: "0.75rem",
+        textAlign: "center",
+        zIndex: 100,
+        position: "relative",
+        flexShrink: 0,
+      }}>
+        <strong>⚠️ ENTERTAINMENT ONLY:</strong> This is a fun prediction game using virtual Party Coins. No real money value. NOT gambling or betting.
+      </div>
       {/* Carbon fiber texture overlay */}
       <div style={{
         position: "absolute",
@@ -895,7 +909,7 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
             color: "#ffffff",
             fontWeight: "bold",
           }}>
-            🏎️ LUCKY RACE
+            🏎️ PREDICTION RACE
              #{game.gameNumber}
           </h6>
           <div>
@@ -1451,7 +1465,7 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
                     marginBottom: "0.5rem",
                     textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
                   }}>
-                    {myPredictions.length > 0 ? (isWinner ? "🎉 YOU WIN!" : "😔 YOU LOSE") : "🏁 RACE FINISHED"}
+                    {myPredictions.length > 0 ? (isWinner ? "🎉 CORRECT PREDICTION!" : "😔 INCORRECT PREDICTION") : "🏁 RACE FINISHED"}
                   </div>
                   {myPredictions.length > 0 && (
                     <>
@@ -1483,9 +1497,9 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
                       }}>
                         <BsCoin />
                         {isWinner ? (
-                          <span>You won: {totalPayout.toLocaleString()} coins</span>
+                          <span>Virtual reward: {totalPayout.toLocaleString()} Party Coins (entertainment only)</span>
                         ) : (
-                          <span>You lost: {totalLoss.toLocaleString()} coins</span>
+                          <span>Virtual coins used: {totalLoss.toLocaleString()} Party Coins</span>
                         )}
                       </div>
                       {isWinner && winningSelections.length > 0 && (

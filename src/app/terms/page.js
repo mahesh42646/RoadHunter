@@ -711,10 +711,36 @@ export default function TermsPage() {
                 </div>
                 <div className="section-content">
                   <p>
-                    RoadHunter provides online tools, assistance, content, and resources. We reserve 
-                    the right to modify, update, or discontinue parts of our services at any time 
-                    without notice.
+                    RoadHunter is an entertainment and social gaming platform. We provide online tools, 
+                    assistance, content, and resources for entertainment purposes only. We reserve the right 
+                    to modify, update, or discontinue parts of our services at any time without notice.
                   </p>
+                  
+                  <div className="highlight-box" style={{ 
+                    background: "linear-gradient(135deg, rgba(202, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.2) 100%)",
+                    border: "2px solid rgba(202, 0, 0, 0.5)"
+                  }}>
+                    <p style={{ fontWeight: "bold", fontSize: "1.1rem", marginBottom: "1rem" }}>
+                      ⚠️ IMPORTANT: NO GAMBLING OR BETTING
+                    </p>
+                    <p style={{ marginBottom: "0.75rem" }}>
+                      <strong>RoadHunter is NOT a gambling, betting, or money-earning platform.</strong> 
+                      We do NOT promote, facilitate, or allow any form of gambling, betting, or real-money gaming.
+                    </p>
+                    <ul style={{ marginTop: "1rem", marginBottom: "0.75rem" }}>
+                      <li>Party Coins are virtual currency for entertainment purposes only</li>
+                      <li>Party Coins have NO real-world monetary value</li>
+                      <li>Party Coins CANNOT be converted to real money or withdrawn as cash</li>
+                      <li>All games and activities are for fun and entertainment only</li>
+                      <li>This is NOT a luck-based or knowledge-based money-earning platform</li>
+                      <li>You do NOT play with real money</li>
+                    </ul>
+                    <p style={{ marginTop: "1rem", marginBottom: 0, fontStyle: "italic" }}>
+                      By using this platform, you acknowledge that you understand RoadHunter is purely 
+                      for entertainment and social gaming purposes, and you will not use it for gambling or betting.
+                    </p>
+                  </div>
+
                   <p>We do not guarantee:</p>
                   <ul>
                     <li>Continuous availability of the website.</li>
