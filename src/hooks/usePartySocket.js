@@ -14,6 +14,7 @@ export default function usePartySocket(partyId, callbacks = {}) {
   const {
     onParticipantJoined,
     onParticipantLeft,
+    onParticipantOffline,
     onChatMessage,
     onJoinRequest,
     onJoinRequestApproved,
@@ -103,6 +104,12 @@ export default function usePartySocket(partyId, callbacks = {}) {
     socket.on("party:participantLeft", (data) => {
       if (data.partyId === partyId && onParticipantLeft) {
         onParticipantLeft(data);
+      }
+    });
+
+    socket.on("party:participantOffline", (data) => {
+      if (data.partyId === partyId && onParticipantOffline) {
+        onParticipantOffline(data);
       }
     });
 

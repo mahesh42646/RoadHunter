@@ -14,10 +14,10 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [formData, setFormData] = useState({
     fullName: user?.account?.displayName || "",
-    avatarUrl: user?.account?.photoUrl || "",
     gender: user?.account?.gender || "",
     profilePrivacy: user?.social?.profilePrivacy || "public",
   });
+  const [photoFile, setPhotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.account?.photoUrl || "");
   const fileInputRef = useRef(null);
 
@@ -27,7 +27,6 @@ export default function ProfilePage() {
     if (user) {
       setFormData({
         fullName: user.account?.displayName || "",
-        avatarUrl: user.account?.photoUrl || "",
         gender: user.account?.gender || "",
         profilePrivacy: user.social?.profilePrivacy || "public",
       });
@@ -35,7 +34,7 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -51,11 +50,11 @@ export default function ProfilePage() {
       return;
     }
 
-    // Convert to base64 for preview
+    setPhotoFile(file);
+    // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result);
-      setFormData((prev) => ({ ...prev, avatarUrl: reader.result }));
     };
     reader.readAsDataURL(file);
   };
@@ -78,12 +77,15 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await apiClient.post("/users/profile", {
-        fullName: formData.fullName.trim(),
-        avatarUrl: formData.avatarUrl,
-        gender: formData.gender,
-        profilePrivacy: formData.profilePrivacy,
-      });
+      const formDataToSend = new FormData();
+      formDataToSend.append("fullName", formData.fullName.trim());
+      formDataToSend.append("gender", formData.gender);
+      formDataToSend.append("profilePrivacy", formData.profilePrivacy);
+      if (photoFile) {
+        formDataToSend.append("photo", photoFile);
+      }
+
+      const response = await apiClient.post("/users/profile", formDataToSend);
 
       updateUser(response.data.user);
       setMessage("Profile completed successfully!");
@@ -91,6 +93,9 @@ export default function ProfilePage() {
       // Refresh user data
       const meResponse = await apiClient.get("/users/me");
       updateUser(meResponse.data.user);
+      
+      // Reset form
+      setPhotoFile(null);
     } catch (error) {
       setMessage(error.response?.data?.error || "Failed to complete profile");
     } finally {
@@ -170,8 +175,13 @@ export default function ProfilePage() {
                         onClick={() => fileInputRef.current?.click()}
                       >
                         <FaUpload className="me-2" />
-                        Upload Photo
+                        {previewUrl && previewUrl !== user?.account?.photoUrl ? "Change Photo" : "Upload Photo"}
                       </Button>
+                      {!photoFile && user?.account?.photoUrl && (
+                        <p className="text-muted small mt-2 mb-0">
+                          Using Google account photo. Upload a custom photo to replace it.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Col>

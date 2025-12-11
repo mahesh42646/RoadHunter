@@ -7,11 +7,14 @@ import { Button, Card, Modal, Form, Badge } from "react-bootstrap";
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
+import usePartyStore from "@/store/usePartyStore";
 
 export default function PartyListPage() {
   const router = useRouter();
   const hydrated = useAuthStore((state) => state.hydrated);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const currentPartyId = usePartyStore((state) => state.currentPartyId);
+  const isHost = usePartyStore((state) => state.isHost);
   const [parties, setParties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -19,9 +22,10 @@ export default function PartyListPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    avatarUrl: "",
     privacy: "public",
   });
+  const [posterFile, setPosterFile] = useState(null);
+  const [posterPreview, setPosterPreview] = useState(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -30,19 +34,57 @@ export default function PartyListPage() {
       router.replace("/user/login");
       return;
     }
+
+    // Always load parties first
     loadParties();
+
+    // If user is already in a party (and not host), redirect to that party
+    if (currentPartyId && !isHost) {
+      // Small delay to ensure parties are loaded
+      const timer = setTimeout(() => {
+        router.replace(`/party/${currentPartyId}`);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+
+    // If user is host, check if their party still exists and auto-rejoin
+    if (currentPartyId && isHost) {
+      checkAndRejoinHostParty();
+    }
+
     const interval = setInterval(loadParties, 5000);
     return () => clearInterval(interval);
-  }, [hydrated, isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router, currentPartyId, isHost]);
+
+  const checkAndRejoinHostParty = async () => {
+    try {
+      const response = await apiClient.get(`/parties/${currentPartyId}`);
+      if (response.data.party && response.data.party.isActive) {
+        // Party exists and is active, redirect to it
+        router.replace(`/party/${currentPartyId}`);
+        return; // Don't continue loading parties if redirecting
+      } else {
+        // Party doesn't exist or is inactive, clear from store
+        usePartyStore.getState().clearCurrentParty();
+      }
+    } catch (error) {
+      // Party not found, clear from store
+      usePartyStore.getState().clearCurrentParty();
+    }
+    // Ensure loading is set to false after check
+    setLoading(false);
+  };
 
   const loadParties = async () => {
     try {
       const response = await apiClient.get("/parties?privacy=public&isActive=true&limit=20");
       setParties(response.data.parties || []);
+      setLoading(false);
     } catch (error) {
       console.error("Failed to load parties", error);
-    } finally {
       setLoading(false);
+      // If error, still show empty state instead of infinite loading
+      setParties([]);
     }
   };
 
@@ -50,14 +92,50 @@ export default function PartyListPage() {
     e.preventDefault();
     setCreating(true);
     try {
-      const response = await apiClient.post("/parties", formData);
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      if (formData.description) {
+        formDataToSend.append("description", formData.description);
+      }
+      formDataToSend.append("privacy", formData.privacy);
+      if (posterFile) {
+        formDataToSend.append("poster", posterFile);
+      }
+
+      const response = await apiClient.post("/parties", formDataToSend);
       setShowCreateModal(false);
+      setFormData({ name: "", description: "", privacy: "public" });
+      setPosterFile(null);
+      setPosterPreview(null);
       router.push(`/party/${response.data.party._id}`);
     } catch (error) {
       console.error("Failed to create party", error);
       alert(error.response?.data?.error || "Failed to create party");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handlePosterChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file");
+        return;
+      }
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size must be less than 5MB");
+        return;
+      }
+      setPosterFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPosterPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -126,7 +204,7 @@ export default function PartyListPage() {
             };
 
             return (
-              <div key={party._id} className="col-6 col-sm-4 col-md-3 col-lg-2">
+              <div key={party._id} className="col-4 col-md-3 col-lg-2">
                 <Link
                   href={`/party/${party._id}`}
                   className="text-decoration-none"
@@ -256,7 +334,12 @@ export default function PartyListPage() {
 
       <Modal
         show={showCreateModal}
-        onHide={() => setShowCreateModal(false)}
+        onHide={() => {
+          setShowCreateModal(false);
+          setFormData({ name: "", description: "", privacy: "public" });
+          setPosterFile(null);
+          setPosterPreview(null);
+        }}
         centered
         contentClassName="glass-card border-0"
       >
@@ -283,7 +366,7 @@ export default function PartyListPage() {
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
+              <Form.Label>Description (Optional)</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={3}
@@ -294,13 +377,30 @@ export default function PartyListPage() {
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Avatar URL</Form.Label>
+              <Form.Label>Party Poster</Form.Label>
               <Form.Control
-                type="url"
-                placeholder="https://example.com/avatar.jpg"
-                value={formData.avatarUrl}
-                onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                type="file"
+                accept="image/*"
+                onChange={handlePosterChange}
               />
+              <Form.Text className="text-muted">
+                Upload a poster image for your party (max 5MB, will be optimized to 800px width)
+              </Form.Text>
+              {posterPreview && (
+                <div className="mt-2">
+                  <img
+                    src={posterPreview}
+                    alt="Poster preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "200px",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                    }}
+                  />
+                </div>
+              )}
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Privacy</Form.Label>

@@ -97,5 +97,9 @@ public/uploads/
 storage/uploads/
 media/
 user-content/
+backend/uploads/partys/*
+!backend/uploads/partys/.gitkeep
+backend/uploads/users/*
+!backend/uploads/users/.gitkeep
 # End of Selection
 ```

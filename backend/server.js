@@ -363,6 +363,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use('/api/users', createUserRouter(io));
 app.use('/api/parties', createPartyRouter(io));
 app.use('/api/wallet', createWalletRouter(io));
@@ -376,7 +379,15 @@ app.use((err, req, res, _next) => {
   const status = err.status || 500;
   const message = status === 500 ? 'Internal server error' : err.message;
   if (status === 500) {
-    console.error(err);
+    console.error('Error:', err);
+    console.error('Error stack:', err.stack);
+    console.error('Request details:', {
+      method: req.method,
+      url: req.url,
+      body: req.body,
+      params: req.params,
+      userId: req.user?._id,
+    });
   }
   res.status(status).json({ error: message });
 });

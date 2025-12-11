@@ -1,8 +1,11 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
+const path = require('path');
 
 const User = require('../schemas/users');
+const uploadUser = require('../middleware/uploadUser');
+const { optimizeImage, getOptimizedPath } = require('../utils/imageOptimizer');
 
 const {
   JWT_SECRET = 'change-me',
@@ -199,9 +202,9 @@ module.exports = function createUserRouter(io) {
     }
   });
 
-  router.post('/profile', authenticate, async (req, res, next) => {
+  router.post('/profile', authenticate, uploadUser.single('photo'), async (req, res, next) => {
     try {
-      const { fullName, avatarUrl, gender, profilePrivacy } = req.body;
+      const { fullName, gender, profilePrivacy } = req.body;
       if (!fullName || !fullName.trim()) {
         res.status(400).json({ error: 'Full name is required' });
         return;
@@ -217,11 +220,32 @@ module.exports = function createUserRouter(io) {
 
       // Update account info
       req.user.account.displayName = fullName.trim();
-      if (avatarUrl) {
-        req.user.account.photoUrl = avatarUrl;
-      }
       req.user.account.gender = gender;
       req.user.account.profileCompleted = true;
+
+      // Handle profile photo upload
+      let photoUrl = req.user.account.photoUrl; // Default to existing/Google avatar
+
+      if (req.file) {
+        try {
+          // Optimize the uploaded image
+          const optimizedPath = getOptimizedPath(req.file.path);
+          await optimizeImage(req.file.path, optimizedPath);
+          
+          // Get relative path for URL
+          const relativePath = path.relative(path.join(__dirname, '../uploads'), optimizedPath);
+          photoUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+        } catch (imageError) {
+          console.error('Error processing profile photo:', imageError);
+          // If image processing fails, use original file
+          if (req.file && req.file.path) {
+            const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+            photoUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+          }
+        }
+      }
+      // If no file uploaded, keep existing photoUrl (Google auth avatar or existing photo)
+      req.user.account.photoUrl = photoUrl;
 
       // Initialize social if not exists
       if (!req.user.social) {
@@ -246,7 +270,7 @@ module.exports = function createUserRouter(io) {
         fullName,
         email: req.user.account.email,
         phone: req.user.account.phone || '',
-        avatarUrl: avatarUrl || req.user.account.photoUrl,
+        avatarUrl: photoUrl,
         referralCode,
         status: 'verified',
         completedAt: new Date(),
@@ -271,6 +295,15 @@ module.exports = function createUserRouter(io) {
         wallet: req.user.wallet 
       });
     } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file && req.file.path) {
+        const fs = require('fs');
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error('Error deleting uploaded file:', unlinkError);
+        }
+      }
       next(error);
     }
   });

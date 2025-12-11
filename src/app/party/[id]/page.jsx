@@ -36,6 +36,7 @@ import { HiSparkles } from "react-icons/hi";
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
+import usePartyStore from "@/store/usePartyStore";
 import usePartySocket from "@/hooks/usePartySocket";
 import useWebRTC from "@/hooks/useWebRTC";
 import GiftSelector from "../components/GiftSelector";
@@ -47,6 +48,9 @@ export default function PartyRoomPage() {
   const partyId = params.id;
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const user = useAuthStore((state) => state.user);
+  const setCurrentParty = usePartyStore((state) => state.setCurrentParty);
+  const clearCurrentParty = usePartyStore((state) => state.clearCurrentParty);
+  const currentPartyId = usePartyStore((state) => state.currentPartyId);
   const [party, setParty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -59,14 +63,19 @@ export default function PartyRoomPage() {
   const [giftAnimations, setGiftAnimations] = useState([]);
   const chatEndRef = useRef(null);
   const handleLeaveRef = useRef(null);
+  const handleEndPartyRef = useRef(null);
   const [hostMicEnabled, setHostMicEnabled] = useState(false);
   const [hostCameraEnabled, setHostCameraEnabled] = useState(false);
+  const offlineTimerRef = useRef(null);
+  const removeTimerRef = useRef(null);
+  const isTabVisibleRef = useRef(true);
+  const isTabClosingRef = useRef(false);
 
   const currentParticipant = party?.participants?.find(
     (p) => p.userId?.toString() === user?._id?.toString()
   );
   const isHost = party && user && party.hostId?.toString() === user._id?.toString();
-  const isParticipant = !!currentParticipant && (currentParticipant.status === "active" || currentParticipant.status === "muted");
+  const isParticipant = !!currentParticipant && (currentParticipant.status === "active" || currentParticipant.status === "muted" || currentParticipant.status === "offline");
   const isMuted = currentParticipant?.status === "muted";
 
   const participants = party?.participants || [];
@@ -85,6 +94,13 @@ export default function PartyRoomPage() {
       router.replace("/user/login");
       return;
     }
+
+    // Check if user is already in a different party
+    if (currentPartyId && currentPartyId !== partyId) {
+      router.replace(`/party/${currentPartyId}`);
+      return;
+    }
+
     loadParty();
     loadWallet();
     
@@ -93,7 +109,7 @@ export default function PartyRoomPage() {
     return () => {
       document.body.classList.remove("party-page");
     };
-  }, [isAuthenticated, router, partyId]);
+  }, [isAuthenticated, router, partyId, currentPartyId]);
 
   const loadWallet = async () => {
     try {
@@ -104,25 +120,94 @@ export default function PartyRoomPage() {
     }
   };
 
-  // Exit confirmation on page unload/refresh/route change
+  // Track tab visibility and handle offline timer for non-host users
   useEffect(() => {
     if (!isParticipant) return;
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab became hidden - start 1 minute timer to mark as offline
+        isTabVisibleRef.current = false;
+        offlineTimerRef.current = setTimeout(async () => {
+          // After 1 minute, mark user as offline
+          try {
+            await apiClient.post(`/parties/${partyId}/mark-offline`);
+            // After marking offline, start 5 minute timer to remove from party
+            removeTimerRef.current = setTimeout(async () => {
+              try {
+                await apiClient.post(`/parties/${partyId}/leave`);
+                clearCurrentParty();
+                router.push("/party");
+              } catch (error) {
+                console.error("Failed to leave party after offline timer", error);
+              }
+            }, 300000); // 5 minutes (300000ms)
+          } catch (error) {
+            console.error("Failed to mark as offline", error);
+          }
+        }, 60000); // 1 minute
+      } else {
+        // Tab became visible again - clear timers and mark as active
+        isTabVisibleRef.current = true;
+        
+        // Clear offline timer
+        if (offlineTimerRef.current) {
+          clearTimeout(offlineTimerRef.current);
+          offlineTimerRef.current = null;
+        }
+        
+        // Clear remove timer
+        if (removeTimerRef.current) {
+          clearTimeout(removeTimerRef.current);
+          removeTimerRef.current = null;
+        }
+        
+        // Mark as active if was offline (check current participant status)
+        const participant = party?.participants?.find(
+          (p) => p.userId?.toString() === user?._id?.toString()
+        );
+        if (participant?.status === 'offline') {
+          apiClient.post(`/parties/${partyId}/mark-active`).catch(error => {
+            console.error("Failed to mark as active", error);
+          });
+        }
+      }
+    };
+
+    // Track actual tab close vs tab switch - ask confirmation for all users
     const handleBeforeUnload = (e) => {
+      isTabClosingRef.current = true;
       e.preventDefault();
       e.returnValue = "Are you sure you want to exit the party room?";
       return e.returnValue;
     };
 
+    // Handle browser back/forward - ask confirmation for all users
     const handlePopState = async (e) => {
       if (isParticipant) {
         const confirmed = confirm("Are you sure you want to exit the party room? You will leave the room.");
         if (confirmed) {
           try {
-            await apiClient.post(`/parties/${partyId}/leave`);
-            router.push("/party");
+            if (isHost) {
+              // Host needs to transfer or end party
+              const action = confirm(
+                "You are the host. Click OK to end party, or Cancel to transfer host."
+              );
+              if (action) {
+                await handleEndPartyRef.current();
+              } else {
+                setShowTransferModal(true);
+                window.history.pushState(null, "", window.location.pathname);
+              }
+            } else {
+              await apiClient.post(`/parties/${partyId}/leave`);
+              clearCurrentParty();
+              router.push("/party");
+            }
           } catch (error) {
             console.error("Failed to leave party", error);
+            clearCurrentParty();
+            router.push("/party");
           }
         } else {
           window.history.pushState(null, "", window.location.pathname);
@@ -130,17 +215,23 @@ export default function PartyRoomPage() {
       }
     };
 
-    // Block route changes - handled by Next.js router events
-
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.history.pushState(null, "", window.location.pathname);
     window.addEventListener("popstate", handlePopState);
 
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("popstate", handlePopState);
+      if (offlineTimerRef.current) {
+        clearTimeout(offlineTimerRef.current);
+      }
+      if (removeTimerRef.current) {
+        clearTimeout(removeTimerRef.current);
+      }
     };
-  }, [isParticipant, partyId, router]);
+  }, [isParticipant, isHost, partyId, router, clearCurrentParty, party, user]);
 
   const loadParty = async () => {
     try {
@@ -148,38 +239,71 @@ export default function PartyRoomPage() {
       const partyData = response.data.party;
       
       if (!partyData.isActive) {
+        clearCurrentParty();
+        setLoading(false);
         router.replace("/party");
         return;
       }
 
       setParty(partyData);
       
+      const isUserHost = partyData.hostId?.toString() === user?._id?.toString();
+      
       // Check if user is already a participant
-      const wasParticipant = partyData.participants?.some(
+      const currentParticipant = partyData.participants?.find(
         (p) => p.userId?.toString() === user?._id?.toString()
       );
       
-      // If user was a participant but not in current list, rejoin automatically
-      if (wasParticipant && !partyData.participants?.find(
-        (p) => p.userId?.toString() === user?._id?.toString() && p.status === "active"
-      )) {
-        try {
-          const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
-          if (joinResponse.data.party) {
-            setParty(joinResponse.data.party);
+      // If user is host, auto-join them (even if offline)
+      if (isUserHost) {
+        if (!currentParticipant || currentParticipant.status === 'offline' || currentParticipant.status === 'left') {
+          try {
+            const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
+            if (joinResponse.data.party) {
+              setParty(joinResponse.data.party);
+              setCurrentParty(partyId, true);
+            }
+          } catch (joinError) {
+            console.error("Failed to rejoin party as host", joinError);
+            // Even if join fails, set current party if user is host
+            setCurrentParty(partyId, true);
           }
-        } catch (joinError) {
-          console.error("Failed to rejoin party", joinError);
+        } else {
+          // User is already an active participant, set current party
+          setCurrentParty(partyId, true);
+        }
+      } else if (currentParticipant) {
+        // Non-host participant
+        if (currentParticipant.status === 'active' || currentParticipant.status === 'muted') {
+          setCurrentParty(partyId, false);
+        } else if (currentParticipant.status === 'offline' || currentParticipant.status === 'left') {
+          // Try to rejoin if offline or left
+          try {
+            const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
+            if (joinResponse.data.party) {
+              setParty(joinResponse.data.party);
+              setCurrentParty(partyId, false);
+            }
+          } catch (joinError) {
+            console.error("Failed to rejoin party", joinError);
+            // If rejoin fails and user is not in party, clear store
+            if (joinError.response?.status === 404 || joinError.response?.status === 403) {
+              clearCurrentParty();
+            }
+          }
         }
       }
 
+      setLoading(false);
     } catch (error) {
       console.error("Failed to load party", error);
       // Only redirect if it's a 404 or party doesn't exist
       if (error.response?.status === 404) {
+        clearCurrentParty();
         router.replace("/party");
+        return;
       }
-    } finally {
+      // For other errors, still set loading to false
       setLoading(false);
     }
   };
@@ -194,6 +318,9 @@ export default function PartyRoomPage() {
       } else {
         setParty(response.data.party);
         await loadParty(); // Wait for party data to reload
+        // Set current party after joining
+        const isUserHost = response.data.party?.hostId?.toString() === user?._id?.toString();
+        setCurrentParty(partyId, isUserHost);
       }
     } catch (error) {
       alert(error.response?.data?.error || "Failed to join party");
@@ -202,35 +329,49 @@ export default function PartyRoomPage() {
     }
   };
 
+  // Set current party when joining
+  useEffect(() => {
+    if (isParticipant && partyId) {
+      setCurrentParty(partyId, isHost);
+    }
+  }, [isParticipant, partyId, isHost, setCurrentParty]);
+
   const handleLeave = async () => {
-    if (isHost && party.participants.length > 1) {
+    // If host, show transfer/end options
+    if (isHost) {
       const action = confirm(
-        "You are the host. You must transfer host or end party before leaving.\n\nClick OK to end party, or Cancel to transfer host."
+        "You are the host. You must transfer host to someone else or end the party.\n\nClick OK to end party, or Cancel to transfer host."
       );
       if (action) {
+        // End party
         await handleEndParty();
       } else {
+        // Show transfer modal
         setShowTransferModal(true);
       }
       return;
     }
 
+    // Non-host users leave directly
     try {
       await apiClient.post(`/parties/${partyId}/leave`);
+      clearCurrentParty();
       router.push("/party");
     } catch (error) {
-      if (error.response?.data?.requiresAction) {
-        const action = confirm(
-          "You are the host. You must transfer host or end party before leaving.\n\nClick OK to end party, or Cancel to transfer host."
-        );
-        if (action) {
-          await handleEndParty();
-        } else {
-          setShowTransferModal(true);
-        }
-      } else {
-        alert(error.response?.data?.error || "Failed to leave party");
+      console.error("Failed to leave party", error);
+      
+      // If party not found or user not in party, clear store and allow navigation
+      if (error.response?.status === 404 || error.response?.data?.message === 'Not in party') {
+        clearCurrentParty();
+        router.push("/party");
+        return;
       }
+
+      const errorMsg = error.response?.data?.error || error.message || "Failed to leave party";
+      alert(errorMsg);
+      // Even on error, try to clear store and navigate
+      clearCurrentParty();
+      router.push("/party");
     }
   };
 
@@ -272,11 +413,16 @@ export default function PartyRoomPage() {
     
     try {
       await apiClient.delete(`/parties/${partyId}`);
+      clearCurrentParty();
       router.push("/party");
     } catch (error) {
       alert(error.response?.data?.error || "Failed to end party");
     }
   };
+
+  useEffect(() => {
+    handleEndPartyRef.current = handleEndParty;
+  }, [handleEndParty, clearCurrentParty, partyId, router]);
 
   const handleToggleMic = async () => {
     if (!isHost) return;
@@ -385,6 +531,25 @@ export default function PartyRoomPage() {
       if (data.userId === user?._id?.toString()) {
         router.push("/party");
       }
+    },
+    onParticipantOffline: (data) => {
+      setParty((prev) => {
+        const participants = prev.participants || [];
+        const index = participants.findIndex(
+          (p) => p.userId?.toString() === data.userId?.toString()
+        );
+        
+        if (index !== -1) {
+          const updated = [...participants];
+          updated[index] = {
+            ...updated[index],
+            status: 'offline',
+          };
+          return { ...prev, participants: updated };
+        }
+        
+        return prev;
+      });
     },
     onChatMessage: (data) => {
       setParty((prev) => ({
@@ -723,7 +888,7 @@ export default function PartyRoomPage() {
                   borderRadius: "0.5rem",
                   cursor: isHost && !isCurrentUser ? "pointer" : "default",
                   border: isParticipantHost
-                    ? "2px solid var(--accent)"
+                    ? "1px solid var(--accent)"
                     : "1px solid rgba(255, 255, 255, 0.1)",
                   boxShadow: isParticipantHost 
                     ? "0 4px 12px rgba(255, 45, 149, 0.3)" 
@@ -791,10 +956,8 @@ export default function PartyRoomPage() {
                     aspectRatio: "1",
                     borderRadius: "0.5rem",
                     overflow: "hidden",
-                    marginBottom: "0.5rem",
-                    border: isParticipantHost
-                      ? "2px solid var(--accent)"
-                      : "1px solid rgba(255, 255, 255, 0.2)",
+                    // marginBottom: "0.5rem",
+                
                     background: "rgba(0, 0, 0, 0.3)",
                     display: "flex",
                     alignItems: "center",
@@ -910,29 +1073,14 @@ export default function PartyRoomPage() {
                   style={{ 
                     color: "var(--text-primary)", 
                     fontSize: "clamp(0.65rem, 2vw, 0.85rem)", 
-                    lineHeight: "1.2",
-                    marginBottom: "0.2rem",
-                    marginTop: "auto",
+                    
                   }}
                   title={participant.username}
                 >
                   {participant.username}
                 </p>
 
-                {/* Balance - Only show for current user */}
-                {participantWallet !== null && (
-                  <div 
-                    className="d-flex align-items-center justify-content-center gap-1 participant-balance"
-                      style={{
-                      marginBottom: "0.2rem",
-                      color: "var(--text-secondary)",
-                      fontSize: "clamp(0.6rem, 1.5vw, 0.75rem)",
-                    }}
-                  >
-                    <BsCoin style={{ fontSize: "clamp(0.6rem, 1.5vw, 0.8rem)", color: "var(--accent-secondary)" }} />
-                    <span>{participantWallet.toLocaleString()}</span>
-                  </div>
-                )}
+               
 
                 {/* Status Badges */}
                 <div className="d-flex align-items-center justify-content-center gap-1 participant-badges" style={{ flexWrap: "wrap", marginTop: "auto" }}>

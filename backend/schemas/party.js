@@ -7,7 +7,7 @@ const participantSchema = new mongoose.Schema(
     avatarUrl: { type: String },
     role: { type: String, enum: ['host', 'participant'], default: 'participant' },
     joinedAt: { type: Date, default: Date.now },
-    status: { type: String, enum: ['active', 'muted', 'left'], default: 'active' },
+    status: { type: String, enum: ['active', 'muted', 'left', 'offline'], default: 'active' },
   },
   { _id: true, timestamps: false },
 );
@@ -98,7 +98,12 @@ partySchema.methods.addParticipant = function addParticipant(userId, username, a
 };
 
 partySchema.methods.removeParticipant = function removeParticipant(userId) {
-  this.participants = this.participants.filter((p) => p.userId.toString() !== userId.toString());
+  if (!userId) {
+    throw new Error('UserId is required to remove participant');
+  }
+  this.participants = this.participants.filter(
+    (p) => p.userId && p.userId.toString() !== userId.toString()
+  );
 };
 
 partySchema.methods.addJoinRequest = function addJoinRequest(userId, username, avatarUrl) {

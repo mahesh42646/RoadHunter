@@ -1,7 +1,10 @@
 const express = require('express');
+const path = require('path');
 
 const Party = require('../schemas/party');
 const User = require('../schemas/users');
+const upload = require('../middleware/upload');
+const { optimizeImage, getOptimizedPath } = require('../utils/imageOptimizer');
 
 function sanitizeParty(party) {
   const plain = party.toObject({ versionKey: false });
@@ -60,7 +63,7 @@ module.exports = function createPartyRouter(io) {
     }
   });
 
-  router.post('/', authenticate, async (req, res, next) => {
+  router.post('/', authenticate, upload.single('poster'), async (req, res, next) => {
     try {
       // Check if profile is complete
       if (!req.user.account?.profileCompleted) {
@@ -68,15 +71,34 @@ module.exports = function createPartyRouter(io) {
         return;
       }
 
-      const { name, description, avatarUrl, privacy = 'public' } = req.body;
+      const { name, description, privacy = 'public' } = req.body;
       if (!name || !name.trim()) {
         res.status(400).json({ error: 'Party name is required' });
         return;
       }
 
+      let avatarUrl = null;
+
+      // Handle file upload if present
+      if (req.file) {
+        try {
+          const optimizedPath = getOptimizedPath(req.file.path);
+          await optimizeImage(req.file.path, optimizedPath);
+          
+          // Get relative path for URL
+          const relativePath = path.relative(path.join(__dirname, '../uploads'), optimizedPath);
+          avatarUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+        } catch (imageError) {
+          console.error('Error processing image:', imageError);
+          // If image processing fails, use original file
+          const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+          avatarUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+        }
+      }
+
       const party = await Party.create({
         name: name.trim(),
-        description: description?.trim(),
+        description: description?.trim() || '',
         avatarUrl,
         privacy,
         hostId: req.user._id,
@@ -90,6 +112,15 @@ module.exports = function createPartyRouter(io) {
       io.emit('party:created', { partyId: party._id, name: party.name });
       res.status(201).json({ party: sanitizeParty(party) });
     } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file && req.file.path) {
+        const fs = require('fs');
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error('Error deleting uploaded file:', unlinkError);
+        }
+      }
       next(error);
     }
   });
@@ -115,6 +146,22 @@ module.exports = function createPartyRouter(io) {
         return;
       }
 
+      // Check if user is already in another ACTIVE party (not offline)
+      const existingParty = await Party.findOne({
+        'participants.userId': req.user._id,
+        'participants.status': { $in: ['active', 'muted'] },
+        isActive: true,
+        _id: { $ne: req.params.id },
+      });
+
+      if (existingParty) {
+        res.status(400).json({ 
+          error: 'You are already in another party. Please leave that party first.',
+          currentPartyId: existingParty._id.toString(),
+        });
+        return;
+      }
+
       const party = await Party.findById(req.params.id);
       if (!party) {
         res.status(404).json({ error: 'Party not found' });
@@ -125,18 +172,18 @@ module.exports = function createPartyRouter(io) {
         return;
       }
 
-      // Check if user is already an active participant
+      // Check if user is already a participant
       const existingParticipant = party.participants.find(
         (p) => p.userId.toString() === req.user._id.toString()
       );
       
       if (existingParticipant) {
-        if (existingParticipant.status === 'active') {
+        if (existingParticipant.status === 'active' || existingParticipant.status === 'muted') {
           // Already in party, just return current state without emitting events
           res.json({ message: 'Already in party', party: sanitizeParty(party) });
           return;
-        } else if (existingParticipant.status === 'left') {
-          // User left before, reactivate them
+        } else if (existingParticipant.status === 'left' || existingParticipant.status === 'offline') {
+          // User left before or was offline (host), reactivate them
           existingParticipant.status = 'active';
           existingParticipant.joinedAt = new Date();
           party.incrementViews();
@@ -217,7 +264,7 @@ module.exports = function createPartyRouter(io) {
     }
   });
 
-  router.post('/:id/leave', authenticate, async (req, res, next) => {
+  router.post('/:id/mark-offline', authenticate, async (req, res, next) => {
     try {
       const party = await Party.findById(req.params.id);
       if (!party) {
@@ -225,49 +272,217 @@ module.exports = function createPartyRouter(io) {
         return;
       }
 
-      const isHost = party.hostId.toString() === req.user._id.toString();
-      if (isHost && party.participants.length > 1) {
-        res.status(400).json({
-          error: 'Cannot leave as host. Transfer host or end party first.',
-          requiresAction: true,
-        });
+      if (!req.user || !req.user._id) {
+        res.status(401).json({ error: 'User not authenticated' });
         return;
       }
 
-      const wasHost = isHost;
-      party.removeParticipant(req.user._id);
+      const participant = party.participants.find(
+        (p) => p.userId && p.userId.toString() === req.user._id.toString()
+      );
 
-      if (wasHost && party.participants.length > 0) {
-        const newHost = party.participants[0];
-        party.hostId = newHost.userId;
-        party.hostUsername = newHost.username;
-        party.hostAvatarUrl = newHost.avatarUrl;
-        newHost.role = 'host';
-        party.hostMicEnabled = false;
-        party.hostCameraEnabled = false;
-      } else if (wasHost && party.participants.length === 0) {
-        party.isActive = false;
-        party.endedAt = new Date();
+      if (!participant) {
+        res.status(404).json({ error: 'Participant not found' });
+        return;
       }
 
+      // Mark as offline
+      participant.status = 'offline';
       await party.save();
 
-      io.to(`party:${party._id}`).emit('party:participantLeft', {
-        partyId: party._id,
-        userId: req.user._id.toString(),
-        wasHost,
-      });
+      // Emit socket event
+      if (io) {
+        try {
+          io.to(`party:${party._id}`).emit('party:participantOffline', {
+            partyId: party._id.toString(),
+            userId: req.user._id.toString(),
+            isHost: false,
+          });
+        } catch (socketError) {
+          console.error('Error emitting participantOffline event:', socketError);
+        }
+      }
 
-      if (wasHost && party.participants.length > 0) {
-        io.to(`party:${party._id}`).emit('party:hostTransferred', {
-          partyId: party._id,
-          newHostId: party.hostId.toString(),
-          newHostUsername: party.hostUsername,
-        });
+      res.json({ message: 'Marked as offline', party: sanitizeParty(party) });
+    } catch (error) {
+      console.error('Error marking participant offline:', error);
+      next(error);
+    }
+  });
+
+  router.post('/:id/mark-active', authenticate, async (req, res, next) => {
+    try {
+      const party = await Party.findById(req.params.id);
+      if (!party) {
+        res.status(404).json({ error: 'Party not found' });
+        return;
+      }
+
+      if (!req.user || !req.user._id) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      const participant = party.participants.find(
+        (p) => p.userId && p.userId.toString() === req.user._id.toString()
+      );
+
+      if (!participant) {
+        res.status(404).json({ error: 'Participant not found' });
+        return;
+      }
+
+      // Mark as active
+      participant.status = 'active';
+      await party.save();
+
+      // Emit socket event
+      if (io) {
+        try {
+          io.to(`party:${party._id}`).emit('party:participantJoined', {
+            partyId: party._id.toString(),
+            participant: {
+              userId: req.user._id.toString(),
+              username: req.user.account?.displayName || req.user.account?.email || 'Anonymous',
+              avatarUrl: req.user.account?.photoUrl,
+              role: participant.role || 'participant',
+              status: 'active',
+            },
+          });
+        } catch (socketError) {
+          console.error('Error emitting participantJoined event:', socketError);
+        }
+      }
+
+      res.json({ message: 'Marked as active', party: sanitizeParty(party) });
+    } catch (error) {
+      console.error('Error marking participant active:', error);
+      next(error);
+    }
+  });
+
+  router.post('/:id/leave', authenticate, async (req, res, next) => {
+    try {
+      if (!req.params.id) {
+        res.status(400).json({ error: 'Party ID is required' });
+        return;
+      }
+
+      const party = await Party.findById(req.params.id);
+      if (!party) {
+        res.status(404).json({ error: 'Party not found' });
+        return;
+      }
+
+      if (!req.user || !req.user._id) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      const isHost = party.hostId && party.hostId.toString() === req.user._id.toString();
+      const participant = party.participants.find(
+        (p) => p.userId && p.userId.toString() === req.user._id.toString()
+      );
+
+      // If user is not a participant, they're already not in the party
+      if (!participant) {
+        res.json({ message: 'Not in party' });
+        return;
+      }
+      
+      // If host tries to leave and there are other active participants, require transfer or end party
+      if (isHost) {
+        const activeParticipants = party.participants.filter(
+          (p) => p.userId && (p.status === 'active' || p.status === 'muted') && p.userId.toString() !== req.user._id.toString()
+        );
+        
+        if (activeParticipants.length > 0) {
+          res.status(400).json({
+            error: 'Cannot leave as host. Transfer host to someone else or end the party.',
+            requiresAction: true,
+          });
+          return;
+        }
+      }
+
+      const wasHost = isHost;
+      
+      // Remove participant
+      const participantIndex = party.participants.findIndex(
+        (p) => p.userId && p.userId.toString() === req.user._id.toString()
+      );
+      
+      if (participantIndex !== -1) {
+        party.participants.splice(participantIndex, 1);
+      }
+
+      // If host left, end the party (we already checked there are no other active participants)
+      if (wasHost) {
+        party.isActive = false;
+        party.endedAt = new Date();
+        // Keep hostId for validation (required field)
+        if (!party.hostId) {
+          party.hostId = req.user._id;
+          party.hostUsername = req.user.account?.displayName || req.user.account?.email || 'Anonymous';
+        }
+      }
+
+      // Ensure required fields are set before saving
+      if (!party.hostId) {
+        console.error('Party hostId is missing after leave operation');
+        // Fallback: use the leaving user's ID (shouldn't happen, but safety check)
+        party.hostId = req.user._id;
+        party.hostUsername = req.user.account?.displayName || req.user.account?.email || 'Anonymous';
+      }
+      
+      if (!party.hostUsername) {
+        // Ensure hostUsername is always set
+        if (party.participants.length > 0) {
+          const firstParticipant = party.participants[0];
+          party.hostUsername = firstParticipant.username || 'Anonymous';
+        } else {
+          party.hostUsername = req.user.account?.displayName || req.user.account?.email || 'Anonymous';
+        }
+      }
+
+      // Ensure required fields are set
+      if (!party.hostId) {
+        party.hostId = req.user._id;
+        party.hostUsername = req.user.account?.displayName || req.user.account?.email || 'Anonymous';
+      }
+      
+      if (!party.hostUsername) {
+        party.hostUsername = req.user.account?.displayName || req.user.account?.email || 'Anonymous';
+      }
+
+      // Save party
+      await party.save();
+
+      // Emit socket events
+      if (io) {
+        try {
+          const partyIdStr = party._id.toString();
+          const userIdStr = req.user._id.toString();
+          
+          io.to(`party:${partyIdStr}`).emit('party:participantLeft', {
+            partyId: partyIdStr,
+            userId: userIdStr,
+            wasHost,
+          });
+
+          if (wasHost) {
+            io.to(`party:${partyIdStr}`).emit('party:ended', {
+              partyId: partyIdStr,
+            });
+          }
+        } catch (socketError) {
+          console.error('Error emitting socket events:', socketError);
+        }
       }
 
       res.json({ message: 'Left party' });
     } catch (error) {
+      console.error('Error in leave party endpoint:', error);
       next(error);
     }
   });
