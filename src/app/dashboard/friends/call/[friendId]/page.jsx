@@ -10,7 +10,7 @@ import Peer from "simple-peer";
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5030";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
 export default function FriendCallPage() {
   const params = useParams();

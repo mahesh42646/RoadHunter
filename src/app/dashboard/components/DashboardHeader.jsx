@@ -9,7 +9,7 @@ import Link from "next/link";
 import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5030";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
 export default function DashboardHeader() {
   const user = useAuthStore((state) => state.user);

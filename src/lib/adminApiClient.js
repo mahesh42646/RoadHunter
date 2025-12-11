@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Separate API client for admin - no user auth interceptors
 const adminApiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5030/api",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.darkunde.in/api",
   withCredentials: true,
   timeout: 15000,
 });

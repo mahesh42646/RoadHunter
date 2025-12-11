@@ -3,7 +3,7 @@ import axios from "axios";
 import useAuthStore from "@/store/useAuthStore";
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5030/api",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.darkunde.in/api",
   withCredentials: true,
   timeout: 15000,
 });
