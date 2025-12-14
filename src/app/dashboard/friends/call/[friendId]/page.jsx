@@ -9,7 +9,6 @@ import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
 import useCallStore from "@/store/useCallStore";
 import CallView from "@/components/CallView";
-import apiClient from "@/lib/apiClient";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
