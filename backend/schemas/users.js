@@ -135,10 +135,15 @@ const userSchema = new mongoose.Schema(
         sent: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
         received: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
       },
+      followRequests: {
+        sent: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+        received: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      },
       removedFriends: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
       removedBy: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
       followers: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
       following: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
+      blockedUsers: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], default: [] },
     },
     audit: {
       createdBy: { type: String, trim: true },

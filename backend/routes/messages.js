@@ -44,8 +44,22 @@ module.exports = function createMessagesRouter(io) {
 
       // Verify they are friends
       const user = await User.findById(req.user._id);
+      const friend = await User.findById(friendId);
+      
       if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
         res.status(403).json({ error: 'You can only message friends' });
+        return;
+      }
+
+      // Check if user is blocked
+      if (user.social?.blockedUsers?.some((id) => id.toString() === friendId)) {
+        res.status(403).json({ error: 'Cannot message blocked user' });
+        return;
+      }
+
+      // Check if you are blocked by this user
+      if (friend?.social?.blockedUsers?.some((id) => id.toString() === user._id.toString())) {
+        res.status(403).json({ error: 'User has blocked you' });
         return;
       }
 
@@ -112,8 +126,22 @@ module.exports = function createMessagesRouter(io) {
 
       // Verify they are friends
       const user = await User.findById(req.user._id);
+      const friend = await User.findById(friendId);
+      
       if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
         res.status(403).json({ error: 'You can only message friends' });
+        return;
+      }
+
+      // Check if user is blocked
+      if (user.social?.blockedUsers?.some((id) => id.toString() === friendId)) {
+        res.status(403).json({ error: 'Cannot message blocked user' });
+        return;
+      }
+
+      // Check if you are blocked by this user
+      if (friend?.social?.blockedUsers?.some((id) => id.toString() === user._id.toString())) {
+        res.status(403).json({ error: 'User has blocked you' });
         return;
       }
 

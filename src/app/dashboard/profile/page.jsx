@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { Card, Col, Form, Row, Button, Alert, InputGroup, Modal, Badge } from "react-bootstrap";
-import { FaCamera, FaUser, FaLock, FaUnlock, FaUpload, FaTimes, FaCopy, FaCheck } from "react-icons/fa";
+import { Card, Col, Form, Row, Button, Alert, InputGroup, Modal, Badge, Dropdown } from "react-bootstrap";
+import { FaCamera, FaUser, FaLock, FaUnlock, FaUpload, FaTimes, FaCopy, FaCheck, FaComments, FaPhone, FaVideo, FaGift, FaUserCircle, FaBan, FaExclamationTriangle } from "react-icons/fa";
 import { io } from "socket.io-client";
 
 import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
 import { getImageUrl, getInitials } from "@/lib/imageUtils";
+import GiftSelector from "@/app/party/components/GiftSelector";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -34,6 +35,15 @@ export default function ProfilePage() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [giftRecipientId, setGiftRecipientId] = useState(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportUserId, setReportUserId] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reporting, setReporting] = useState(false);
+  const [showBlockConfirmModal, setShowBlockConfirmModal] = useState(false);
+  const [blockUserId, setBlockUserId] = useState(null);
+  const [blocking, setBlocking] = useState(false);
   const [formData, setFormData] = useState({
     fullName: user?.account?.displayName || "",
     gender: user?.account?.gender || "",
@@ -68,8 +78,18 @@ export default function ProfilePage() {
   useEffect(() => {
     if (isProfileComplete) {
       loadReferralData();
+      loadWallet();
     }
   }, [isProfileComplete]);
+
+  const loadWallet = async () => {
+    try {
+      const response = await apiClient.get("/wallet/balance");
+      setWallet(response.data);
+    } catch (error) {
+      console.error("Failed to load wallet:", error);
+    }
+  };
 
   // Socket listener for social updates (followers/following count changes)
   useEffect(() => {
@@ -248,6 +268,103 @@ export default function ProfilePage() {
       await loadFollowing();
     } catch (error) {
       alert(error.response?.data?.error || "Failed to unfollow");
+    }
+  };
+
+  const handleViewProfile = (userId) => {
+    router.push(`/dashboard/users/${userId}`);
+  };
+
+  const handleSendGift = async (userId) => {
+    // Check if user is a friend/following first
+    try {
+      const response = await apiClient.get(`/friends/profile/${userId}`);
+      const relationship = response.data.user?.relationship || {};
+      const isFriend = relationship.isFriend || relationship.isFollowing || false;
+      
+      if (!isFriend) {
+        alert("You can only send gifts to friends. Please follow this user first.");
+        return;
+      }
+      
+      setGiftRecipientId(userId);
+      setShowGiftModal(true);
+      setShowFollowersModal(false);
+      setShowFollowingModal(false);
+    } catch (error) {
+      console.error("Failed to check relationship:", error);
+      alert("Failed to check user relationship");
+    }
+  };
+
+  const handleChat = (userId) => {
+    router.push(`/dashboard/friends/chat/${userId}`);
+  };
+
+  const handleVoiceCall = (userId) => {
+    router.push(`/dashboard/friends/call/${userId}`);
+  };
+
+  const handleVideoCall = (userId) => {
+    router.push(`/dashboard/friends/call/${userId}?video=true`);
+  };
+
+  const handleReport = (userId) => {
+    setReportUserId(userId);
+    setShowReportModal(true);
+    setShowFollowersModal(false);
+    setShowFollowingModal(false);
+  };
+
+  const handleSubmitReport = async (e) => {
+    e.preventDefault();
+    if (!reportReason.trim()) {
+      setMessage("Please provide a reason for reporting");
+      return;
+    }
+
+    setReporting(true);
+    setMessage("");
+    
+    try {
+      await apiClient.post(`/users/report/${reportUserId}`, { reason: reportReason.trim() });
+      setMessage("User reported successfully. Thank you for keeping our community safe.");
+      setReportReason("");
+      setTimeout(() => {
+        setShowReportModal(false);
+        setMessage("");
+        setReportUserId(null);
+      }, 2000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || "Failed to report user");
+    } finally {
+      setReporting(false);
+    }
+  };
+
+  const handleBlock = (userId) => {
+    setBlockUserId(userId);
+    setShowBlockConfirmModal(true);
+    setShowFollowersModal(false);
+    setShowFollowingModal(false);
+  };
+
+  const handleConfirmBlock = async () => {
+    if (!blockUserId) return;
+
+    setBlocking(true);
+    try {
+      await apiClient.post(`/friends/block/${blockUserId}`);
+      alert("User blocked successfully");
+      await refreshUserData();
+      await loadFollowers();
+      await loadFollowing();
+      setShowBlockConfirmModal(false);
+      setBlockUserId(null);
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to block user");
+    } finally {
+      setBlocking(false);
     }
   };
 
@@ -978,7 +1095,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 d-flex align-items-center gap-2">
                       {isFollowing ? (
                         <Button
                           variant="outline-secondary"
@@ -1008,6 +1125,74 @@ export default function ProfilePage() {
                           Follow
                         </Button>
                       )}
+                      
+                      {/* Actions Dropdown */}
+                      <Dropdown>
+                        <Dropdown.Toggle
+                          variant="outline-light"
+                          size="sm"
+                          id={`actions-${follower._id}`}
+                          style={{ minWidth: "40px" }}
+                        >
+                          <FaTimes style={{ transform: "rotate(90deg)" }} />
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu className="bg-dark border-light">
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleViewProfile(follower._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaUserCircle className="me-2" /> View Profile
+                          </Dropdown.Item>
+                          {isFollowing && (
+                            <>
+                              <Dropdown.Item
+                                className="text-light"
+                                onClick={() => handleSendGift(follower._id)}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <FaGift className="me-2" /> Send Gift
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                className="text-light"
+                                onClick={() => handleChat(follower._id)}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <FaComments className="me-2" /> Chat
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                className="text-light"
+                                onClick={() => handleVoiceCall(follower._id)}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <FaPhone className="me-2" /> Voice Call
+                              </Dropdown.Item>
+                              <Dropdown.Item
+                                className="text-light"
+                                onClick={() => handleVideoCall(follower._id)}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <FaVideo className="me-2" /> Video Call
+                              </Dropdown.Item>
+                              <Dropdown.Divider className="bg-light" />
+                              <Dropdown.Item
+                                className="text-light"
+                                onClick={() => handleReport(follower._id)}
+                                style={{ cursor: "pointer" }}
+                              >
+                                <FaExclamationTriangle className="me-2" /> Report
+                              </Dropdown.Item>
+                            </>
+                          )}
+                          <Dropdown.Item
+                            className="text-danger"
+                            onClick={() => handleBlock(follower._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaBan className="me-2" /> Block
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
                     </div>
                   </div>
                 );
@@ -1085,7 +1270,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 d-flex align-items-center gap-2">
                       <Button
                         variant="outline-secondary"
                         size="sm"
@@ -1093,6 +1278,70 @@ export default function ProfilePage() {
                       >
                         Unfollow
                       </Button>
+                      
+                      {/* Actions Dropdown */}
+                      <Dropdown>
+                        <Dropdown.Toggle
+                          variant="outline-light"
+                          size="sm"
+                          id={`actions-following-${follow._id}`}
+                          style={{ minWidth: "40px" }}
+                        >
+                          <FaTimes style={{ transform: "rotate(90deg)" }} />
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu className="bg-dark border-light">
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleViewProfile(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaUserCircle className="me-2" /> View Profile
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleSendGift(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaGift className="me-2" /> Send Gift
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleChat(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaComments className="me-2" /> Chat
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleVoiceCall(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaPhone className="me-2" /> Voice Call
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleVideoCall(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaVideo className="me-2" /> Video Call
+                          </Dropdown.Item>
+                          <Dropdown.Divider className="bg-light" />
+                          <Dropdown.Item
+                            className="text-light"
+                            onClick={() => handleReport(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaExclamationTriangle className="me-2" /> Report
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            className="text-danger"
+                            onClick={() => handleBlock(follow._id)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <FaBan className="me-2" /> Block
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
                     </div>
                   </div>
                 );
@@ -1345,6 +1594,149 @@ export default function ProfilePage() {
               </Col>
             </Row>
           </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Gift Modal for Individual User */}
+      {showGiftModal && giftRecipientId && (
+        <Modal
+          show={showGiftModal}
+          onHide={() => {
+            setShowGiftModal(false);
+            setGiftRecipientId(null);
+          }}
+          centered
+          contentClassName="glass-card border-0"
+          size="lg"
+        >
+          <Modal.Header
+            closeButton
+            style={{
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "var(--text-primary)",
+            }}
+          >
+            <Modal.Title style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
+              Send Gift
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <GiftSelector
+              show={true}
+              onHide={() => {
+                setShowGiftModal(false);
+                setGiftRecipientId(null);
+              }}
+              wallet={wallet}
+              friendId={giftRecipientId}
+              onGiftSent={async () => {
+                await loadWallet();
+                await refreshUserData();
+                setShowGiftModal(false);
+                setGiftRecipientId(null);
+              }}
+            />
+          </Modal.Body>
+        </Modal>
+      )}
+
+      {/* Report User Modal */}
+      <Modal
+        show={showReportModal}
+        onHide={() => {
+          setShowReportModal(false);
+          setReportUserId(null);
+          setReportReason("");
+          setMessage("");
+        }}
+        centered
+        contentClassName="bg-dark border-light"
+      >
+        <Modal.Header closeButton className="border-light">
+          <Modal.Title className="text-light">Report User</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {message && (
+            <Alert variant={message.includes("success") ? "success" : "danger"} className="mb-3">
+              {message}
+            </Alert>
+          )}
+          <Form onSubmit={handleSubmitReport}>
+            <Form.Group className="mb-3">
+              <Form.Label>Reason for Reporting</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="Please provide a detailed reason for reporting this user..."
+                required
+              />
+            </Form.Group>
+            <div className="d-flex gap-2">
+              <Button
+                variant="outline-light"
+                className="flex-grow-1"
+                onClick={() => {
+                  setShowReportModal(false);
+                  setReportUserId(null);
+                  setReportReason("");
+                  setMessage("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="danger"
+                className="flex-grow-1"
+                disabled={reporting || !reportReason.trim()}
+              >
+                {reporting ? "Submitting..." : "Submit Report"}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Block User Confirmation Modal */}
+      <Modal
+        show={showBlockConfirmModal}
+        onHide={() => {
+          setShowBlockConfirmModal(false);
+          setBlockUserId(null);
+        }}
+        centered
+        contentClassName="bg-dark border-light"
+      >
+        <Modal.Header closeButton className="border-light">
+          <Modal.Title className="text-light">Block User</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-light">
+            Are you sure you want to block this user? You will no longer be able to see their content, 
+            and they won't be able to see yours. This action can be undone later.
+          </p>
+          <div className="d-flex gap-2">
+            <Button
+              variant="outline-light"
+              className="flex-grow-1"
+              onClick={() => {
+                setShowBlockConfirmModal(false);
+                setBlockUserId(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              className="flex-grow-1"
+              onClick={handleConfirmBlock}
+              disabled={blocking}
+            >
+              {blocking ? "Blocking..." : "Block User"}
+            </Button>
+          </div>
         </Modal.Body>
       </Modal>
     </div>

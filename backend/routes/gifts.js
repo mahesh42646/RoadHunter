@@ -74,6 +74,18 @@ module.exports = function createGiftRouter(io) {
           return;
         }
 
+        // Check if user is blocked
+        if (user.social?.blockedUsers?.some((id) => id.toString() === friendId)) {
+          res.status(403).json({ error: 'Cannot send gift to blocked user' });
+          return;
+        }
+
+        // Check if you are blocked by this user
+        if (friend.social?.blockedUsers?.some((id) => id.toString() === user._id.toString())) {
+          res.status(403).json({ error: 'User has blocked you' });
+          return;
+        }
+
         const gift = GIFT_TYPES[giftType];
         const totalCost = gift.price * quantity;
 

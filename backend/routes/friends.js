@@ -76,6 +76,7 @@ module.exports = function createFriendsRouter(io) {
         removedBy: [],
         followers: [],
         following: [],
+        blockedUsers: [],
       };
     }
     // Ensure nested objects exist
@@ -99,6 +100,9 @@ module.exports = function createFriendsRouter(io) {
     }
     if (!user.social.following) {
       user.social.following = [];
+    }
+    if (!user.social.blockedUsers) {
+      user.social.blockedUsers = [];
     }
     if (!user.social.profilePrivacy) {
       user.social.profilePrivacy = 'public';
@@ -174,6 +178,18 @@ module.exports = function createFriendsRouter(io) {
 
       const user = await ensureSocial(req.user);
       const target = await ensureSocial(targetUser);
+
+      // Check if user is blocked
+      if (user.social.blockedUsers?.some((id) => id.toString() === userId)) {
+        res.status(403).json({ error: 'Cannot interact with blocked user' });
+        return;
+      }
+
+      // Check if you are blocked by this user
+      if (target.social.blockedUsers?.some((id) => id.toString() === user._id.toString())) {
+        res.status(403).json({ error: 'User has blocked you' });
+        return;
+      }
 
       // Check if already friends
       if (user.social.friends.some((id) => id.toString() === userId)) {
@@ -679,8 +695,14 @@ module.exports = function createFriendsRouter(io) {
     try {
       const user = await ensureSocial(req.user);
       const followerIds = user.social.followers || [];
+      const blockedIds = user.social.blockedUsers || [];
       
-      const followers = await User.find({ _id: { $in: followerIds } })
+      // Filter out blocked users
+      const unblockedFollowerIds = followerIds.filter(
+        (id) => !blockedIds.some((blockedId) => blockedId.toString() === id.toString())
+      );
+      
+      const followers = await User.find({ _id: { $in: unblockedFollowerIds } })
         .select('account progress social.profilePrivacy social.following social.followers social.followRequests')
         .lean();
 
@@ -845,6 +867,117 @@ module.exports = function createFriendsRouter(io) {
       });
 
       res.json({ message: 'Follow request sent', user: sanitizeUser(target) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Block user
+  router.post('/block/:userId', authenticate, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+
+      if (userId === req.user._id.toString()) {
+        res.status(400).json({ error: 'Cannot block yourself' });
+        return;
+      }
+
+      const targetUser = await User.findById(userId);
+      if (!targetUser) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const user = await ensureSocial(req.user);
+      const target = await ensureSocial(targetUser);
+
+      // Initialize blockedUsers if it doesn't exist
+      if (!user.social.blockedUsers) {
+        user.social.blockedUsers = [];
+      }
+
+      // Check if already blocked
+      if (user.social.blockedUsers.some((id) => id.toString() === userId)) {
+        res.status(400).json({ error: 'User is already blocked' });
+        return;
+      }
+
+      // Add to blocked list
+      user.social.blockedUsers.push(targetUser._id);
+
+      // Remove from friends, following, followers, and requests
+      user.social.friends = user.social.friends.filter((id) => id.toString() !== userId);
+      user.social.following = user.social.following.filter((id) => id.toString() !== userId);
+      user.social.followers = user.social.followers.filter((id) => id.toString() !== userId);
+      target.social.followers = target.social.followers.filter((id) => id.toString() !== user._id.toString());
+      target.social.following = target.social.following.filter((id) => id.toString() !== user._id.toString());
+      target.social.friends = target.social.friends.filter((id) => id.toString() !== user._id.toString());
+
+      // Remove from friend requests
+      user.social.friendRequests.sent = user.social.friendRequests.sent.filter((id) => id.toString() !== userId);
+      user.social.friendRequests.received = user.social.friendRequests.received.filter((id) => id.toString() !== userId);
+      target.social.friendRequests.sent = target.social.friendRequests.sent.filter((id) => id.toString() !== user._id.toString());
+      target.social.friendRequests.received = target.social.friendRequests.received.filter((id) => id.toString() !== user._id.toString());
+
+      // Remove from follow requests
+      if (user.social.followRequests) {
+        user.social.followRequests.sent = user.social.followRequests.sent.filter((id) => id.toString() !== userId);
+        user.social.followRequests.received = user.social.followRequests.received.filter((id) => id.toString() !== userId);
+      }
+      if (target.social.followRequests) {
+        target.social.followRequests.sent = target.social.followRequests.sent.filter((id) => id.toString() !== user._id.toString());
+        target.social.followRequests.received = target.social.followRequests.received.filter((id) => id.toString() !== user._id.toString());
+      }
+
+      user.markModified('social');
+      target.markModified('social');
+
+      await Promise.all([user.save(), target.save()]);
+
+      io.emit('user:blocked', {
+        blockerId: user._id.toString(),
+        blockedId: targetUser._id.toString(),
+      });
+
+      res.json({ message: 'User blocked successfully' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Unblock user
+  router.post('/unblock/:userId', authenticate, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+
+      const user = await ensureSocial(req.user);
+      
+      if (!user.social.blockedUsers) {
+        res.status(400).json({ error: 'User is not blocked' });
+        return;
+      }
+
+      const wasBlocked = user.social.blockedUsers.some((id) => id.toString() === userId);
+      if (!wasBlocked) {
+        res.status(400).json({ error: 'User is not blocked' });
+        return;
+      }
+
+      // Remove from blocked list
+      user.social.blockedUsers = user.social.blockedUsers.filter((id) => id.toString() !== userId);
+      user.markModified('social.blockedUsers');
+
+      await user.save();
+
+      res.json({ message: 'User unblocked successfully' });
     } catch (error) {
       next(error);
     }

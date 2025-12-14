@@ -311,8 +311,22 @@ io.on('connection', (socket) => {
     try {
       const User = require('./schemas/users');
       const user = await User.findById(fromUserId);
+      const friend = await User.findById(friendId);
+      
       if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
         socket.emit('friend:call:error', { error: 'Can only call friends' });
+        return;
+      }
+
+      // Check if user is blocked
+      if (user.social?.blockedUsers?.some((id) => id.toString() === friendId)) {
+        socket.emit('friend:call:error', { error: 'Cannot call blocked user' });
+        return;
+      }
+
+      // Check if you are blocked by this user
+      if (friend?.social?.blockedUsers?.some((id) => id.toString() === user._id.toString())) {
+        socket.emit('friend:call:error', { error: 'User has blocked you' });
         return;
       }
 
