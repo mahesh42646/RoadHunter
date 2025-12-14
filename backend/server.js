@@ -130,6 +130,9 @@ io.use((socket, next) => {
   }
 });
 
+// Track online users
+const onlineUsers = new Map(); // userId -> { socketId, lastSeen }
+
 io.on('connection', (socket) => {
   console.log(`[Socket.IO] ✅ Client connected: ${socket.id}`);
   
@@ -137,7 +140,11 @@ io.on('connection', (socket) => {
   const userId = socket.data.user?.sub;
   if (userId) {
     socket.join(`user:${userId}`);
-    console.log(`[Socket.IO] User ${userId} auto-joined personal room`);
+    // Mark user as online
+    onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now() });
+    // Notify others that user is online
+    io.emit('user:online', { userId });
+    console.log(`[Socket.IO] User ${userId} auto-joined personal room and marked as online`);
   }
   
   // Track client in game engine
@@ -198,6 +205,15 @@ io.on('connection', (socket) => {
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log(`[Socket.IO] ❌ Client disconnected: ${socket.id}`);
+    
+    // Mark user as offline
+    if (userId) {
+      onlineUsers.delete(userId);
+      // Notify others that user is offline
+      io.emit('user:offline', { userId });
+      console.log(`[Socket.IO] User ${userId} marked as offline`);
+    }
+    
     // Remove client from game engine
     if (gameEngine) {
       gameEngine.removeClient(socket.id);
@@ -310,6 +326,7 @@ io.on('connection', (socket) => {
     // Verify they are friends
     try {
       const User = require('./schemas/users');
+      const Party = require('./schemas/party');
       const user = await User.findById(fromUserId);
       const friend = await User.findById(friendId);
       
@@ -329,6 +346,25 @@ io.on('connection', (socket) => {
         socket.emit('friend:call:error', { error: 'User has blocked you' });
         return;
       }
+
+      // Check if friend is online
+      if (!onlineUsers || !onlineUsers.has(friendId)) {
+        socket.emit('friend:call:error', { error: 'User is offline' });
+        return;
+      }
+
+      // Check if friend is busy (hosting a party)
+      const activeParty = await Party.findOne({
+        hostId: friendId,
+        isActive: true,
+      });
+      if (activeParty) {
+        socket.emit('friend:call:error', { error: 'User is busy (in a party)' });
+        return;
+      }
+
+      // Check if friend is already in a call (we'll check this via their socket room or call status)
+      // For now, we'll allow the call and let the recipient handle it
 
       // Find friend's socket (they should be in a room with their userId)
       io.to(`user:${friendId}`).emit('friend:call:incoming', {
@@ -427,7 +463,7 @@ app.use('/api/users', createUserRouter(io));
 app.use('/api/parties', createPartyRouter(io));
 app.use('/api/wallet', createWalletRouter(io));
 app.use('/api/gifts', createGiftRouter(io));
-app.use('/api/friends', createFriendsRouter(io));
+app.use('/api/friends', createFriendsRouter(io, onlineUsers));
 app.use('/api/messages', createMessagesRouter(io));
 app.use('/api/games', gamesRouter);
 app.use('/api/admin', require('./routes/admin'));

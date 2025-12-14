@@ -11,6 +11,7 @@ import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
 import { getImageUrl, getInitials } from "@/lib/imageUtils";
 import GiftSelector from "@/app/party/components/GiftSelector";
+import UserListItem from "./components/UserListItem";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -303,6 +304,20 @@ export default function ProfilePage() {
 
   const handleVoiceCall = async (userId) => {
     try {
+      // Check user status first
+      const statusResponse = await apiClient.get(`/friends/status/${userId}`);
+      const { status, isOnline, isBusy } = statusResponse.data;
+
+      if (!isOnline) {
+        alert("User is offline. Cannot make a call.");
+        return;
+      }
+
+      if (isBusy) {
+        alert("User is busy (in a party). Cannot make a call.");
+        return;
+      }
+
       const response = await apiClient.get(`/friends/profile/${userId}`);
       const friendData = response.data.user;
       const { startCall, setCallStatus } = useCallStore.getState();
@@ -312,12 +327,27 @@ export default function ProfilePage() {
       router.push(`/dashboard/friends/call/${userId}`);
     } catch (error) {
       console.error("Failed to start call:", error);
-      alert("Failed to start call");
+      const errorMsg = error.response?.data?.error || "Failed to start call";
+      alert(errorMsg);
     }
   };
 
   const handleVideoCall = async (userId) => {
     try {
+      // Check user status first
+      const statusResponse = await apiClient.get(`/friends/status/${userId}`);
+      const { status, isOnline, isBusy } = statusResponse.data;
+
+      if (!isOnline) {
+        alert("User is offline. Cannot make a call.");
+        return;
+      }
+
+      if (isBusy) {
+        alert("User is busy (in a party). Cannot make a call.");
+        return;
+      }
+
       const response = await apiClient.get(`/friends/profile/${userId}`);
       const friendData = response.data.user;
       const { startCall, setCallStatus } = useCallStore.getState();
@@ -327,7 +357,8 @@ export default function ProfilePage() {
       router.push(`/dashboard/friends/call/${userId}`);
     } catch (error) {
       console.error("Failed to start call:", error);
-      alert("Failed to start call");
+      const errorMsg = error.response?.data?.error || "Failed to start call";
+      alert(errorMsg);
     }
   };
 
@@ -1072,151 +1103,27 @@ export default function ProfilePage() {
             <div className="d-flex flex-column gap-3">
               {followers.map((follower) => {
                 const relationship = follower.relationship || {};
-                const isFollowing = relationship.isFollowing || false;
-                const hasSentRequest = relationship.hasSentFollowRequest || false;
-                const canFollowBack = relationship.canFollowBack !== false;
-                const profilePrivacy = relationship.profilePrivacy || 'public';
-
                 return (
-                  <div
+                  <UserListItem
                     key={follower._id}
-                    className="d-flex align-items-center justify-content-between gap-3 p-2 rounded"
-                    style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                  >
-                    <div className="d-flex align-items-center gap-3 flex-grow-1">
-                      {getImageUrl(follower.account?.photoUrl) ? (
-                        <Image
-                          src={getImageUrl(follower.account?.photoUrl)}
-                          alt={follower.account?.displayName}
-                          width={50}
-                          height={50}
-                          className="rounded-circle"
-                          style={{ objectFit: "cover" }}
-                          unoptimized
-                        />
-                      ) : (
-                        <div
-                          className="rounded-circle d-flex align-items-center justify-content-center"
-                          style={{
-                            width: "50px",
-                            height: "50px",
-                            backgroundColor: "rgba(255, 45, 149, 0.3)",
-                            color: "white",
-                            fontSize: "1.2rem",
-                            fontWeight: "bold",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {getInitials(follower.account?.displayName || follower.account?.email || "?")}
-                        </div>
-                      )}
-                      <div className="flex-grow-1">
-                        <div className="fw-bold">{follower.account?.displayName || follower.account?.email}</div>
-                        <div className="text-muted small">
-                          Level {follower.progress?.level || 1}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 d-flex align-items-center gap-2">
-                      {isFollowing ? (
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={() => handleUnfollow(follower._id)}
-                        >
-                          Unfollow
-                        </Button>
-                      ) : canFollowBack ? (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleFollowBack(follower._id, profilePrivacy)}
-                        >
-                          Follow Back
-                        </Button>
-                      ) : hasSentRequest ? (
-                        <Button variant="outline-warning" size="sm" disabled>
-                          Request Sent
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleFollow(follower._id, profilePrivacy)}
-                        >
-                          Follow
-                        </Button>
-                      )}
-                      
-                      {/* Actions Dropdown */}
-                      <Dropdown>
-                        <Dropdown.Toggle
-                          variant="outline-light"
-                          size="sm"
-                          id={`actions-${follower._id}`}
-                          style={{ minWidth: "40px" }}
-                        >
-                          <FaTimes style={{ transform: "rotate(90deg)" }} />
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu className="bg-dark border-light">
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleViewProfile(follower._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaUserCircle className="me-2" /> View Profile
-                          </Dropdown.Item>
-                          {isFollowing && (
-                            <>
-                              <Dropdown.Item
-                                className="text-light"
-                                onClick={() => handleSendGift(follower._id)}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <FaGift className="me-2" /> Send Gift
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                className="text-light"
-                                onClick={() => handleChat(follower._id)}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <FaComments className="me-2" /> Chat
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                className="text-light"
-                                onClick={() => handleVoiceCall(follower._id)}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <FaPhone className="me-2" /> Voice Call
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                className="text-light"
-                                onClick={() => handleVideoCall(follower._id)}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <FaVideo className="me-2" /> Video Call
-                              </Dropdown.Item>
-                              <Dropdown.Divider className="bg-light" />
-                              <Dropdown.Item
-                                className="text-light"
-                                onClick={() => handleReport(follower._id)}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <FaExclamationTriangle className="me-2" /> Report
-                              </Dropdown.Item>
-                            </>
-                          )}
-                          <Dropdown.Item
-                            className="text-danger"
-                            onClick={() => handleBlock(follower._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaBan className="me-2" /> Block
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    </div>
-                  </div>
+                    user={follower}
+                    relationship={relationship}
+                    isFollowing={relationship.isFollowing || false}
+                    hasSentRequest={relationship.hasSentFollowRequest || false}
+                    canFollowBack={relationship.canFollowBack !== false}
+                    profilePrivacy={relationship.profilePrivacy || 'public'}
+                    followsYou={false}
+                    onFollow={handleFollow}
+                    onFollowBack={handleFollowBack}
+                    onUnfollow={handleUnfollow}
+                    onViewProfile={handleViewProfile}
+                    onSendGift={handleSendGift}
+                    onChat={handleChat}
+                    onVoiceCall={handleVoiceCall}
+                    onVideoCall={handleVideoCall}
+                    onReport={handleReport}
+                    onBlock={handleBlock}
+                  />
                 );
               })}
             </div>
@@ -1247,125 +1154,27 @@ export default function ProfilePage() {
             <div className="d-flex flex-column gap-3">
               {following.map((follow) => {
                 const relationship = follow.relationship || {};
-                const followsYou = relationship.followsYou || false;
-
                 return (
-                  <div
+                  <UserListItem
                     key={follow._id}
-                    className="d-flex align-items-center justify-content-between gap-3 p-2 rounded"
-                    style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                  >
-                    <div className="d-flex align-items-center gap-3 flex-grow-1">
-                      {getImageUrl(follow.account?.photoUrl) ? (
-                        <Image
-                          src={getImageUrl(follow.account?.photoUrl)}
-                          alt={follow.account?.displayName}
-                          width={50}
-                          height={50}
-                          className="rounded-circle"
-                          style={{ objectFit: "cover" }}
-                          unoptimized
-                        />
-                      ) : (
-                        <div
-                          className="rounded-circle d-flex align-items-center justify-content-center"
-                          style={{
-                            width: "50px",
-                            height: "50px",
-                            backgroundColor: "rgba(255, 45, 149, 0.3)",
-                            color: "white",
-                            fontSize: "1.2rem",
-                            fontWeight: "bold",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {getInitials(follow.account?.displayName || follow.account?.email || "?")}
-                        </div>
-                      )}
-                      <div className="flex-grow-1">
-                        <div className="fw-bold">{follow.account?.displayName || follow.account?.email}</div>
-                        <div className="text-muted small">
-                          Level {follow.progress?.level || 1}
-                          {followsYou && (
-                            <Badge bg="info" className="ms-2">Follows you</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0 d-flex align-items-center gap-2">
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        onClick={() => handleUnfollow(follow._id)}
-                      >
-                        Unfollow
-                      </Button>
-                      
-                      {/* Actions Dropdown */}
-                      <Dropdown>
-                        <Dropdown.Toggle
-                          variant="outline-light"
-                          size="sm"
-                          id={`actions-following-${follow._id}`}
-                          style={{ minWidth: "40px" }}
-                        >
-                          <FaTimes style={{ transform: "rotate(90deg)" }} />
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu className="bg-dark border-light">
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleViewProfile(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaUserCircle className="me-2" /> View Profile
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleSendGift(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaGift className="me-2" /> Send Gift
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleChat(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaComments className="me-2" /> Chat
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleVoiceCall(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaPhone className="me-2" /> Voice Call
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleVideoCall(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaVideo className="me-2" /> Video Call
-                          </Dropdown.Item>
-                          <Dropdown.Divider className="bg-light" />
-                          <Dropdown.Item
-                            className="text-light"
-                            onClick={() => handleReport(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaExclamationTriangle className="me-2" /> Report
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            className="text-danger"
-                            onClick={() => handleBlock(follow._id)}
-                            style={{ cursor: "pointer" }}
-                          >
-                            <FaBan className="me-2" /> Block
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    </div>
-                  </div>
+                    user={follow}
+                    relationship={relationship}
+                    isFollowing={true}
+                    hasSentRequest={false}
+                    canFollowBack={false}
+                    profilePrivacy={relationship.profilePrivacy || 'public'}
+                    followsYou={relationship.followsYou || false}
+                    onFollow={handleFollow}
+                    onFollowBack={handleFollowBack}
+                    onUnfollow={handleUnfollow}
+                    onViewProfile={handleViewProfile}
+                    onSendGift={handleSendGift}
+                    onChat={handleChat}
+                    onVoiceCall={handleVoiceCall}
+                    onVideoCall={handleVideoCall}
+                    onReport={handleReport}
+                    onBlock={handleBlock}
+                  />
                 );
               })}
             </div>

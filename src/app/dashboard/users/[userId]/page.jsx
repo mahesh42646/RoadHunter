@@ -88,12 +88,52 @@ export default function ViewUserProfilePage() {
     router.push(`/dashboard/friends/chat/${userId}`);
   };
 
-  const handleVoiceCall = () => {
-    router.push(`/dashboard/friends/call/${userId}`);
+  const handleVoiceCall = async () => {
+    try {
+      // Check user status first
+      const statusResponse = await apiClient.get(`/friends/status/${userId}`);
+      const { status, isOnline, isBusy } = statusResponse.data;
+
+      if (!isOnline) {
+        alert("User is offline. Cannot make a call.");
+        return;
+      }
+
+      if (isBusy) {
+        alert("User is busy (in a party). Cannot make a call.");
+        return;
+      }
+
+      router.push(`/dashboard/friends/call/${userId}`);
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      const errorMsg = error.response?.data?.error || "Failed to start call";
+      alert(errorMsg);
+    }
   };
 
-  const handleVideoCall = () => {
-    router.push(`/dashboard/friends/call/${userId}?video=true`);
+  const handleVideoCall = async () => {
+    try {
+      // Check user status first
+      const statusResponse = await apiClient.get(`/friends/status/${userId}`);
+      const { status, isOnline, isBusy } = statusResponse.data;
+
+      if (!isOnline) {
+        alert("User is offline. Cannot make a call.");
+        return;
+      }
+
+      if (isBusy) {
+        alert("User is busy (in a party). Cannot make a call.");
+        return;
+      }
+
+      router.push(`/dashboard/friends/call/${userId}?video=true`);
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      const errorMsg = error.response?.data?.error || "Failed to start call";
+      alert(errorMsg);
+    }
   };
 
   const handleSendGift = async () => {

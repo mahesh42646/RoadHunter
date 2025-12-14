@@ -61,7 +61,7 @@ function sanitizeUser(user) {
   };
 }
 
-module.exports = function createFriendsRouter(io) {
+module.exports = function createFriendsRouter(io, onlineUsers) {
   const router = express.Router();
 
   // Initialize social object if it doesn't exist
@@ -978,6 +978,56 @@ module.exports = function createFriendsRouter(io) {
       await user.save();
 
       res.json({ message: 'User unblocked successfully' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get user status (online, busy, offline)
+  router.get('/status/:userId', authenticate, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+
+      const targetUser = await User.findById(userId);
+      if (!targetUser) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      // Check if user is online
+      const isOnline = onlineUsers && onlineUsers.has(userId.toString());
+      
+      // Check if user is in a party as host
+      const Party = require('../schemas/party');
+      const activeParty = await Party.findOne({
+        hostId: userId,
+        isActive: true,
+      });
+
+      const isBusy = !!activeParty; // User is busy if they're hosting a party
+
+      // Check if user is in a call (we can't directly check this, but we can infer from socket rooms)
+      // For now, we'll rely on the caller checking their own call status
+      
+      let status = 'offline';
+      if (isOnline && !isBusy) {
+        status = 'online';
+      } else if (isOnline && isBusy) {
+        status = 'busy';
+      }
+
+      res.json({
+        userId,
+        status, // 'online', 'busy', 'offline'
+        isOnline,
+        isBusy,
+        isInParty: !!activeParty,
+        partyId: activeParty?._id?.toString() || null,
+      });
     } catch (error) {
       next(error);
     }

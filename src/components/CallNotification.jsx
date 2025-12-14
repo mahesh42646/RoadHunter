@@ -1,20 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button, Card } from "react-bootstrap";
-import { FaPhone, FaPhoneSlash, FaVideo } from "react-icons/fa";
+import { FaPhone, FaPhoneSlash, FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash } from "react-icons/fa";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 import useCallStore from "@/store/useCallStore";
-import { getImageUrl, getInitials } from "@/lib/imageUtils";
 import Avatar from "@/components/Avatar";
 
 export default function CallNotification() {
   const router = useRouter();
-  const { callStatus, friend, friendId, acceptCall, rejectCall, startCall } = useCallStore();
+  const { 
+    callStatus, 
+    friend, 
+    friendId, 
+    acceptCall, 
+    rejectCall, 
+    isMicEnabled,
+    isVideoEnabled,
+    setIsMicEnabled,
+    setIsVideoEnabled,
+  } = useCallStore();
   const [isVisible, setIsVisible] = useState(false);
   const [audio, setAudio] = useState(null);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const pipRef = useRef(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: typeof window !== 'undefined' ? window.innerWidth - 350 : 0, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (callStatus === 'ringing' && friend) {
@@ -41,6 +55,41 @@ export default function CallNotification() {
     };
   }, [callStatus, friend]);
 
+  // Handle dragging
+  const handleMouseDown = (e) => {
+    if (e.target.closest('button')) return; // Don't drag when clicking buttons
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const newX = e.clientX - dragStartPos.current.x;
+      const newY = e.clientY - dragStartPos.current.y;
+      setPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 320, newX)),
+        y: Math.max(0, Math.min(window.innerHeight - 400, newY)),
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, position]);
+
   if (!isVisible || !friend) return null;
 
   const handleAccept = () => {
@@ -48,6 +97,9 @@ export default function CallNotification() {
       audio.pause();
       audio.currentTime = 0;
     }
+    // Set mic and video state before accepting
+    setIsMicEnabled(micEnabled);
+    setIsVideoEnabled(videoEnabled);
     acceptCall();
     router.push(`/dashboard/friends/call/${friendId}`);
   };
@@ -60,34 +112,71 @@ export default function CallNotification() {
     rejectCall();
   };
 
+  const toggleMic = () => {
+    setMicEnabled(!micEnabled);
+  };
+
+  const toggleVideo = () => {
+    setVideoEnabled(!videoEnabled);
+  };
+
   return (
     <div
-      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      ref={pipRef}
+      className="position-fixed bg-dark border border-light rounded shadow-lg"
       style={{
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        zIndex: 9999,
-        backdropFilter: "blur(5px)",
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: "320px",
+        zIndex: 10000,
+        cursor: isDragging ? "grabbing" : "grab",
+        userSelect: "none",
       }}
+      onMouseDown={handleMouseDown}
     >
-      <Card className="bg-dark border-light" style={{ maxWidth: "400px", width: "90%" }}>
-        <Card.Body className="text-center p-4">
-          <div className="mb-4">
+      <Card className="bg-dark border-0 m-0">
+        <Card.Body className="p-3">
+          <div className="text-center mb-3">
             <Avatar
               photoUrl={friend.account?.photoUrl}
               name={friend.account?.displayName}
               email={friend.account?.email}
-              size={120}
+              size={80}
               showBorder={true}
             />
+            <h5 className="text-light mt-2 mb-1">{friend.account?.displayName || friend.account?.email}</h5>
+            <p className="text-muted small mb-3">Incoming call...</p>
           </div>
-          <h4 className="text-light mb-2">{friend.account?.displayName || friend.account?.email}</h4>
-          <p className="text-muted mb-4">Incoming call...</p>
+
+          {/* Mic and Video toggles */}
+          <div className="d-flex gap-2 justify-content-center mb-3">
+            <Button
+              variant={micEnabled ? "light" : "secondary"}
+              size="sm"
+              className="rounded-circle"
+              style={{ width: "40px", height: "40px" }}
+              onClick={toggleMic}
+            >
+              {micEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
+            </Button>
+            <Button
+              variant={videoEnabled ? "light" : "secondary"}
+              size="sm"
+              className="rounded-circle"
+              style={{ width: "40px", height: "40px" }}
+              onClick={toggleVideo}
+            >
+              {videoEnabled ? <FaVideo /> : <FaVideoSlash />}
+            </Button>
+          </div>
+
+          {/* Accept/Reject buttons */}
           <div className="d-flex gap-3 justify-content-center">
             <Button
               variant="danger"
               size="lg"
               className="rounded-circle"
-              style={{ width: "60px", height: "60px" }}
+              style={{ width: "50px", height: "50px" }}
               onClick={handleReject}
             >
               <FaPhoneSlash />
@@ -96,7 +185,7 @@ export default function CallNotification() {
               variant="success"
               size="lg"
               className="rounded-circle"
-              style={{ width: "60px", height: "60px" }}
+              style={{ width: "50px", height: "50px" }}
               onClick={handleAccept}
             >
               <FaPhone />
