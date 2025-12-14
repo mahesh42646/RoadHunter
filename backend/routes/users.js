@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const admin = require('firebase-admin');
 const path = require('path');
 
@@ -740,6 +741,62 @@ module.exports = function createUserRouter(io) {
     try {
       const users = await User.find().sort({ createdAt: -1 }).limit(100);
       res.json(users.map((user) => sanitizeUser(user)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Report user
+  router.post('/report/:userId', authenticate, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const { reason } = req.body;
+
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+
+      if (!reason || !reason.trim()) {
+        res.status(400).json({ error: 'Reason is required' });
+        return;
+      }
+
+      if (userId === req.user._id.toString()) {
+        res.status(400).json({ error: 'Cannot report yourself' });
+        return;
+      }
+
+      const reportedUser = await User.findById(userId);
+      if (!reportedUser) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      // Check if user is a friend (required to report)
+      const user = await User.findById(req.user._id);
+      const isFriend = user.social?.friends?.some((id) => id.toString() === userId) ||
+                      user.social?.following?.some((id) => id.toString() === userId);
+
+      if (!isFriend) {
+        res.status(403).json({ error: 'Can only report friends' });
+        return;
+      }
+
+      // Store report (you can extend this to save to a reports collection)
+      // For now, we'll just log it and return success
+      console.log(`User ${req.user._id} reported user ${userId}. Reason: ${reason}`);
+
+      // TODO: Save to reports collection if you have one
+      // const Report = require('../schemas/reports');
+      // await Report.create({
+      //   reporterId: req.user._id,
+      //   reportedUserId: userId,
+      //   reason: reason.trim(),
+      //   createdAt: new Date(),
+      // });
+
+      res.json({ message: 'User reported successfully. Thank you for keeping our community safe.' });
     } catch (error) {
       next(error);
     }

@@ -16,7 +16,7 @@ const GIFT_TYPES = {
   'love-car': { name: 'Love Car', price: 89999, emoji: '🚗💕' },
 };
 
-export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent, participants, hostId }) {
+export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent, participants, hostId, friendId }) {
   const [selectedGift, setSelectedGift] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [recipientType, setRecipientType] = useState('all');
@@ -31,7 +31,9 @@ export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent
   const selectedGiftData = selectedGift ? GIFT_TYPES[selectedGift] : null;
   
   // Calculate recipient count
-  const recipientCount = recipientType === 'all' 
+  const recipientCount = friendId 
+    ? 1 // Single friend
+    : recipientType === 'all' 
     ? (participants?.length || 0)
     : recipientType === 'host' 
     ? 1 
@@ -49,13 +51,24 @@ export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent
     if (!selectedGift || !canAfford) return;
     setSending(true);
     try {
-      await apiClient.post('/gifts/send', {
-        partyId,
+      const payload = {
         giftType: selectedGift,
         quantity,
-        recipientType,
-        randomCount: recipientType === 'random' ? randomCount : undefined,
-      });
+      };
+
+      // If friendId is provided, send to that friend (no party required)
+      if (friendId) {
+        payload.friendId = friendId;
+      } else {
+        // Otherwise, send to party participants
+        payload.partyId = partyId;
+        payload.recipientType = recipientType;
+        if (recipientType === 'random') {
+          payload.randomCount = randomCount;
+        }
+      }
+
+      await apiClient.post('/gifts/send', payload);
       onGiftSent();
       onHide();
       setSelectedGift(null);
@@ -216,33 +229,37 @@ export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent
             </div>
           </Form.Group>
 
-          <Form.Group className="mb-2">
-            <Form.Label className="small" style={{ fontSize: "0.75rem" }}>Send To</Form.Label>
-            <Form.Select
-              value={recipientType}
-              onChange={(e) => setRecipientType(e.target.value)}
-              size="sm"
-              style={{ fontSize: "0.75rem" }}
-            >
-              <option value="all">All Participants ({participants?.length || 0})</option>
-              <option value="host">Host Only</option>
-              <option value="random">Random Participants</option>
-            </Form.Select>
-          </Form.Group>
+          {!friendId && (
+            <>
+              <Form.Group className="mb-2">
+                <Form.Label className="small" style={{ fontSize: "0.75rem" }}>Send To</Form.Label>
+                <Form.Select
+                  value={recipientType}
+                  onChange={(e) => setRecipientType(e.target.value)}
+                  size="sm"
+                  style={{ fontSize: "0.75rem" }}
+                >
+                  <option value="all">All Participants ({participants?.length || 0})</option>
+                  <option value="host">Host Only</option>
+                  <option value="random">Random Participants</option>
+                </Form.Select>
+              </Form.Group>
 
-          {recipientType === 'random' && (
-            <Form.Group className="mb-2">
-              <Form.Label className="small" style={{ fontSize: "0.75rem" }}>Number of Random Recipients</Form.Label>
-              <Form.Control
-                type="number"
-                min="1"
-                max={participants?.length || 1}
-                value={randomCount}
-                onChange={(e) => setRandomCount(Math.max(1, parseInt(e.target.value) || 1))}
-                size="sm"
-                style={{ fontSize: "0.75rem" }}
-              />
-            </Form.Group>
+              {recipientType === 'random' && (
+                <Form.Group className="mb-2">
+                  <Form.Label className="small" style={{ fontSize: "0.75rem" }}>Number of Random Recipients</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    max={participants?.length || 1}
+                    value={randomCount}
+                    onChange={(e) => setRandomCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    size="sm"
+                    style={{ fontSize: "0.75rem" }}
+                  />
+                </Form.Group>
+              )}
+            </>
           )}
 
           <div className="mb-2 p-2" style={{

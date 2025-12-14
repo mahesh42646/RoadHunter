@@ -70,6 +70,9 @@ export default function PartyRoomPage() {
   const [activeBottomNav, setActiveBottomNav] = useState(partyRoomState.activeBottomNav || "chat");
   const [wallet, setWallet] = useState(null);
   const [giftAnimations, setGiftAnimations] = useState([]);
+  const [participantRelationship, setParticipantRelationship] = useState(null);
+  const [showGiftSelector, setShowGiftSelector] = useState(false);
+  const [giftRecipientId, setGiftRecipientId] = useState(null);
   const chatEndRef = useRef(null);
   const handleLeaveRef = useRef(null);
   const handleEndPartyRef = useRef(null);
@@ -477,6 +480,78 @@ export default function PartyRoomPage() {
       setShowParticipantMenu(null);
     } catch (error) {
       alert(error.response?.data?.error || "Failed to mute/unmute user");
+    }
+  };
+
+  const loadParticipantRelationship = async (userId) => {
+    try {
+      const response = await apiClient.get(`/friends/profile/${userId}`);
+      setParticipantRelationship(response.data.user?.relationship || {});
+    } catch (error) {
+      console.error("Failed to load participant relationship:", error);
+      setParticipantRelationship({});
+    }
+  };
+
+  const handleFollowParticipant = async (userId) => {
+    try {
+      const participant = participants.find((p) => p.userId?.toString() === userId);
+      if (!participant) return;
+
+      const profilePrivacy = participantRelationship?.profilePrivacy || 'public';
+      await apiClient.post(`/friends/request/${userId}`);
+      
+      // Refresh relationship
+      await loadParticipantRelationship(userId);
+      // Refresh user data
+      const meResponse = await apiClient.get("/users/me");
+      const { setSession } = useAuthStore.getState();
+      const { token } = useAuthStore.getState();
+      setSession({ token, user: meResponse.data.user });
+      
+      setShowParticipantMenu(null);
+      alert("Followed successfully!");
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to follow user");
+    }
+  };
+
+  const handleSendGiftToParticipant = async (userId) => {
+    // Check if user is a friend first
+    try {
+      const response = await apiClient.get(`/friends/profile/${userId}`);
+      const relationship = response.data.user?.relationship || {};
+      const isFriend = relationship.isFriend || relationship.isFollowing || false;
+      
+      if (!isFriend) {
+        alert("You can only send gifts to friends. Please follow this user first.");
+        return;
+      }
+      
+      setGiftRecipientId(userId);
+      setShowGiftSelector(true);
+      setShowParticipantMenu(null);
+    } catch (error) {
+      console.error("Failed to check relationship:", error);
+      alert("Failed to check user relationship");
+    }
+  };
+
+  const handleReportUser = async (userId) => {
+    const reason = prompt("Please provide a reason for reporting this user:");
+    if (!reason || !reason.trim()) return;
+
+    try {
+      await apiClient.post(`/users/report/${userId}`, { reason: reason.trim() });
+      alert("User reported successfully. Thank you for keeping our community safe.");
+      setShowParticipantMenu(null);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        // Endpoint doesn't exist yet, we'll create it
+        alert("Report feature coming soon!");
+      } else {
+        alert(error.response?.data?.error || "Failed to report user");
+      }
     }
   };
 
@@ -959,7 +1034,7 @@ export default function PartyRoomPage() {
                   width: "100%",
                   padding: "0.5rem",
                   borderRadius: "0.5rem",
-                  cursor: isHost && !isCurrentUser ? "pointer" : "default",
+                  cursor: !isCurrentUser ? "pointer" : "default",
                   border: isParticipantHost
                     ? "1px solid var(--accent)"
                     : "1px solid rgba(255, 255, 255, 0.1)",
@@ -970,13 +1045,15 @@ export default function PartyRoomPage() {
                   display: "flex",
                   flexDirection: "column",
                 }}
-                onClick={() => {
-                  if (isHost && !isCurrentUser) {
-                    setShowParticipantMenu(participant.userId?.toString());
+                onClick={async () => {
+                  if (!isCurrentUser) {
+                    const userId = participant.userId?.toString();
+                    setShowParticipantMenu(userId);
+                    await loadParticipantRelationship(userId);
                   }
                 }}
                 onMouseEnter={(e) => {
-                  if (isHost && !isCurrentUser) {
+                  if (!isCurrentUser) {
                     e.currentTarget.style.transform = "translateY(-2px)";
                     e.currentTarget.style.boxShadow = isParticipantHost 
                       ? "0 6px 16px rgba(255, 45, 149, 0.4)" 
@@ -1643,65 +1720,172 @@ export default function PartyRoomPage() {
         </Modal.Header>
         <Modal.Body style={{ color: "var(--text-primary)", padding: "0" }}>
           <ListGroup variant="flush">
-            <ListGroup.Item
-              className="d-flex align-items-center gap-2"
-              style={{
-                background: "transparent",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-                cursor: "pointer",
-                color: "var(--text-primary)",
-              }}
-              onClick={() => {
-                const participant = participants.find((p) => p.userId?.toString() === showParticipantMenu);
-                if (participant) {
-                  handleTransferHost(participant.userId?.toString());
-                }
-              }}
-            >
-              <BsPersonCheck style={{ color: "var(--accent-tertiary)", fontSize: "1rem" }} />
-              <span>Transfer Host</span>
-            </ListGroup.Item>
-            <ListGroup.Item
-              className="d-flex align-items-center gap-2"
-              style={{
-                background: "transparent",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-                cursor: "pointer",
-                color: "var(--text-primary)",
-              }}
-              onClick={() => {
-                handleMuteUser(showParticipantMenu);
-              }}
-            >
-              {participants.find((p) => p.userId?.toString() === showParticipantMenu)?.status === "muted" ? (
+            {(() => {
+              const relationship = participantRelationship || {};
+              const isFriend = relationship.isFriend || relationship.isFollowing || false;
+              const participant = participants.find((p) => p.userId?.toString() === showParticipantMenu);
+              
+              return (
                 <>
-                  <BsMic style={{ color: "var(--accent-secondary)", fontSize: "1rem" }} />
-                  <span>Unmute</span>
+                  {/* Follow option - only show if not a friend */}
+                  {!isFriend && (
+                    <ListGroup.Item
+                      className="d-flex align-items-center gap-2"
+                      style={{
+                        background: "transparent",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        cursor: "pointer",
+                        color: "var(--text-primary)",
+                      }}
+                      onClick={() => handleFollowParticipant(showParticipantMenu)}
+                    >
+                      <BsPersonCheck style={{ color: "var(--accent-secondary)", fontSize: "1rem" }} />
+                      <span>Follow</span>
+                    </ListGroup.Item>
+                  )}
+
+                  {/* Send Gift - only show if friend */}
+                  {isFriend && (
+                    <ListGroup.Item
+                      className="d-flex align-items-center gap-2"
+                      style={{
+                        background: "transparent",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        cursor: "pointer",
+                        color: "var(--text-primary)",
+                      }}
+                      onClick={() => handleSendGiftToParticipant(showParticipantMenu)}
+                    >
+                      <BsGift style={{ color: "var(--accent)", fontSize: "1rem" }} />
+                      <span>Send Gift</span>
+                    </ListGroup.Item>
+                  )}
+
+                  {/* Report User - only show if friend */}
+                  {isFriend && (
+                    <ListGroup.Item
+                      className="d-flex align-items-center gap-2"
+                      style={{
+                        background: "transparent",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        cursor: "pointer",
+                        color: "#ff6b7a",
+                      }}
+                      onClick={() => handleReportUser(showParticipantMenu)}
+                    >
+                      <BsX style={{ fontSize: "1rem" }} />
+                      <span>Report User</span>
+                    </ListGroup.Item>
+                  )}
+
+                  {/* Host-only options */}
+                  {isHost && (
+                    <>
+                      <ListGroup.Item
+                        className="d-flex align-items-center gap-2"
+                        style={{
+                          background: "transparent",
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                        }}
+                        onClick={() => {
+                          if (participant) {
+                            handleTransferHost(participant.userId?.toString());
+                          }
+                        }}
+                      >
+                        <BsPersonCheck style={{ color: "var(--accent-tertiary)", fontSize: "1rem" }} />
+                        <span>Transfer Host</span>
+                      </ListGroup.Item>
+                      <ListGroup.Item
+                        className="d-flex align-items-center gap-2"
+                        style={{
+                          background: "transparent",
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          cursor: "pointer",
+                          color: "var(--text-primary)",
+                        }}
+                        onClick={() => {
+                          handleMuteUser(showParticipantMenu);
+                        }}
+                      >
+                        {participant?.status === "muted" ? (
+                          <>
+                            <BsMic style={{ color: "var(--accent-secondary)", fontSize: "1rem" }} />
+                            <span>Unmute</span>
+                          </>
+                        ) : (
+                          <>
+                            <BsMicMute style={{ color: "var(--accent-tertiary)", fontSize: "1rem" }} />
+                            <span>Mute</span>
+                          </>
+                        )}
+                      </ListGroup.Item>
+                      <ListGroup.Item
+                        className="d-flex align-items-center gap-2"
+                        style={{
+                          background: "transparent",
+                          cursor: "pointer",
+                          color: "#ff6b7a",
+                        }}
+                        onClick={() => {
+                          handleRemoveUser(showParticipantMenu);
+                        }}
+                      >
+                        <BsPersonX style={{ fontSize: "1rem" }} />
+                        <span>Remove</span>
+                      </ListGroup.Item>
+                    </>
+                  )}
                 </>
-              ) : (
-                <>
-                  <BsMicMute style={{ color: "var(--accent-tertiary)", fontSize: "1rem" }} />
-                  <span>Mute</span>
-                </>
-              )}
-            </ListGroup.Item>
-            <ListGroup.Item
-              className="d-flex align-items-center gap-2"
-              style={{
-                background: "transparent",
-                cursor: "pointer",
-                color: "#ff6b7a",
-              }}
-              onClick={() => {
-                handleRemoveUser(showParticipantMenu);
-              }}
-            >
-              <BsPersonX style={{ fontSize: "1rem" }} />
-              <span>Remove</span>
-            </ListGroup.Item>
+              );
+            })()}
           </ListGroup>
         </Modal.Body>
       </Modal>
+
+      {/* Gift Selector Modal for Individual User */}
+      {showGiftSelector && giftRecipientId && (
+        <Modal
+          show={showGiftSelector}
+          onHide={() => {
+            setShowGiftSelector(false);
+            setGiftRecipientId(null);
+          }}
+          centered
+          contentClassName="glass-card border-0"
+          size="lg"
+        >
+          <Modal.Header
+            closeButton
+            style={{
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "var(--text-primary)",
+            }}
+          >
+            <Modal.Title style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
+              Send Gift
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <GiftSelector
+              show={true}
+              onHide={() => {
+                setShowGiftSelector(false);
+                setGiftRecipientId(null);
+              }}
+              wallet={wallet}
+              friendId={giftRecipientId}
+              onGiftSent={() => {
+                loadWallet();
+                setShowGiftSelector(false);
+                setGiftRecipientId(null);
+              }}
+            />
+          </Modal.Body>
+        </Modal>
+      )}
 
       {/* Transfer Host Modal */}
       <Modal
