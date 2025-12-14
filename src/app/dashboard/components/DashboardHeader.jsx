@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
+import { getImageUrl } from "@/lib/imageUtils";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -92,7 +93,7 @@ export default function DashboardHeader() {
             <div className="d-flex align-items-center gap-2">
               {user?.account?.photoUrl ? (
                 <img
-                  src={user.account.photoUrl}
+                  src={getImageUrl(user.account.photoUrl)}
                   alt={user.account.displayName}
                   className="rounded-circle"
                   style={{ width: "40px", height: "40px", objectFit: "cover" }}

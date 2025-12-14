@@ -862,20 +862,7 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
       position: "relative",
       minHeight: 0, // Allow flex shrinking
     }}>
-      {/* Entertainment Disclaimer */}
-      <div style={{
-        padding: "0.5rem 1rem",
-        background: "rgba(202, 0, 0, 0.2)",
-        borderBottom: "2px solid rgba(202, 0, 0, 0.4)",
-        color: "#ffffff",
-        fontSize: "0.75rem",
-        textAlign: "center",
-        zIndex: 100,
-        position: "relative",
-        flexShrink: 0,
-      }}>
-        <strong>⚠️ ENTERTAINMENT ONLY:</strong> This is a fun prediction game using virtual Party Coins. No real money value. NOT gambling or betting.
-      </div>
+    
       {/* Carbon fiber texture overlay */}
       <div style={{
         position: "absolute",
@@ -1554,3 +1541,14 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

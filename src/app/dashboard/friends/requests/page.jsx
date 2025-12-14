@@ -5,6 +5,7 @@ import { Card, Button, Row, Col, Badge } from "react-bootstrap";
 import { FaCheck, FaTimes, FaUserPlus } from "react-icons/fa";
 
 import apiClient from "@/lib/apiClient";
+import { getImageUrl } from "@/lib/imageUtils";
 
 export default function FriendRequestsPage() {
   const [sent, setSent] = useState([]);
@@ -86,7 +87,7 @@ export default function FriendRequestsPage() {
                     >
                       <div className="d-flex align-items-center gap-3">
                         <img
-                          src={user.account?.photoUrl || "/default-avatar.png"}
+                          src={getImageUrl(user.account?.photoUrl) || "/default-avatar.png"}
                           alt={user.account?.displayName}
                           className="rounded-circle"
                           style={{ width: "50px", height: "50px", objectFit: "cover" }}
@@ -141,7 +142,7 @@ export default function FriendRequestsPage() {
                     >
                       <div className="d-flex align-items-center gap-3">
                         <img
-                          src={user.account?.photoUrl || "/default-avatar.png"}
+                          src={getImageUrl(user.account?.photoUrl) || "/default-avatar.png"}
                           alt={user.account?.displayName}
                           className="rounded-circle"
                           style={{ width: "50px", height: "50px", objectFit: "cover" }}

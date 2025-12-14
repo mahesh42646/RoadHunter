@@ -9,6 +9,7 @@ import Peer from "simple-peer";
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
+import { getImageUrl } from "@/lib/imageUtils";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -248,7 +249,7 @@ export default function FriendCallPage() {
               <div className="d-flex align-items-center justify-content-center h-100">
                 <div className="text-center">
                   <img
-                    src={friend.account?.photoUrl || "/default-avatar.png"}
+                    src={getImageUrl(friend.account?.photoUrl) || "/default-avatar.png"}
                     alt={friend.account?.displayName}
                     className="rounded-circle mb-3"
                     style={{ width: "150px", height: "150px", objectFit: "cover" }}

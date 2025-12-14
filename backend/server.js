@@ -79,7 +79,11 @@ const corsOptions = {
 const app = express();
 app.set('trust proxy', 1);
 
-app.use(helmet());
+// Configure Helmet to allow cross-origin images
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(compression());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
@@ -373,6 +377,33 @@ io.on('connection', (socket) => {
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
+});
+
+// Middleware to add CORS headers for static files (images)
+app.use('/uploads', (req, res, next) => {
+  // Set CORS headers for image requests
+  const origin = req.headers.origin;
+  
+  // Allow all origins for image loading (images are public)
+  // You can restrict this to specific origins if needed
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  // Allow cross-origin resource sharing for images
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  
+  // Cache control for images
+  if (req.path.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
 });
 
 // Serve static files from uploads directory

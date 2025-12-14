@@ -8,6 +8,7 @@ import { io } from "socket.io-client";
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
+import { getImageUrl } from "@/lib/imageUtils";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -120,7 +121,7 @@ export default function FriendChatPage() {
         </Button>
         <div className="d-flex align-items-center gap-2">
           <img
-            src={friend.account?.photoUrl || "/default-avatar.png"}
+            src={getImageUrl(friend.account?.photoUrl) || "/default-avatar.png"}
             alt={friend.account?.displayName}
             className="rounded-circle"
             style={{ width: "40px", height: "40px", objectFit: "cover" }}

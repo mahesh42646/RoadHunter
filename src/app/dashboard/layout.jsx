@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Sidebar from "./components/Sidebar";
-import DashboardHeader from "./components/DashboardHeader";
+
+import Header from "@/app/common/components/Header";
+import MobileBottomNav from "@/app/common/components/MobileBottomNav";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 
 export default function DashboardLayout({ children }) {
@@ -46,11 +48,25 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="d-flex flex-column min-vh-100">
-      <DashboardHeader />
-      <div className="d-flex flex-grow-1">
+      {/* <Header /> */}
+      <div 
+        className="d-flex flex-grow-1" 
+        style={{ 
+          marginTop: "0px", 
+          minHeight: "calc(100vh - 80px)"
+        }}
+      >
         <Sidebar />
-        <section className="flex-grow-1 p-4" style={{ background: "transparent" }}>{children}</section>
+        <section 
+          className="flex-grow-1 p-4 pb-5 pb-md-4" 
+          style={{ 
+            background: "transparent"
+          }}
+        >
+          {children}
+        </section>
       </div>
+      {/* <MobileBottomNav /> */}
     </div>
   );
 }

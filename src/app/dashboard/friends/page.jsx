@@ -6,6 +6,7 @@ import { FaUserPlus, FaCheck, FaTimes, FaComments, FaVideo, FaGift, FaSearch } f
 import { useRouter } from "next/navigation";
 
 import apiClient from "@/lib/apiClient";
+import { getImageUrl } from "@/lib/imageUtils";
 
 export default function FriendsPage() {
   const [friends, setFriends] = useState([]);
@@ -107,7 +108,7 @@ export default function FriendsPage() {
                     >
                       <div className="d-flex align-items-center gap-3">
                         <img
-                          src={friend.account?.photoUrl || "/default-avatar.png"}
+                          src={getImageUrl(friend.account?.photoUrl) || "/default-avatar.png"}
                           alt={friend.account?.displayName}
                           className="rounded-circle"
                           style={{ width: "50px", height: "50px", objectFit: "cover" }}
@@ -167,7 +168,7 @@ export default function FriendsPage() {
                     >
                       <div className="d-flex align-items-center gap-2">
                         <img
-                          src={user.account?.photoUrl || "/default-avatar.png"}
+                          src={getImageUrl(user.account?.photoUrl) || "/default-avatar.png"}
                           alt={user.account?.displayName}
                           className="rounded-circle"
                           style={{ width: "40px", height: "40px", objectFit: "cover" }}

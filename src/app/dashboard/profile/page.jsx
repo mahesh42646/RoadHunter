@@ -1,17 +1,23 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, Col, Form, Row, Button, Alert, InputGroup } from "react-bootstrap";
-import { FaCamera, FaUser, FaLock, FaUnlock, FaUpload } from "react-icons/fa";
+import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import { Card, Col, Form, Row, Button, Alert, InputGroup, Modal } from "react-bootstrap";
+import { FaCamera, FaUser, FaLock, FaUnlock, FaUpload, FaTimes } from "react-icons/fa";
 
 import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
+import { getImageUrl } from "@/lib/imageUtils";
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((state) => state.user);
   const updateUser = useAuthStore((state) => state.updateUser);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({
     fullName: user?.account?.displayName || "",
     gender: user?.account?.gender || "",
@@ -22,6 +28,16 @@ export default function ProfilePage() {
   const fileInputRef = useRef(null);
 
   const isProfileComplete = user?.account?.profileCompleted;
+
+  // Check for edit query parameter
+  useEffect(() => {
+    const editParam = searchParams.get("edit");
+    if (editParam === "true") {
+      setShowEditModal(true);
+      // Remove query parameter from URL without reload
+      router.replace("/dashboard/profile", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (user) {
@@ -88,7 +104,7 @@ export default function ProfilePage() {
       const response = await apiClient.post("/users/profile", formDataToSend);
 
       updateUser(response.data.user);
-      setMessage("Profile completed successfully!");
+      setMessage("Profile updated successfully!");
       
       // Refresh user data
       const meResponse = await apiClient.get("/users/me");
@@ -96,6 +112,14 @@ export default function ProfilePage() {
       
       // Reset form
       setPhotoFile(null);
+      
+      // Close modal if editing
+      if (showEditModal) {
+        setTimeout(() => {
+          setShowEditModal(false);
+          setMessage("");
+        }, 2000);
+      }
     } catch (error) {
       setMessage(error.response?.data?.error || "Failed to complete profile");
     } finally {
@@ -130,17 +154,32 @@ export default function ProfilePage() {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {previewUrl ? (
-                        <img
-                          src={previewUrl}
-                          alt="Profile"
-                          className="rounded-circle"
-                          style={{
-                            width: "150px",
-                            height: "150px",
-                            objectFit: "cover",
-                            border: "3px solid #FF2D95",
-                          }}
-                        />
+                        getImageUrl(previewUrl).startsWith("data:") ? (
+                          <img
+                            src={previewUrl}
+                            alt="Profile"
+                            className="rounded-circle"
+                            style={{
+                              width: "150px",
+                              height: "150px",
+                              objectFit: "cover",
+                              border: "3px solid #FF2D95",
+                            }}
+                          />
+                        ) : (
+                          <Image
+                            src={getImageUrl(previewUrl)}
+                            alt="Profile"
+                            width={150}
+                            height={150}
+                            className="rounded-circle"
+                            style={{
+                              objectFit: "cover",
+                              border: "3px solid #FF2D95",
+                            }}
+                            unoptimized
+                          />
+                        )
                       ) : (
                         <div
                           className="rounded-circle d-flex align-items-center justify-content-center"
@@ -286,16 +325,17 @@ export default function ProfilePage() {
           <Row className="align-items-center">
             <Col xs={12} md={4} className="text-center text-md-start mb-4 mb-md-0">
               <div className="position-relative d-inline-block">
-                <img
-                  src={user?.account?.photoUrl || "/default-avatar.png"}
-                  alt={user?.account?.displayName}
+                <Image
+                  src={getImageUrl(user?.account?.photoUrl)}
+                  alt={user?.account?.displayName || "Profile"}
+                  width={150}
+                  height={150}
                   className="rounded-circle"
                   style={{
-                    width: "150px",
-                    height: "150px",
                     objectFit: "cover",
                     border: "3px solid #FF2D95",
                   }}
+                  unoptimized
                 />
                 <div
                   className="position-absolute bottom-0 end-0 bg-primary rounded-circle p-2"
@@ -320,10 +360,7 @@ export default function ProfilePage() {
                 <Button
                   variant="outline-light"
                   size="sm"
-                  onClick={() => {
-                    // Navigate to edit or show edit modal
-                    window.location.href = "/dashboard/profile?edit=true";
-                  }}
+                  onClick={() => setShowEditModal(true)}
                 >
                   Edit Profile
                 </Button>
@@ -369,6 +406,238 @@ export default function ProfilePage() {
           </div>
         </Card.Body>
       </Card>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        show={showEditModal}
+        onHide={() => {
+          setShowEditModal(false);
+          setMessage("");
+          // Reset form to current user data
+          if (user) {
+            setFormData({
+              fullName: user.account?.displayName || "",
+              gender: user.account?.gender || "",
+              profilePrivacy: user.social?.profilePrivacy || "public",
+            });
+            setPreviewUrl(user.account?.photoUrl || "");
+            setPhotoFile(null);
+          }
+        }}
+        size="lg"
+        centered
+        contentClassName="glass-card border-0"
+      >
+        <Modal.Header
+          closeButton
+          style={{
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <Modal.Title style={{ color: "var(--text-secondary)", fontSize: "1.25rem" }}>
+            Edit Profile
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ color: "var(--text-primary)" }}>
+          {message && (
+            <Alert variant={message.includes("success") ? "success" : "danger"} className="mb-4">
+              {message}
+            </Alert>
+          )}
+
+          <Form onSubmit={handleSubmit}>
+            <Row className="gy-4">
+              <Col md={12} className="text-center">
+                <div className="mb-3">
+                  <div
+                    className="position-relative d-inline-block"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {previewUrl ? (
+                      getImageUrl(previewUrl).startsWith("data:") ? (
+                        <img
+                          src={previewUrl}
+                          alt="Profile"
+                          className="rounded-circle"
+                          style={{
+                            width: "150px",
+                            height: "150px",
+                            objectFit: "cover",
+                            border: "3px solid #FF2D95",
+                          }}
+                        />
+                      ) : (
+                        <Image
+                          src={getImageUrl(previewUrl)}
+                          alt="Profile"
+                          width={150}
+                          height={150}
+                          className="rounded-circle"
+                          style={{
+                            objectFit: "cover",
+                            border: "3px solid #FF2D95",
+                          }}
+                          unoptimized
+                        />
+                      )
+                    ) : (
+                      <div
+                        className="rounded-circle d-flex align-items-center justify-content-center"
+                        style={{
+                          width: "150px",
+                          height: "150px",
+                          backgroundColor: "#1A1F2E",
+                          border: "3px solid #FF2D95",
+                        }}
+                      >
+                        <FaCamera size={50} color="#FF2D95" />
+                      </div>
+                    )}
+                    <div
+                      className="position-absolute bottom-0 end-0 bg-primary rounded-circle p-2"
+                      style={{ transform: "translate(25%, 25%)" }}
+                    >
+                      <FaCamera size={16} />
+                    </div>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    style={{ display: "none" }}
+                  />
+                  <div className="mt-2">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <FaUpload className="me-2" />
+                      {previewUrl && previewUrl !== user?.account?.photoUrl ? "Change Photo" : "Upload Photo"}
+                    </Button>
+                    {!photoFile && user?.account?.photoUrl && (
+                      <p className="text-muted small mt-2 mb-0">
+                        Using current photo. Upload a new photo to replace it.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>
+                    <FaUser className="me-2" />
+                    Full Name *
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={formData.fullName}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, fullName: e.target.value }))
+                    }
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={user?.account?.email || ""}
+                    readOnly
+                    disabled
+                  />
+                  <Form.Text className="text-muted">Email from your account</Form.Text>
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Gender *</Form.Label>
+                  <Form.Select
+                    value={formData.gender}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, gender: e.target.value }))
+                    }
+                    required
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>
+                    {formData.profilePrivacy === "public" ? (
+                      <FaUnlock className="me-2" />
+                    ) : (
+                      <FaLock className="me-2" />
+                    )}
+                    Profile Privacy *
+                  </Form.Label>
+                  <Form.Select
+                    value={formData.profilePrivacy}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, profilePrivacy: e.target.value }))
+                    }
+                    required
+                  >
+                    <option value="public">Public - Anyone can follow you</option>
+                    <option value="private">Private - Follow requests required</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+
+              <Col md={12}>
+                <div className="d-flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline-light"
+                    size="lg"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setMessage("");
+                      if (user) {
+                        setFormData({
+                          fullName: user.account?.displayName || "",
+                          gender: user.account?.gender || "",
+                          profilePrivacy: user.social?.profilePrivacy || "public",
+                        });
+                        setPreviewUrl(user.account?.photoUrl || "");
+                        setPhotoFile(null);
+                      }
+                    }}
+                    className="flex-grow-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={loading}
+                    className="flex-grow-1"
+                  >
+                    {loading ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </Col>
+            </Row>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }

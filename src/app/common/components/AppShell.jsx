@@ -8,7 +8,7 @@ import Footer from "./Footer";
 import Header from "./Header";
 import MobileBottomNav from "./MobileBottomNav";
 
-const chromeFreeRoutes = ["/dashboard", "/party"];
+const chromeFreeRoutes = ["/party"];
 
 export default function AppShell({ children }) {
   const pathname = usePathname();

@@ -8,6 +8,7 @@ import { Button, Card, Modal, Form, Badge } from "react-bootstrap";
 import apiClient from "@/lib/apiClient";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 import usePartyStore from "@/store/usePartyStore";
+import { getImageUrl } from "@/lib/imageUtils";
 
 export default function PartyListPage() {
   const router = useRouter();
@@ -234,7 +235,7 @@ export default function PartyListPage() {
                         right: 0,
                         bottom: 0,
                         background: party.avatarUrl
-                          ? `url(${party.avatarUrl}) center/cover`
+                          ? `url(${getImageUrl(party.avatarUrl)}) center/cover`
                           : "linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%)",
                         opacity: 0.3,
                         zIndex: 0,
@@ -284,7 +285,7 @@ export default function PartyListPage() {
                                   marginLeft: idx > 0 ? "-4px" : "0",
                                   overflow: "hidden",
                                   background: p.avatarUrl
-                                    ? `url(${p.avatarUrl}) center/cover`
+                                    ? `url(${getImageUrl(p.avatarUrl)}) center/cover`
                                     : "rgba(255, 45, 149, 0.5)",
                                   display: "flex",
                                   alignItems: "center",
