@@ -85,6 +85,24 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
     referralCode: { type: String, unique: true, sparse: true },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    referral: {
+      pending: { type: Number, default: 0 },
+      completed: { type: Number, default: 0 },
+      referralWallet: {
+        partyCoins: { type: Number, default: 0 },
+        totalEarned: { type: Number, default: 0 },
+        totalWithdrawn: { type: Number, default: 0 },
+      },
+      referrals: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
+        bonusEarned: { type: Number, default: 0 },
+        firstDepositAmount: { type: Number, default: 0 },
+        referredAt: { type: Date, default: Date.now },
+        completedAt: Date,
+      }],
+    },
     wallet: {
       walletId: { type: String, trim: true },
       balanceUsd: { type: Number, default: 0 },

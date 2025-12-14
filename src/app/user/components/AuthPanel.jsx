@@ -1,25 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, Button, Card, Col, Container, Form, Row, Tab, Tabs } from "react-bootstrap";
 
 import useAuthActions from "@/app/user/hooks/useAuthActions";
 
 export default function AuthPanel({ initialTab = "login" }) {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [referralCode, setReferralCode] = useState(null);
   const { loginWithGoogle, loginWithEmail, registerWithEmail, loading, error, setError } =
     useAuthActions();
+
+  // Get referral code from URL query parameter
+  useEffect(() => {
+    const ref = searchParams?.get("ref");
+    if (ref) {
+      setReferralCode(ref);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (activeTab === "login") {
-      await loginWithEmail(email, password);
+      await loginWithEmail(email, password, referralCode);
     } else {
-      await registerWithEmail(email, password);
+      await registerWithEmail(email, password, referralCode);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    loginWithGoogle(referralCode);
   };
 
   return (
@@ -84,9 +99,14 @@ export default function AuthPanel({ initialTab = "login" }) {
                         : "Create account"}
                   </Button>
                 </Form>
+                {referralCode && (
+                  <Alert variant="info" className="mb-3">
+                    <small>You're signing up with a referral code!</small>
+                  </Alert>
+                )}
                 <div className="text-center my-3">
                   <p className="text-light-50 mb-1">or</p>
-                  <Button variant="outline-light" className="w-100" onClick={loginWithGoogle}>
+                  <Button variant="outline-light" className="w-100" onClick={handleGoogleLogin}>
                     Continue with Google
                   </Button>
                 </div>

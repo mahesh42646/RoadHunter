@@ -26,8 +26,11 @@ export default function useAuthActions() {
   const markActive = useAuthStore((state) => state.markActive);
 
   const handleSession = useCallback(
-    async (idToken) => {
-      const response = await apiClient.post("/users/session", { idToken });
+    async (idToken, referralCode = null) => {
+      const response = await apiClient.post("/users/session", { 
+        idToken,
+        referralCode: referralCode || null,
+      });
       const { token, user } = response.data;
       setSession({ token, user });
       markActive();
@@ -36,7 +39,7 @@ export default function useAuthActions() {
     [markActive, setSession],
   );
 
-  const loginWithGoogle = useCallback(async () => {
+  const loginWithGoogle = useCallback(async (referralCode = null) => {
     try {
       setLoading(true);
       setError(null);
@@ -45,7 +48,7 @@ export default function useAuthActions() {
         throw new Error("No user returned from Google");
       }
       const idToken = await result.user.getIdToken();
-      await handleSession(idToken);
+      await handleSession(idToken, referralCode);
       router.push("/dashboard");
     } catch (err) {
       const message = err?.message ?? DEFAULT_ERROR;
@@ -56,13 +59,13 @@ export default function useAuthActions() {
   }, [handleSession, router]);
 
   const loginWithEmail = useCallback(
-    async (email, password) => {
+    async (email, password, referralCode = null) => {
       try {
         setLoading(true);
         setError(null);
         const credentials = await signInWithEmailAndPassword(auth, email, password);
         const idToken = await credentials.user.getIdToken();
-        await handleSession(idToken);
+        await handleSession(idToken, referralCode);
         router.push("/dashboard");
       } catch (err) {
         const message = err?.message ?? DEFAULT_ERROR;
@@ -74,13 +77,13 @@ export default function useAuthActions() {
     [handleSession, router],
   );
 
-  const registerWithEmail = useCallback(async (email, password) => {
+  const registerWithEmail = useCallback(async (email, password, referralCode = null) => {
     try {
       setLoading(true);
       setError(null);
       const credentials = await createUserWithEmailAndPassword(auth, email, password);
       const idToken = await credentials.user.getIdToken();
-      await handleSession(idToken);
+      await handleSession(idToken, referralCode);
       router.push("/dashboard");
     } catch (err) {
       const message = err?.message ?? DEFAULT_ERROR;

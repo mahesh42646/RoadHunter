@@ -151,7 +151,7 @@ module.exports = function createUserRouter(io) {
 
   router.post('/session', async (req, res, next) => {
     try {
-      const { idToken } = req.body;
+      const { idToken, referralCode } = req.body;
       if (!idToken) {
         res.status(400).json({ error: 'idToken is required' });
         return;
@@ -165,6 +165,15 @@ module.exports = function createUserRouter(io) {
       const now = new Date();
 
       if (!user) {
+        // New user - check for referral code
+        let referredBy = null;
+        if (referralCode) {
+          const referrer = await User.findOne({ referralCode: referralCode.trim() });
+          if (referrer && referrer._id) {
+            referredBy = referrer._id;
+          }
+        }
+
         user = await User.create({
           account: {
             firebaseUid,
@@ -185,7 +194,54 @@ module.exports = function createUserRouter(io) {
             balanceUsd: 0,
             partyCoins: 0,
           },
+          referredBy: referredBy,
+          referral: {
+            pending: 0,
+            completed: 0,
+            referralWallet: {
+              partyCoins: 0,
+              totalEarned: 0,
+              totalWithdrawn: 0,
+            },
+            referrals: [],
+          },
         });
+
+        // If user was referred, add to referrer's pending referrals
+        if (referredBy) {
+          const referrer = await User.findById(referredBy);
+          if (referrer) {
+            // Initialize referral object if it doesn't exist
+            if (!referrer.referral) {
+              referrer.referral = {
+                pending: 0,
+                completed: 0,
+                referralWallet: {
+                  partyCoins: 0,
+                  totalEarned: 0,
+                  totalWithdrawn: 0,
+                },
+                referrals: [],
+              };
+            }
+            
+            referrer.referral.pending = (referrer.referral.pending || 0) + 1;
+            referrer.referral.referrals.push({
+              userId: user._id,
+              status: 'pending',
+              bonusEarned: 0,
+              firstDepositAmount: 0,
+              referredAt: now,
+            });
+            await referrer.save();
+
+            io.emit('referral:new', {
+              referrerId: referrer._id.toString(),
+              referredUserId: user._id.toString(),
+            });
+          }
+        }
+
         io.emit('user:joined', { userId: user._id, email: user.account.email });
       } else {
         // Ensure existing users have wallets initialized
@@ -195,8 +251,23 @@ module.exports = function createUserRouter(io) {
             balanceUsd: 0,
             partyCoins: 0,
           };
-          await user.save();
         }
+        
+        // Initialize referral object if it doesn't exist
+        if (!user.referral) {
+          user.referral = {
+            pending: 0,
+            completed: 0,
+            referralWallet: {
+              partyCoins: 0,
+              totalEarned: 0,
+              totalWithdrawn: 0,
+            },
+            referrals: [],
+          };
+        }
+        
+        await user.save();
         user.account.email = decoded.email || user.account.email;
         user.account.emailVerified = decoded.email_verified ?? user.account.emailVerified;
         user.account.displayName = decoded.name || user.account.displayName;
@@ -332,8 +403,168 @@ module.exports = function createUserRouter(io) {
     }
   });
 
-  router.get('/me', authenticate, (req, res) => {
-    res.json({ user: sanitizeUser(req.user) });
+  router.get('/me', authenticate, async (req, res) => {
+    try {
+      const user = await User.findById(req.user._id);
+      const userData = sanitizeUser(user);
+      
+      // Include referral data if requested
+      if (req.query.include === 'referral' || req.query.include === 'all') {
+        userData.referral = {
+          pending: user.referral?.pending || 0,
+          completed: user.referral?.completed || 0,
+          referralWallet: {
+            partyCoins: user.referral?.referralWallet?.partyCoins || 0,
+            totalEarned: user.referral?.referralWallet?.totalEarned || 0,
+            totalWithdrawn: user.referral?.referralWallet?.totalWithdrawn || 0,
+          },
+          referrals: (user.referral?.referrals || []).map(r => ({
+            userId: r.userId,
+            status: r.status,
+            bonusEarned: r.bonusEarned || 0,
+            firstDepositAmount: r.firstDepositAmount || 0,
+            referredAt: r.referredAt,
+            completedAt: r.completedAt,
+          })),
+        };
+      }
+      
+      res.json({ user: userData });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to get user data' });
+    }
+  });
+
+  // Get referral details
+  router.get('/referrals', authenticate, async (req, res, next) => {
+    try {
+      const user = await User.findById(req.user._id);
+      
+      // Initialize referral if it doesn't exist
+      if (!user.referral) {
+        user.referral = {
+          pending: 0,
+          completed: 0,
+          referralWallet: {
+            partyCoins: 0,
+            totalEarned: 0,
+            totalWithdrawn: 0,
+          },
+          referrals: [],
+        };
+        await user.save();
+      }
+
+      // Populate referral user details
+      const referralsWithDetails = await Promise.all(
+        (user.referral.referrals || []).map(async (ref) => {
+          const referredUser = await User.findById(ref.userId).select('account.displayName account.email account.photoUrl progress.level');
+          return {
+            userId: ref.userId,
+            user: referredUser ? {
+              displayName: referredUser.account?.displayName,
+              email: referredUser.account?.email,
+              photoUrl: referredUser.account?.photoUrl,
+              level: referredUser.progress?.level || 1,
+            } : null,
+            status: ref.status,
+            bonusEarned: ref.bonusEarned || 0,
+            firstDepositAmount: ref.firstDepositAmount || 0,
+            referredAt: ref.referredAt,
+            completedAt: ref.completedAt,
+          };
+        })
+      );
+
+      res.json({
+        pending: user.referral.pending || 0,
+        completed: user.referral.completed || 0,
+        referralWallet: {
+          partyCoins: user.referral.referralWallet?.partyCoins || 0,
+          totalEarned: user.referral.referralWallet?.totalEarned || 0,
+          totalWithdrawn: user.referral.referralWallet?.totalWithdrawn || 0,
+        },
+        referrals: referralsWithDetails,
+        referralCode: user.referralCode,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Withdraw from referral wallet to main wallet
+  router.post('/referrals/withdraw', authenticate, async (req, res, next) => {
+    try {
+      const { amount } = req.body;
+      if (!amount || amount <= 0) {
+        res.status(400).json({ error: 'Valid amount is required' });
+        return;
+      }
+
+      const user = await User.findById(req.user._id);
+      
+      if (!user.referral || !user.referral.referralWallet) {
+        res.status(400).json({ error: 'Referral wallet not found' });
+        return;
+      }
+
+      const availableBalance = user.referral.referralWallet.partyCoins || 0;
+      if (amount > availableBalance) {
+        res.status(400).json({ error: 'Insufficient balance in referral wallet' });
+        return;
+      }
+
+      // Ensure main wallet exists
+      if (!user.wallet || !user.wallet.walletId) {
+        user.wallet = {
+          walletId: User.generateWalletId(),
+          balanceUsd: 0,
+          partyCoins: 0,
+        };
+      }
+
+      // Transfer from referral wallet to main wallet
+      user.referral.referralWallet.partyCoins = availableBalance - amount;
+      user.referral.referralWallet.totalWithdrawn = (user.referral.referralWallet.totalWithdrawn || 0) + amount;
+      
+      user.wallet.partyCoins = (user.wallet.partyCoins || 0) + amount;
+      user.wallet.balanceUsd = Number((user.wallet.partyCoins / User.partyCoinsFromUsd(1)).toFixed(2));
+      user.wallet.lastTransactionAt = new Date();
+
+      // Add transaction record
+      const transaction = {
+        type: 'reward',
+        amountUsd: amount / User.partyCoinsFromUsd(1),
+        partyCoins: amount,
+        status: 'completed',
+        metadata: { source: 'referral_withdrawal' },
+        processedAt: new Date(),
+      };
+      user.transactions.push(transaction);
+
+      await user.save();
+
+      io.emit('wallet:updated', {
+        userId: user._id.toString(),
+        wallet: user.wallet,
+      });
+
+      res.json({
+        message: 'Withdrawal successful',
+        referralWallet: {
+          partyCoins: user.referral.referralWallet.partyCoins,
+          totalEarned: user.referral.referralWallet.totalEarned,
+          totalWithdrawn: user.referral.referralWallet.totalWithdrawn,
+        },
+        mainWallet: {
+          walletId: user.wallet.walletId,
+          balanceUsd: user.wallet.balanceUsd,
+          partyCoins: user.wallet.partyCoins,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.get('/wallet', authenticate, (req, res) => {
@@ -366,6 +597,13 @@ module.exports = function createUserRouter(io) {
         return;
       }
 
+      // Check if this is the first deposit
+      const user = await User.findById(req.user._id);
+      const hasPreviousDeposits = user.transactions?.some(
+        t => t.type === 'deposit' && t.status === 'completed'
+      );
+      const isFirstDeposit = !hasPreviousDeposits && type === 'deposit';
+
       const debitTypes = ['withdrawal', 'purchase'];
       const balanceDelta = debitTypes.includes(type) ? -coins : coins;
       const nextCoins = (req.user.wallet.partyCoins || 0) + balanceDelta;
@@ -380,16 +618,67 @@ module.exports = function createUserRouter(io) {
         partyCoins: coins,
         status: 'completed',
         providerReference,
-        metadata,
+        metadata: { ...metadata, isFirstDeposit },
         processedAt: new Date(),
       };
 
-      req.user.transactions.push(transaction);
-      req.user.wallet.partyCoins = nextCoins;
-      req.user.wallet.balanceUsd = Number((nextCoins / User.partyCoinsFromUsd(1)).toFixed(2));
-      req.user.wallet.lastTransactionAt = new Date();
+      user.transactions.push(transaction);
+      user.wallet.partyCoins = nextCoins;
+      user.wallet.balanceUsd = Number((nextCoins / User.partyCoinsFromUsd(1)).toFixed(2));
+      user.wallet.lastTransactionAt = new Date();
 
-      await req.user.save();
+      // Handle referral bonus for first deposit
+      if (isFirstDeposit && user.referredBy) {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          // Initialize referral object if it doesn't exist
+          if (!referrer.referral) {
+            referrer.referral = {
+              pending: 0,
+              completed: 0,
+              referralWallet: {
+                partyCoins: 0,
+                totalEarned: 0,
+                totalWithdrawn: 0,
+              },
+              referrals: [],
+            };
+          }
+
+          // Calculate 10% referral bonus
+          const referralBonus = Math.round(coins * 0.1);
+          
+          // Update referrer's referral wallet
+          referrer.referral.referralWallet.partyCoins = (referrer.referral.referralWallet.partyCoins || 0) + referralBonus;
+          referrer.referral.referralWallet.totalEarned = (referrer.referral.referralWallet.totalEarned || 0) + referralBonus;
+          
+          // Update referral status from pending to completed
+          const referralEntry = referrer.referral.referrals.find(
+            r => r.userId.toString() === user._id.toString() && r.status === 'pending'
+          );
+          
+          if (referralEntry) {
+            referralEntry.status = 'completed';
+            referralEntry.bonusEarned = referralBonus;
+            referralEntry.firstDepositAmount = amountUsd || (coins / User.partyCoinsFromUsd(1));
+            referralEntry.completedAt = new Date();
+          }
+          
+          // Update counts
+          referrer.referral.pending = Math.max(0, (referrer.referral.pending || 0) - 1);
+          referrer.referral.completed = (referrer.referral.completed || 0) + 1;
+          
+          await referrer.save();
+
+          io.emit('referral:completed', {
+            referrerId: referrer._id.toString(),
+            referredUserId: user._id.toString(),
+            bonus: referralBonus,
+          });
+        }
+      }
+
+      await user.save();
       io.emit('user:walletUpdated', {
         userId: req.user._id,
         wallet: req.user.wallet,

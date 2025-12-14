@@ -25,6 +25,12 @@ export default function ProfilePage() {
   const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [loadingFollowing, setLoadingFollowing] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [referralData, setReferralData] = useState(null);
+  const [loadingReferrals, setLoadingReferrals] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: user?.account?.displayName || "",
     gender: user?.account?.gender || "",
@@ -55,6 +61,12 @@ export default function ProfilePage() {
       setPreviewUrl(user.account?.photoUrl || "");
     }
   }, [user]);
+
+  useEffect(() => {
+    if (isProfileComplete) {
+      loadReferralData();
+    }
+  }, [isProfileComplete]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -162,11 +174,76 @@ export default function ProfilePage() {
     loadFollowing();
   };
 
+  const loadReferralData = async () => {
+    setLoadingReferrals(true);
+    try {
+      const response = await apiClient.get("/users/referrals");
+      setReferralData(response.data);
+    } catch (error) {
+      console.error("Failed to load referral data:", error);
+      setReferralData({
+        pending: 0,
+        completed: 0,
+        referralWallet: { partyCoins: 0, totalEarned: 0, totalWithdrawn: 0 },
+        referrals: [],
+        referralCode: user?.referralCode || null,
+      });
+    } finally {
+      setLoadingReferrals(false);
+    }
+  };
+
   const copyReferralCode = () => {
     if (user?.referralCode) {
       navigator.clipboard.writeText(user.referralCode);
       setCopiedCode(true);
       setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
+  const copyReferralLink = () => {
+    if (user?.referralCode) {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      const referralLink = `${baseUrl}/user/login?ref=${user.referralCode}`;
+      navigator.clipboard.writeText(referralLink);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleWithdraw = async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(withdrawAmount);
+    
+    if (!amount || amount <= 0) {
+      setMessage("Please enter a valid amount");
+      return;
+    }
+
+    if (amount > (referralData?.referralWallet?.partyCoins || 0)) {
+      setMessage("Insufficient balance in referral wallet");
+      return;
+    }
+
+    setWithdrawing(true);
+    setMessage("");
+    
+    try {
+      await apiClient.post("/users/referrals/withdraw", { amount });
+      setMessage("Withdrawal successful! Coins transferred to main wallet.");
+      await loadReferralData();
+      // Refresh user data to update main wallet
+      const meResponse = await apiClient.get("/users/me");
+      updateUser(meResponse.data.user);
+      setWithdrawAmount("");
+      setTimeout(() => {
+        setShowWithdrawModal(false);
+        setMessage("");
+      }, 2000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || "Failed to withdraw");
+    } finally {
+      setWithdrawing(false);
     }
   };
 
@@ -512,6 +589,7 @@ export default function ProfilePage() {
                     size="sm"
                     onClick={copyReferralCode}
                     className="flex-shrink-0"
+                    title="Copy Code"
                   >
                     {copiedCode ? <FaCheck /> : <FaCopy />}
                   </Button>
@@ -521,6 +599,216 @@ export default function ProfilePage() {
           </Card>
         </Col>
       </Row>
+
+      {/* Referral System Section */}
+      {user?.referralCode && (
+        <Card className="bg-transparent border-light mb-4">
+          <Card.Header>
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Referral Program</h5>
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={copyReferralLink}
+              >
+                {copiedLink ? (
+                  <>
+                    <FaCheck className="me-2" /> Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <FaCopy className="me-2" /> Copy Referral Link
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card.Header>
+          <Card.Body>
+            {loadingReferrals ? (
+              <div className="text-center py-4">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Row className="gy-3 mb-4">
+                  <Col xs={12} sm={6} md={3}>
+                    <div className="text-center p-3 rounded" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                      <div className="text-muted small mb-1">Pending Referrals</div>
+                      <div className="display-6 fw-bold">{referralData?.pending || 0}</div>
+                    </div>
+                  </Col>
+                  <Col xs={12} sm={6} md={3}>
+                    <div className="text-center p-3 rounded" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                      <div className="text-muted small mb-1">Completed Referrals</div>
+                      <div className="display-6 fw-bold text-success">{referralData?.completed || 0}</div>
+                    </div>
+                  </Col>
+                  <Col xs={12} sm={6} md={3}>
+                    <div className="text-center p-3 rounded" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                      <div className="text-muted small mb-1">Referral Wallet</div>
+                      <div className="display-6 fw-bold text-warning">{referralData?.referralWallet?.partyCoins || 0}</div>
+                      <div className="text-muted small mt-1">Party Coins</div>
+                    </div>
+                  </Col>
+                  <Col xs={12} sm={6} md={3}>
+                    <div className="text-center p-3 rounded" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                      <div className="text-muted small mb-1">Total Earned</div>
+                      <div className="display-6 fw-bold text-info">{referralData?.referralWallet?.totalEarned || 0}</div>
+                      <div className="text-muted small mt-1">Party Coins</div>
+                    </div>
+                  </Col>
+                </Row>
+
+                {referralData?.referralWallet?.partyCoins > 0 && (
+                  <div className="d-flex justify-content-center">
+                    <Button
+                      variant="primary"
+                      onClick={() => setShowWithdrawModal(true)}
+                    >
+                      Withdraw to Main Wallet
+                    </Button>
+                  </div>
+                )}
+
+                {referralData?.referrals && referralData.referrals.length > 0 && (
+                  <div className="mt-4">
+                    <h6 className="mb-3">Your Referrals</h6>
+                    <div className="d-flex flex-column gap-2" style={{ maxHeight: "300px", overflowY: "auto" }}>
+                      {referralData.referrals.map((ref, idx) => (
+                        <div
+                          key={idx}
+                          className="d-flex align-items-center justify-content-between p-2 rounded"
+                          style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                        >
+                          <div className="d-flex align-items-center gap-2">
+                            {ref.user ? (
+                              <>
+                                {getImageUrl(ref.user.photoUrl) ? (
+                                  <Image
+                                    src={getImageUrl(ref.user.photoUrl)}
+                                    alt={ref.user.displayName}
+                                    width={40}
+                                    height={40}
+                                    className="rounded-circle"
+                                    style={{ objectFit: "cover" }}
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <div
+                                    className="rounded-circle d-flex align-items-center justify-content-center"
+                                    style={{
+                                      width: "40px",
+                                      height: "40px",
+                                      backgroundColor: "rgba(255, 45, 149, 0.3)",
+                                      color: "white",
+                                      fontSize: "1rem",
+                                      fontWeight: "bold",
+                                    }}
+                                  >
+                                    {getInitials(ref.user.displayName || ref.user.email || "?")}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="fw-bold small">{ref.user.displayName || ref.user.email}</div>
+                                  <div className="text-muted small">Level {ref.user.level || 1}</div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-muted">User not found</div>
+                            )}
+                          </div>
+                          <div className="text-end">
+                            <Badge
+                              bg={ref.status === "completed" ? "success" : "warning"}
+                              className="mb-1"
+                            >
+                              {ref.status === "completed" ? "Completed" : "Pending"}
+                            </Badge>
+                            {ref.status === "completed" && (
+                              <div className="text-success small">
+                                +{ref.bonusEarned || 0} coins
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Withdraw Modal */}
+      <Modal
+        show={showWithdrawModal}
+        onHide={() => {
+          setShowWithdrawModal(false);
+          setWithdrawAmount("");
+          setMessage("");
+        }}
+        centered
+        contentClassName="bg-dark border-light"
+      >
+        <Modal.Header closeButton className="border-light">
+          <Modal.Title className="text-light">Withdraw from Referral Wallet</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {message && (
+            <Alert variant={message.includes("success") ? "success" : "danger"} className="mb-3">
+              {message}
+            </Alert>
+          )}
+          <div className="mb-3">
+            <div className="text-muted small mb-2">Available Balance</div>
+            <div className="h4 fw-bold text-warning">
+              {referralData?.referralWallet?.partyCoins || 0} Party Coins
+            </div>
+          </div>
+          <Form onSubmit={handleWithdraw}>
+            <Form.Group className="mb-3">
+              <Form.Label>Amount to Withdraw (Party Coins)</Form.Label>
+              <Form.Control
+                type="number"
+                min="1"
+                max={referralData?.referralWallet?.partyCoins || 0}
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                placeholder="Enter amount"
+                required
+              />
+              <Form.Text className="text-muted">
+                Coins will be transferred to your main wallet
+              </Form.Text>
+            </Form.Group>
+            <div className="d-flex gap-2">
+              <Button
+                variant="outline-light"
+                className="flex-grow-1"
+                onClick={() => {
+                  setShowWithdrawModal(false);
+                  setWithdrawAmount("");
+                  setMessage("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                className="flex-grow-1"
+                disabled={withdrawing}
+              >
+                {withdrawing ? "Processing..." : "Withdraw"}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
 
       {/* Followers Modal */}
       <Modal
