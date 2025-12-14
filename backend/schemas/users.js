@@ -190,3 +190,6 @@ userSchema.statics.partyCoinsFromUsd = function partyCoinsFromUsd(amountUsd = 0)
 
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);
 
+
+
+
