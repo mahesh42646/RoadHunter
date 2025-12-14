@@ -71,6 +71,7 @@ module.exports = function createFriendsRouter(io) {
         profilePrivacy: 'public',
         friends: [],
         friendRequests: { sent: [], received: [] },
+        followRequests: { sent: [], received: [] },
         removedFriends: [],
         removedBy: [],
         followers: [],
@@ -80,6 +81,9 @@ module.exports = function createFriendsRouter(io) {
     // Ensure nested objects exist
     if (!user.social.friendRequests) {
       user.social.friendRequests = { sent: [], received: [] };
+    }
+    if (!user.social.followRequests) {
+      user.social.followRequests = { sent: [], received: [] };
     }
     if (!user.social.friends) {
       user.social.friends = [];
@@ -207,6 +211,18 @@ module.exports = function createFriendsRouter(io) {
         return;
       }
 
+      // Check if already following
+      if (user.social.following.some((id) => id.toString() === userId)) {
+        res.status(400).json({ error: 'Already following this user' });
+        return;
+      }
+
+      // Check if follow request already sent
+      if (user.social.followRequests.sent.some((id) => id.toString() === userId)) {
+        res.status(400).json({ error: 'Follow request already sent' });
+        return;
+      }
+
       // If profile is public, auto-follow instead of sending request
       if (target.social.profilePrivacy === 'public') {
         if (!user.social.following.some((id) => id.toString() === userId)) {
@@ -234,14 +250,21 @@ module.exports = function createFriendsRouter(io) {
       }
 
       // Send follow request for private profiles
-      user.social.friendRequests.sent.push(targetUser._id);
-      target.social.friendRequests.received.push(user._id);
+      if (!user.social.followRequests) {
+        user.social.followRequests = { sent: [], received: [] };
+      }
+      if (!target.social.followRequests) {
+        target.social.followRequests = { sent: [], received: [] };
+      }
+
+      user.social.followRequests.sent.push(targetUser._id);
+      target.social.followRequests.received.push(user._id);
 
       await user.save();
       await target.save();
 
       // Emit to specific user's room for notifications
-      io.to(`user:${targetUser._id}`).emit('friends:requestReceived', {
+      io.to(`user:${targetUser._id}`).emit('friends:followRequestReceived', {
         fromUserId: user._id.toString(),
         toUserId: targetUser._id.toString(),
         fromUser: {
@@ -275,51 +298,88 @@ module.exports = function createFriendsRouter(io) {
 
       const target = await ensureSocial(targetUser);
 
-      // Check if request exists
-      if (!user.social.friendRequests.received.some((id) => id.toString() === userId)) {
-        res.status(400).json({ error: 'No friend request found' });
+      // Check if friend request exists
+      const hasFriendRequest = user.social.friendRequests.received.some((id) => id.toString() === userId);
+      // Check if follow request exists
+      const hasFollowRequest = user.social.followRequests?.received?.some((id) => id.toString() === userId);
+
+      if (!hasFriendRequest && !hasFollowRequest) {
+        res.status(400).json({ error: 'No request found' });
         return;
       }
 
-      // Add to friends
-      if (!user.social.friends.some((id) => id.toString() === userId)) {
-        user.social.friends.push(targetUser._id);
+      // Handle friend request
+      if (hasFriendRequest) {
+        // Add to friends
+        if (!user.social.friends.some((id) => id.toString() === userId)) {
+          user.social.friends.push(targetUser._id);
+        }
+        if (!target.social.friends.some((id) => id.toString() === user._id.toString())) {
+          target.social.friends.push(user._id);
+        }
+
+        // Remove from requests
+        user.social.friendRequests.received = user.social.friendRequests.received.filter(
+          (id) => id.toString() !== userId
+        );
+        target.social.friendRequests.sent = target.social.friendRequests.sent.filter(
+          (id) => id.toString() !== user._id.toString()
+        );
+
+        // Remove from removed lists if present
+        user.social.removedFriends = user.social.removedFriends.filter(
+          (id) => id.toString() !== userId
+        );
+        target.social.removedBy = target.social.removedBy.filter(
+          (id) => id.toString() !== user._id.toString()
+        );
+
+        await user.save();
+        await target.save();
+
+        io.emit('friends:requestAccepted', {
+          userId: user._id.toString(),
+          friendId: targetUser._id.toString(),
+        });
+
+        res.json({ message: 'Friend request accepted', friend: sanitizeUser(target) });
+        return;
       }
-      if (!target.social.friends.some((id) => id.toString() === user._id.toString())) {
-        target.social.friends.push(user._id);
+
+      // Handle follow request
+      if (hasFollowRequest) {
+        // Add to following/followers
+        if (!user.social.following.some((id) => id.toString() === userId)) {
+          user.social.following.push(targetUser._id);
+        }
+        if (!target.social.followers.some((id) => id.toString() === user._id.toString())) {
+          target.social.followers.push(user._id);
+        }
+
+        // Remove from follow requests
+        user.social.followRequests.received = user.social.followRequests.received.filter(
+          (id) => id.toString() !== userId
+        );
+        target.social.followRequests.sent = target.social.followRequests.sent.filter(
+          (id) => id.toString() !== user._id.toString()
+        );
+
+        await user.save();
+        await target.save();
+
+        io.emit('friends:followRequestAccepted', {
+          userId: user._id.toString(),
+          followerId: targetUser._id.toString(),
+        });
+
+        res.json({ message: 'Follow request accepted', user: sanitizeUser(target) });
       }
-
-      // Remove from requests
-      user.social.friendRequests.received = user.social.friendRequests.received.filter(
-        (id) => id.toString() !== userId
-      );
-      target.social.friendRequests.sent = target.social.friendRequests.sent.filter(
-        (id) => id.toString() !== user._id.toString()
-      );
-
-      // Remove from removed lists if present
-      user.social.removedFriends = user.social.removedFriends.filter(
-        (id) => id.toString() !== userId
-      );
-      target.social.removedBy = target.social.removedBy.filter(
-        (id) => id.toString() !== user._id.toString()
-      );
-
-      await user.save();
-      await target.save();
-
-      io.emit('friends:requestAccepted', {
-        userId: user._id.toString(),
-        friendId: targetUser._id.toString(),
-      });
-
-      res.json({ message: 'Friend request accepted', friend: sanitizeUser(target) });
     } catch (error) {
       next(error);
     }
   });
 
-  // Reject friend request
+  // Reject friend request or follow request
   router.post('/reject/:userId', authenticate, async (req, res, next) => {
     try {
       const { userId } = req.params;
@@ -337,7 +397,7 @@ module.exports = function createFriendsRouter(io) {
 
       const target = await ensureSocial(targetUser);
 
-      // Remove from requests
+      // Remove from friend requests
       user.social.friendRequests.received = user.social.friendRequests.received.filter(
         (id) => id.toString() !== userId
       );
@@ -345,10 +405,22 @@ module.exports = function createFriendsRouter(io) {
         (id) => id.toString() !== user._id.toString()
       );
 
+      // Remove from follow requests
+      if (user.social.followRequests) {
+        user.social.followRequests.received = user.social.followRequests.received.filter(
+          (id) => id.toString() !== userId
+        );
+      }
+      if (target.social.followRequests) {
+        target.social.followRequests.sent = target.social.followRequests.sent.filter(
+          (id) => id.toString() !== user._id.toString()
+        );
+      }
+
       await user.save();
       await target.save();
 
-      res.json({ message: 'Friend request rejected' });
+      res.json({ message: 'Request rejected' });
     } catch (error) {
       next(error);
     }
@@ -395,7 +467,7 @@ module.exports = function createFriendsRouter(io) {
         );
       }
 
-      // Remove from requests
+      // Remove from friend requests
       user.social.friendRequests.sent = user.social.friendRequests.sent.filter(
         (id) => id.toString() !== userId
       );
@@ -408,6 +480,24 @@ module.exports = function createFriendsRouter(io) {
       target.social.friendRequests.received = target.social.friendRequests.received.filter(
         (id) => id.toString() !== user._id.toString()
       );
+
+      // Remove from follow requests
+      if (user.social.followRequests) {
+        user.social.followRequests.sent = user.social.followRequests.sent.filter(
+          (id) => id.toString() !== userId
+        );
+        user.social.followRequests.received = user.social.followRequests.received.filter(
+          (id) => id.toString() !== userId
+        );
+      }
+      if (target.social.followRequests) {
+        target.social.followRequests.sent = target.social.followRequests.sent.filter(
+          (id) => id.toString() !== user._id.toString()
+        );
+        target.social.followRequests.received = target.social.followRequests.received.filter(
+          (id) => id.toString() !== user._id.toString()
+        );
+      }
 
       await user.save();
       await target.save();
@@ -445,11 +535,14 @@ module.exports = function createFriendsRouter(io) {
         });
       });
 
-      // Exclude friends, sent requests, received requests, removed friends
+      // Exclude friends, sent requests, received requests, removed friends, following, and follow requests
       const excludeIds = [
         ...user.social.friends.map((id) => id.toString()),
+        ...user.social.following.map((id) => id.toString()),
         ...user.social.friendRequests.sent.map((id) => id.toString()),
         ...user.social.friendRequests.received.map((id) => id.toString()),
+        ...(user.social.followRequests?.sent || []).map((id) => id.toString()),
+        ...(user.social.followRequests?.received || []).map((id) => id.toString()),
         ...user.social.removedFriends.map((id) => id.toString()),
       ];
 
@@ -509,18 +602,27 @@ module.exports = function createFriendsRouter(io) {
 
       const isFriend = user.social.friends.some((id) => id.toString() === userId);
       const isFollowing = user.social.following.some((id) => id.toString() === userId);
-      const hasSentRequest = user.social.friendRequests.sent.some((id) => id.toString() === userId);
-      const hasReceivedRequest = user.social.friendRequests.received.some(
+      const hasSentFriendRequest = user.social.friendRequests.sent.some((id) => id.toString() === userId);
+      const hasReceivedFriendRequest = user.social.friendRequests.received.some(
         (id) => id.toString() === userId
       );
+      const hasSentFollowRequest = user.social.followRequests?.sent?.some((id) => id.toString() === userId);
+      const hasReceivedFollowRequest = user.social.followRequests?.received?.some(
+        (id) => id.toString() === userId
+      );
+      const followsYou = target.social.followers?.some((id) => id.toString() === user._id.toString());
 
       const profile = sanitizeUser(target);
       profile.relationship = {
         isFriend,
         isFollowing,
-        hasSentRequest,
-        hasReceivedRequest,
-        canView: target.social.profilePrivacy === 'public' || isFriend,
+        hasSentFriendRequest,
+        hasReceivedFriendRequest,
+        hasSentFollowRequest,
+        hasReceivedFollowRequest,
+        followsYou,
+        canView: target.social.profilePrivacy === 'public' || isFriend || isFollowing,
+        profilePrivacy: target.social.profilePrivacy || 'public',
       };
 
       res.json({ user: profile });
@@ -529,25 +631,43 @@ module.exports = function createFriendsRouter(io) {
     }
   });
 
-  // Get followers list
+  // Get followers list with relationship status
   router.get('/followers', authenticate, async (req, res, next) => {
     try {
       const user = await ensureSocial(req.user);
       const followerIds = user.social.followers || [];
       
       const followers = await User.find({ _id: { $in: followerIds } })
-        .select('account progress social.profilePrivacy')
+        .select('account progress social.profilePrivacy social.following social.followers social.followRequests')
         .lean();
 
+      const currentUserId = user._id.toString();
+      const followersWithStatus = followers.map((f) => {
+        const follower = sanitizeUser(f);
+        const isFollowing = user.social.following.some((id) => id.toString() === f._id.toString());
+        const hasSentFollowRequest = user.social.followRequests?.sent?.some((id) => id.toString() === f._id.toString());
+        const hasReceivedFollowRequest = user.social.followRequests?.received?.some((id) => id.toString() === f._id.toString());
+        const canFollowBack = !isFollowing && !hasSentFollowRequest;
+        
+        follower.relationship = {
+          isFollowing,
+          hasSentFollowRequest,
+          hasReceivedFollowRequest,
+          canFollowBack,
+          profilePrivacy: f.social?.profilePrivacy || 'public',
+        };
+        return follower;
+      });
+
       res.json({
-        followers: followers.map((f) => sanitizeUser(f)),
+        followers: followersWithStatus,
       });
     } catch (error) {
       next(error);
     }
   });
 
-  // Get following list
+  // Get following list with relationship status
   router.get('/following', authenticate, async (req, res, next) => {
     try {
       const user = await ensureSocial(req.user);
@@ -558,12 +678,105 @@ module.exports = function createFriendsRouter(io) {
       const uniqueFollowingIds = [...new Set(followingIds)];
       
       const following = await User.find({ _id: { $in: uniqueFollowingIds } })
-        .select('account progress social.profilePrivacy')
+        .select('account progress social.profilePrivacy social.following social.followers')
         .lean();
 
-      res.json({
-        following: following.map((f) => sanitizeUser(f)),
+      const followingWithStatus = following.map((f) => {
+        const follow = sanitizeUser(f);
+        const isFollowing = true; // They're in the following list
+        const followsYou = f.social?.followers?.some((id) => id.toString() === user._id.toString());
+        
+        follow.relationship = {
+          isFollowing,
+          followsYou,
+          profilePrivacy: f.social?.profilePrivacy || 'public',
+        };
+        return follow;
       });
+
+      res.json({
+        following: followingWithStatus,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Follow back endpoint
+  router.post('/follow-back/:userId', authenticate, async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        res.status(400).json({ error: 'Invalid user ID' });
+        return;
+      }
+
+      if (userId === req.user._id.toString()) {
+        res.status(400).json({ error: 'Cannot follow yourself' });
+        return;
+      }
+
+      const targetUser = await User.findById(userId);
+      if (!targetUser) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      const user = await ensureSocial(req.user);
+      const target = await ensureSocial(targetUser);
+
+      // Check if user is following you (is in your followers list)
+      const isFollower = user.social.followers.some((id) => id.toString() === userId);
+      if (!isFollower) {
+        res.status(400).json({ error: 'User is not following you' });
+        return;
+      }
+
+      // Check if already following
+      if (user.social.following.some((id) => id.toString() === userId)) {
+        res.status(400).json({ error: 'Already following this user' });
+        return;
+      }
+
+      // If target profile is public, auto-follow
+      if (target.social.profilePrivacy === 'public') {
+        user.social.following.push(targetUser._id);
+        await user.save();
+
+        io.emit('friends:followed', {
+          userId: user._id.toString(),
+          targetId: targetUser._id.toString(),
+        });
+
+        res.json({ message: 'Now following', following: true, user: sanitizeUser(target) });
+        return;
+      }
+
+      // If target profile is private, send follow request
+      if (!user.social.followRequests) {
+        user.social.followRequests = { sent: [], received: [] };
+      }
+      if (!target.social.followRequests) {
+        target.social.followRequests = { sent: [], received: [] };
+      }
+
+      user.social.followRequests.sent.push(targetUser._id);
+      target.social.followRequests.received.push(user._id);
+
+      await user.save();
+      await target.save();
+
+      io.to(`user:${targetUser._id}`).emit('friends:followRequestReceived', {
+        fromUserId: user._id.toString(),
+        toUserId: targetUser._id.toString(),
+        fromUser: {
+          _id: user._id.toString(),
+          displayName: user.account?.displayName,
+          photoUrl: user.account?.photoUrl,
+        },
+      });
+
+      res.json({ message: 'Follow request sent', user: sanitizeUser(target) });
     } catch (error) {
       next(error);
     }

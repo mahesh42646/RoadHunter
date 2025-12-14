@@ -164,6 +164,51 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFollow = async (userId, profilePrivacy) => {
+    try {
+      if (profilePrivacy === 'public') {
+        // Direct follow for public profiles
+        await apiClient.post(`/friends/request/${userId}`);
+      } else {
+        // Send follow request for private profiles
+        await apiClient.post(`/friends/request/${userId}`);
+      }
+      await loadFollowers();
+      await loadFollowing();
+      // Refresh user data
+      const meResponse = await apiClient.get("/users/me");
+      updateUser(meResponse.data.user);
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to follow user");
+    }
+  };
+
+  const handleFollowBack = async (userId, profilePrivacy) => {
+    try {
+      await apiClient.post(`/friends/follow-back/${userId}`);
+      await loadFollowers();
+      await loadFollowing();
+      // Refresh user data
+      const meResponse = await apiClient.get("/users/me");
+      updateUser(meResponse.data.user);
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to follow back");
+    }
+  };
+
+  const handleUnfollow = async (userId) => {
+    try {
+      await apiClient.delete(`/friends/${userId}`);
+      await loadFollowers();
+      await loadFollowing();
+      // Refresh user data
+      const meResponse = await apiClient.get("/users/me");
+      updateUser(meResponse.data.user);
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to unfollow");
+    }
+  };
+
   const handleFollowersClick = () => {
     setShowFollowersModal(true);
     loadFollowers();
@@ -831,46 +876,87 @@ export default function ProfilePage() {
             <div className="text-center text-muted py-4">No followers yet</div>
           ) : (
             <div className="d-flex flex-column gap-3">
-              {followers.map((follower) => (
-                <div
-                  key={follower._id}
-                  className="d-flex align-items-center gap-3 p-2 rounded"
-                  style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                >
-                  {getImageUrl(follower.account?.photoUrl) ? (
-                    <Image
-                      src={getImageUrl(follower.account?.photoUrl)}
-                      alt={follower.account?.displayName}
-                      width={50}
-                      height={50}
-                      className="rounded-circle"
-                      style={{ objectFit: "cover" }}
-                      unoptimized
-                    />
-                  ) : (
-                    <div
-                      className="rounded-circle d-flex align-items-center justify-content-center"
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        backgroundColor: "rgba(255, 45, 149, 0.3)",
-                        color: "white",
-                        fontSize: "1.2rem",
-                        fontWeight: "bold",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {getInitials(follower.account?.displayName || follower.account?.email || "?")}
+              {followers.map((follower) => {
+                const relationship = follower.relationship || {};
+                const isFollowing = relationship.isFollowing || false;
+                const hasSentRequest = relationship.hasSentFollowRequest || false;
+                const canFollowBack = relationship.canFollowBack !== false;
+                const profilePrivacy = relationship.profilePrivacy || 'public';
+
+                return (
+                  <div
+                    key={follower._id}
+                    className="d-flex align-items-center justify-content-between gap-3 p-2 rounded"
+                    style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                  >
+                    <div className="d-flex align-items-center gap-3 flex-grow-1">
+                      {getImageUrl(follower.account?.photoUrl) ? (
+                        <Image
+                          src={getImageUrl(follower.account?.photoUrl)}
+                          alt={follower.account?.displayName}
+                          width={50}
+                          height={50}
+                          className="rounded-circle"
+                          style={{ objectFit: "cover" }}
+                          unoptimized
+                        />
+                      ) : (
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center"
+                          style={{
+                            width: "50px",
+                            height: "50px",
+                            backgroundColor: "rgba(255, 45, 149, 0.3)",
+                            color: "white",
+                            fontSize: "1.2rem",
+                            fontWeight: "bold",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {getInitials(follower.account?.displayName || follower.account?.email || "?")}
+                        </div>
+                      )}
+                      <div className="flex-grow-1">
+                        <div className="fw-bold">{follower.account?.displayName || follower.account?.email}</div>
+                        <div className="text-muted small">
+                          Level {follower.progress?.level || 1}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-grow-1">
-                    <div className="fw-bold">{follower.account?.displayName || follower.account?.email}</div>
-                    <div className="text-muted small">
-                      Level {follower.progress?.level || 1}
+                    <div className="flex-shrink-0">
+                      {isFollowing ? (
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => handleUnfollow(follower._id)}
+                        >
+                          Unfollow
+                        </Button>
+                      ) : canFollowBack ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleFollowBack(follower._id, profilePrivacy)}
+                        >
+                          Follow Back
+                        </Button>
+                      ) : hasSentRequest ? (
+                        <Button variant="outline-warning" size="sm" disabled>
+                          Request Sent
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleFollow(follower._id, profilePrivacy)}
+                        >
+                          Follow
+                        </Button>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Modal.Body>
@@ -897,46 +983,65 @@ export default function ProfilePage() {
             <div className="text-center text-muted py-4">Not following anyone yet</div>
           ) : (
             <div className="d-flex flex-column gap-3">
-              {following.map((follow) => (
-                <div
-                  key={follow._id}
-                  className="d-flex align-items-center gap-3 p-2 rounded"
-                  style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                >
-                  {getImageUrl(follow.account?.photoUrl) ? (
-                    <Image
-                      src={getImageUrl(follow.account?.photoUrl)}
-                      alt={follow.account?.displayName}
-                      width={50}
-                      height={50}
-                      className="rounded-circle"
-                      style={{ objectFit: "cover" }}
-                      unoptimized
-                    />
-                  ) : (
-                    <div
-                      className="rounded-circle d-flex align-items-center justify-content-center"
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        backgroundColor: "rgba(255, 45, 149, 0.3)",
-                        color: "white",
-                        fontSize: "1.2rem",
-                        fontWeight: "bold",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {getInitials(follow.account?.displayName || follow.account?.email || "?")}
+              {following.map((follow) => {
+                const relationship = follow.relationship || {};
+                const followsYou = relationship.followsYou || false;
+
+                return (
+                  <div
+                    key={follow._id}
+                    className="d-flex align-items-center justify-content-between gap-3 p-2 rounded"
+                    style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                  >
+                    <div className="d-flex align-items-center gap-3 flex-grow-1">
+                      {getImageUrl(follow.account?.photoUrl) ? (
+                        <Image
+                          src={getImageUrl(follow.account?.photoUrl)}
+                          alt={follow.account?.displayName}
+                          width={50}
+                          height={50}
+                          className="rounded-circle"
+                          style={{ objectFit: "cover" }}
+                          unoptimized
+                        />
+                      ) : (
+                        <div
+                          className="rounded-circle d-flex align-items-center justify-content-center"
+                          style={{
+                            width: "50px",
+                            height: "50px",
+                            backgroundColor: "rgba(255, 45, 149, 0.3)",
+                            color: "white",
+                            fontSize: "1.2rem",
+                            fontWeight: "bold",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {getInitials(follow.account?.displayName || follow.account?.email || "?")}
+                        </div>
+                      )}
+                      <div className="flex-grow-1">
+                        <div className="fw-bold">{follow.account?.displayName || follow.account?.email}</div>
+                        <div className="text-muted small">
+                          Level {follow.progress?.level || 1}
+                          {followsYou && (
+                            <Badge bg="info" className="ms-2">Follows you</Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex-grow-1">
-                    <div className="fw-bold">{follow.account?.displayName || follow.account?.email}</div>
-                    <div className="text-muted small">
-                      Level {follow.progress?.level || 1}
+                    <div className="flex-shrink-0">
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => handleUnfollow(follow._id)}
+                      >
+                        Unfollow
+                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Modal.Body>

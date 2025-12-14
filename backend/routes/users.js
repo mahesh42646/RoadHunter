@@ -348,6 +348,7 @@ module.exports = function createUserRouter(io) {
           profilePrivacy: profilePrivacy,
           friends: [],
           friendRequests: { sent: [], received: [] },
+          followRequests: { sent: [], received: [] },
           removedFriends: [],
           removedBy: [],
           followers: [],
@@ -355,6 +356,10 @@ module.exports = function createUserRouter(io) {
         };
       } else {
         req.user.social.profilePrivacy = profilePrivacy;
+        // Ensure followRequests exists
+        if (!req.user.social.followRequests) {
+          req.user.social.followRequests = { sent: [], received: [] };
+        }
       }
 
       const referralCode = req.user.referralCode || (await User.generateReferralCode());
