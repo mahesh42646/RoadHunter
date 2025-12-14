@@ -46,6 +46,10 @@ export default function CallManager() {
     const socket = io(SOCKET_URL, {
       auth: { token },
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: Infinity,
+      timeout: 20000,
     });
 
     socket.on("connect", () => {
@@ -59,13 +63,15 @@ export default function CallManager() {
         console.log("[CallManager] ===== INCOMING CALL RECEIVED =====");
         console.log("[CallManager] From user ID:", data.fromUserId);
         console.log("[CallManager] Friend ID:", data.friendId);
+        console.log("[CallManager] Call ID:", data.callId);
+        console.log("[CallManager] Call Type:", data.callType);
         console.log("[CallManager] Full data:", JSON.stringify(data, null, 2));
         
         // Check if we're already in a call
         const currentCallStatus = useCallStore.getState().callStatus;
         if (currentCallStatus === "connected" || currentCallStatus === "calling") {
           console.log("[CallManager] Already in a call, rejecting incoming call");
-          socket.emit("friend:call:reject", { friendId: data.fromUserId });
+          socket.emit("friend:call:reject", { friendId: data.fromUserId, callId: data.callId });
           return;
         }
         
@@ -78,6 +84,11 @@ export default function CallManager() {
         
         startCall(data.fromUserId, callerFriend, false);
         setCallStatus("ringing");
+        
+        // Store callId in a way we can access it later
+        if (data.callId) {
+          useCallStore.setState({ callId: data.callId });
+        }
         
         console.log("[CallManager] ✅ Call status set to 'ringing'");
         console.log("[CallManager] Friend in store:", useCallStore.getState().friend);
@@ -135,14 +146,26 @@ export default function CallManager() {
     });
 
     socketRef.current = socket;
+    
+    // Make socket available globally for CallNotification
+    if (typeof window !== 'undefined') {
+      window.io = socket;
+    }
 
     return () => {
       // Only cleanup on unmount
       console.log("[CallManager] Component unmounting, cleaning up socket");
       if (socketRef.current) {
+        // Clear heartbeat interval
+        if (socketRef.current.heartbeatInterval) {
+          clearInterval(socketRef.current.heartbeatInterval);
+        }
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
         socketRef.current = null;
+      }
+      if (typeof window !== 'undefined') {
+        window.io = null;
       }
     };
   }, [token]); // Only depend on token, not friendId or isCaller

@@ -20,6 +20,7 @@ const createWalletRouter = require('./routes/wallet');
 const createGiftRouter = require('./routes/gifts');
 const createFriendsRouter = require('./routes/friends');
 const createMessagesRouter = require('./routes/messages');
+const createCallsRouter = require('./routes/calls');
 const gamesRouter = require('./routes/games');
 const GameEngine = require('./services/gameEngine');
 const Party = require('./schemas/party');
@@ -325,7 +326,7 @@ io.on('connection', (socket) => {
 
   // Friend-to-friend video call events
   socket.on('friend:call:initiate', async (data) => {
-    const { friendId } = data;
+    const { friendId, callType = 'video' } = data;
     const fromUserId = socket.data.user?.sub;
     
     if (!fromUserId) {
@@ -337,6 +338,7 @@ io.on('connection', (socket) => {
     try {
       const User = require('./schemas/users');
       const Party = require('./schemas/party');
+      const Call = require('./schemas/calls');
       const user = await User.findById(fromUserId);
       const friend = await User.findById(friendId);
       
@@ -373,14 +375,36 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if friend is already in a call (we'll check this via their socket room or call status)
-      // For now, we'll allow the call and let the recipient handle it
+      // Create call record
+      const call = await Call.create({
+        callerId: fromUserId,
+        receiverId: friendId,
+        callType,
+        status: 'initiated',
+        callerInfo: {
+          displayName: user.account?.displayName,
+          photoUrl: user.account?.photoUrl,
+        },
+        receiverInfo: {
+          displayName: friend.account?.displayName,
+          photoUrl: friend.account?.photoUrl,
+        },
+      });
 
       // Find friend's socket (they should be in a room with their userId)
       console.log(`[Socket.IO] Emitting friend:call:incoming to user:${friendId} from ${fromUserId}`);
+      console.log(`[Socket.IO] Call ID: ${call._id}`);
+      
+      // Update call status to ringing
+      call.status = 'ringing';
+      await call.save();
+      
+      // Emit to friend's room
       io.to(`user:${friendId}`).emit('friend:call:incoming', {
         fromUserId,
         friendId,
+        callId: call._id.toString(),
+        callType,
       });
       
       // Also emit to all sockets of the friend (in case they have multiple connections)
@@ -389,7 +413,19 @@ io.on('connection', (socket) => {
       
       if (friendSockets.length === 0) {
         console.log(`[Socket.IO] WARNING: Friend ${friendId} has no active socket connections`);
+        // Mark call as missed
+        call.status = 'missed';
+        call.endedAt = new Date();
+        await call.save();
         socket.emit('friend:call:error', { error: 'Friend is not online or not connected' });
+      } else {
+        // Also broadcast to all connected clients for this user (for call history updates)
+        io.emit('call:new', {
+          callId: call._id.toString(),
+          callerId: fromUserId,
+          receiverId: friendId,
+          status: 'ringing',
+        });
       }
     } catch (error) {
       console.error('[Socket.IO] Error initiating friend call:', error);
@@ -397,30 +433,99 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('friend:call:accept', (data) => {
-    const { friendId } = data;
+  socket.on('friend:call:accept', async (data) => {
+    const { friendId, callId } = data;
     const fromUserId = socket.data.user?.sub;
+    
+    try {
+      const Call = require('./schemas/calls');
+      if (callId) {
+        const call = await Call.findById(callId);
+        if (call) {
+          call.status = 'connected';
+          call.answeredAt = new Date();
+          await call.save();
+          
+          // Broadcast call update
+          io.emit('call:updated', {
+            callId: call._id.toString(),
+            status: 'connected',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Socket.IO] Error updating call status:', error);
+    }
+    
     io.to(`user:${friendId}`).emit('friend:call:accepted', {
       fromUserId,
       friendId,
+      callId,
     });
   });
 
-  socket.on('friend:call:reject', (data) => {
-    const { friendId } = data;
+  socket.on('friend:call:reject', async (data) => {
+    const { friendId, callId } = data;
     const fromUserId = socket.data.user?.sub;
+    
+    try {
+      const Call = require('./schemas/calls');
+      if (callId) {
+        const call = await Call.findById(callId);
+        if (call) {
+          call.status = 'rejected';
+          call.endedAt = new Date();
+          await call.save();
+          
+          // Broadcast call update
+          io.emit('call:updated', {
+            callId: call._id.toString(),
+            status: 'rejected',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Socket.IO] Error updating call status:', error);
+    }
+    
     io.to(`user:${friendId}`).emit('friend:call:rejected', {
       fromUserId,
       friendId,
+      callId,
     });
   });
 
-  socket.on('friend:call:end', (data) => {
-    const { friendId } = data;
+  socket.on('friend:call:end', async (data) => {
+    const { friendId, callId } = data;
     const fromUserId = socket.data.user?.sub;
+    
+    try {
+      const Call = require('./schemas/calls');
+      if (callId) {
+        const call = await Call.findById(callId);
+        if (call) {
+          call.status = 'ended';
+          call.endedAt = new Date();
+          if (call.answeredAt) {
+            call.duration = Math.floor((new Date() - call.answeredAt) / 1000);
+          }
+          await call.save();
+          
+          // Broadcast call update
+          io.emit('call:updated', {
+            callId: call._id.toString(),
+            status: 'ended',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Socket.IO] Error updating call status:', error);
+    }
+    
     io.to(`user:${friendId}`).emit('friend:call:ended', {
       fromUserId,
       friendId,
+      callId,
     });
   });
 
@@ -485,6 +590,7 @@ app.use('/api/wallet', createWalletRouter(io));
 app.use('/api/gifts', createGiftRouter(io));
 app.use('/api/friends', createFriendsRouter(io, onlineUsers));
 app.use('/api/messages', createMessagesRouter(io));
+app.use('/api/calls', createCallsRouter(io));
 app.use('/api/games', gamesRouter);
 app.use('/api/admin', require('./routes/admin'));
 

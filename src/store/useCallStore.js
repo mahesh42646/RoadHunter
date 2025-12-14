@@ -9,6 +9,7 @@ const useCallStore = create(
       friendId: null,
       friend: null,
       isCaller: false,
+      callId: null, // Database call record ID
       isMinimized: false,
       pipPosition: { x: typeof window !== 'undefined' ? window.innerWidth - 320 : 0, y: 20 },
       pipSize: { width: 300, height: 225 },
@@ -26,6 +27,7 @@ const useCallStore = create(
       setFriendId: (friendId) => set({ friendId }),
       setFriend: (friend) => set({ friend }),
       setIsCaller: (isCaller) => set({ isCaller }),
+      setCallId: (callId) => set({ callId }),
       setLocalStream: (stream) => {
         // Store stream reference, but don't persist it
         set({ localStream: stream });
@@ -90,6 +92,7 @@ const useCallStore = create(
         friendId: state.friendId,
         friend: state.friend,
         isCaller: state.isCaller,
+        callId: state.callId,
         isMinimized: state.isMinimized,
         pipPosition: state.pipPosition,
         pipSize: state.pipSize,

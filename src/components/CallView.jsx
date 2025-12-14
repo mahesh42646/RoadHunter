@@ -16,13 +16,20 @@ import { useRouter } from "next/navigation";
 
 import useCallStore from "@/store/useCallStore";
 import Avatar from "@/components/Avatar";
+import apiClient from "@/lib/apiClient";
+import useAuthStore from "@/store/useAuthStore";
+import { io } from "socket.io-client";
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
 export default function CallView() {
   const router = useRouter();
+  const token = useAuthStore((state) => state.token);
   const {
     callStatus,
     friend,
     friendId,
+    callId,
     isMinimized,
     pipPosition,
     pipSize,
@@ -41,6 +48,7 @@ export default function CallView() {
     toggleMic,
     toggleVideo,
   } = useCallStore();
+  const socketRef = useRef(null);
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -156,7 +164,50 @@ export default function CallView() {
     }
   };
 
-  const handleEndCall = () => {
+  // Get socket connection
+  useEffect(() => {
+    if (!token) return;
+    
+    // Try to get socket from window (set by CallManager)
+    if (typeof window !== 'undefined' && window.io) {
+      socketRef.current = window.io;
+      return;
+    }
+    
+    // If not available, create a temporary socket
+    const socket = io(SOCKET_URL, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+    
+    socket.on("connect", () => {
+      socket.emit("user:join");
+    });
+    
+    socketRef.current = socket;
+    
+    return () => {
+      if (socketRef.current && !window.io) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [token]);
+
+  const handleEndCall = async () => {
+    // Emit end call event
+    if (socketRef.current && friendId) {
+      socketRef.current.emit("friend:call:end", { friendId, callId });
+    }
+    
+    // Update call status in database
+    if (callId) {
+      try {
+        await apiClient.patch(`/calls/${callId}`, { status: 'ended' });
+      } catch (error) {
+        console.error("Failed to update call status:", error);
+      }
+    }
+    
     endCall();
     // Don't force navigation - let user stay on current page
     // router.push("/dashboard/friends");

@@ -10,6 +10,7 @@ const items = [
   { label: "Profile", href: "/dashboard/profile", icon: "👤" },
   { label: "Following", href: "/dashboard/friends", icon: "👥" },
   { label: "Follow Requests", href: "/dashboard/friends/requests", icon: "📩" },
+  { label: "Calls", href: "/dashboard/calls", icon: "📞" },
   { label: "Wallet", href: "/dashboard/wallet", icon: "💰" },
   { label: "Transactions", href: "/dashboard/transactions", icon: "📊" },
   { label: "Referrals", href: "/dashboard/referrals", icon: "🎯" },

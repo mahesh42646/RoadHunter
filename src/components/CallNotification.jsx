@@ -7,13 +7,19 @@ import { useRouter } from "next/navigation";
 
 import useCallStore from "@/store/useCallStore";
 import Avatar from "@/components/Avatar";
+import useAuthStore from "@/store/useAuthStore";
+import { io } from "socket.io-client";
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
 export default function CallNotification() {
   const router = useRouter();
+  const token = useAuthStore((state) => state.token);
   const { 
     callStatus, 
     friend, 
     friendId, 
+    callId,
     acceptCall, 
     rejectCall, 
     isMicEnabled,
@@ -29,6 +35,7 @@ export default function CallNotification() {
   const dragStartPos = useRef({ x: 0, y: 0 });
   const [position, setPosition] = useState({ x: typeof window !== 'undefined' ? window.innerWidth - 350 : 0, y: 20 });
   const [isDragging, setIsDragging] = useState(false);
+  const socketRef = useRef(null);
 
   useEffect(() => {
     console.log("[CallNotification] Status check - callStatus:", callStatus, "friend:", friend ? friend.account?.displayName : "null");
@@ -109,7 +116,37 @@ export default function CallNotification() {
     return null;
   }
 
-  const handleAccept = () => {
+  // Get socket connection
+  useEffect(() => {
+    if (!token) return;
+    
+    // Try to get socket from window (set by CallManager)
+    if (typeof window !== 'undefined' && window.io) {
+      socketRef.current = window.io;
+      return;
+    }
+    
+    // If not available, create a temporary socket for this component
+    const socket = io(SOCKET_URL, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+    
+    socket.on("connect", () => {
+      socket.emit("user:join");
+    });
+    
+    socketRef.current = socket;
+    
+    return () => {
+      // Only disconnect if we created it (not if it's from CallManager)
+      if (socketRef.current && !window.io) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [token]);
+
+  const handleAccept = async () => {
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
@@ -117,15 +154,27 @@ export default function CallNotification() {
     // Set mic and video state before accepting
     setIsMicEnabled(micEnabled);
     setIsVideoEnabled(videoEnabled);
+    
+    // Emit accept event with callId if available
+    if (socketRef.current && friendId) {
+      socketRef.current.emit("friend:call:accept", { friendId, callId });
+    }
+    
     acceptCall();
     router.push(`/dashboard/friends/call/${friendId}`);
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
     }
+    
+    // Emit reject event with callId if available
+    if (socketRef.current && friendId) {
+      socketRef.current.emit("friend:call:reject", { friendId, callId });
+    }
+    
     rejectCall();
   };
 

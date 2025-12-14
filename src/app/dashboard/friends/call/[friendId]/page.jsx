@@ -9,6 +9,7 @@ import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
 import useCallStore from "@/store/useCallStore";
 import CallView from "@/components/CallView";
+import apiClient from "@/lib/apiClient";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -22,6 +23,7 @@ export default function FriendCallPage() {
     callStatus,
     friend,
     isCaller,
+    callId,
     localStream,
     remoteStream,
     startCall,
@@ -30,6 +32,7 @@ export default function FriendCallPage() {
     endCall,
     setCallStatus,
     setFriend,
+    setCallId,
     setLocalStream,
     setRemoteStream,
     setIsCaller,
@@ -63,17 +66,48 @@ export default function FriendCallPage() {
         if (callStatus === "idle" || callStatus === "ended" || !callStatus) {
           startCall(friendId, friendData, true);
           setCallStatus("calling");
+          
+          // Create call record first
+          let createdCallId = null;
+          try {
+            const callResponse = await apiClient.post("/calls", {
+              receiverId: friendId,
+              callType: "video",
+            });
+            createdCallId = callResponse.data.call?._id;
+            if (createdCallId) {
+              setCallId(createdCallId);
+              console.log("[CallPage] Call record created with ID:", createdCallId);
+            }
+          } catch (error) {
+            console.error("[CallPage] Failed to create call record:", error);
+          }
+          
           // Emit call initiation event
+          const emitCall = () => {
+            if (socketRef.current && socketRef.current.connected) {
+              console.log("[CallPage] Emitting friend:call:initiate to:", friendId, "with callId:", createdCallId);
+              socketRef.current.emit("friend:call:initiate", { 
+                friendId, 
+                callType: "video",
+                callId: createdCallId 
+              });
+            } else {
+              console.log("[CallPage] Socket not connected, waiting...");
+            }
+          };
+          
           if (socketRef.current && socketRef.current.connected) {
-            console.log("[CallPage] Emitting friend:call:initiate to:", friendId);
-            socketRef.current.emit("friend:call:initiate", { friendId });
+            emitCall();
           } else {
             // Wait for socket to connect
             console.log("[CallPage] Waiting for socket to connect before emitting call");
-            socketRef.current?.on("connect", () => {
-              console.log("[CallPage] Socket connected, now emitting friend:call:initiate to:", friendId);
-              socketRef.current.emit("friend:call:initiate", { friendId });
-            });
+            const connectHandler = () => {
+              console.log("[CallPage] Socket connected, now emitting friend:call:initiate");
+              emitCall();
+              socketRef.current?.off("connect", connectHandler);
+            };
+            socketRef.current?.on("connect", connectHandler);
           }
           // Start peer connection
           await startPeerConnection(true);
@@ -220,7 +254,8 @@ export default function FriendCallPage() {
     if (callStatus === "ringing" && !peerRef.current && socketRef.current) {
       const handleAccept = async () => {
         setCallStatus("connected");
-        socketRef.current.emit("friend:call:accept", { friendId });
+        const callId = useCallStore.getState().callId;
+        socketRef.current.emit("friend:call:accept", { friendId, callId });
         await startPeerConnection(false);
       };
       handleAccept();
