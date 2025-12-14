@@ -105,7 +105,26 @@ module.exports = function createCallsRouter(io) {
         .sort({ startedAt: -1 })
         .lean();
 
-      const sanitizedCalls = ongoingCalls.map((call) => {
+      // Deduplicate calls - keep only the most recent call per user pair
+      const callMap = new Map();
+      ongoingCalls.forEach((call) => {
+        const isCaller = call.callerId._id.toString() === userId;
+        const otherUserId = isCaller 
+          ? call.receiverId._id.toString() 
+          : call.callerId._id.toString();
+        
+        const key = `${userId}-${otherUserId}`;
+        const existing = callMap.get(key);
+        
+        // Keep the most recent call for this user pair
+        if (!existing || new Date(call.startedAt) > new Date(existing.startedAt)) {
+          callMap.set(key, call);
+        }
+      });
+
+      const uniqueCalls = Array.from(callMap.values());
+
+      const sanitizedCalls = uniqueCalls.map((call) => {
         const isCaller = call.callerId._id.toString() === userId;
         const otherUser = isCaller ? call.receiverId : call.callerId;
         

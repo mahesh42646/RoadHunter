@@ -66,30 +66,13 @@ export default function FriendCallPage() {
           startCall(friendId, friendData, true);
           setCallStatus("calling");
           
-          // Create call record first
-          let createdCallId = null;
-          try {
-            const callResponse = await apiClient.post("/calls", {
-              receiverId: friendId,
-              callType: "video",
-            });
-            createdCallId = callResponse.data.call?._id;
-            if (createdCallId) {
-              setCallId(createdCallId);
-              console.log("[CallPage] Call record created with ID:", createdCallId);
-            }
-          } catch (error) {
-            console.error("[CallPage] Failed to create call record:", error);
-          }
-          
-          // Emit call initiation event
+          // Emit call initiation event (backend will create call record)
           const emitCall = () => {
             if (socketRef.current && socketRef.current.connected) {
-              console.log("[CallPage] Emitting friend:call:initiate to:", friendId, "with callId:", createdCallId);
+              console.log("[CallPage] Emitting friend:call:initiate to:", friendId);
               socketRef.current.emit("friend:call:initiate", { 
                 friendId, 
-                callType: "video",
-                callId: createdCallId 
+                callType: "video"
               });
             } else {
               console.log("[CallPage] Socket not connected, waiting...");
@@ -108,6 +91,15 @@ export default function FriendCallPage() {
             };
             socketRef.current?.on("connect", connectHandler);
           }
+          
+          // Listen for call:new event to get the callId
+          const handleCallNew = (data) => {
+            if (data.callId && data.callerId === user?._id && data.receiverId === friendId) {
+              setCallId(data.callId);
+              socketRef.current?.off("call:new", handleCallNew);
+            }
+          };
+          socketRef.current?.on("call:new", handleCallNew);
           // Start peer connection
           await startPeerConnection(true);
         } else if (callStatus === "ringing") {
@@ -201,6 +193,14 @@ export default function FriendCallPage() {
     socket.on("friend:webrtc:signal", (data) => {
       if (data.fromUserId === friendId && peerRef.current) {
         peerRef.current.signal(data.signal);
+      }
+    });
+
+    // Listen for call:new event to get the callId
+    const currentUserId = useAuthStore.getState().user?._id;
+    socket.on("call:new", (data) => {
+      if (data.callId && data.callerId === currentUserId && data.receiverId === friendId) {
+        setCallId(data.callId);
       }
     });
 

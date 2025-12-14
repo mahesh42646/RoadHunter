@@ -81,9 +81,19 @@ export default function CallsPage() {
       const otherUser = call.otherUser;
       if (!otherUser?._id) return;
 
+      // If it's an incoming call that's not yet answered, we need to accept it
+      if (call.direction === "incoming" && (call.status === "initiated" || call.status === "ringing")) {
+        // Update call status to connected
+        try {
+          await apiClient.patch(`/calls/${call._id}`, { status: "connected" });
+        } catch (error) {
+          console.error("Failed to update call status:", error);
+        }
+      }
+
       // Set call state
       startCall(otherUser._id, otherUser, call.isCaller);
-      setCallStatus(call.status === "ringing" ? "ringing" : "connected");
+      setCallStatus(call.status === "ringing" || call.status === "initiated" ? "ringing" : "connected");
       setFriend(otherUser);
       if (call._id) {
         setCallId(call._id);
@@ -94,6 +104,36 @@ export default function CallsPage() {
     } catch (error) {
       console.error("Failed to join call:", error);
       alert("Failed to join call");
+    }
+  };
+
+  const handlePickCall = async (call) => {
+    try {
+      const otherUser = call.otherUser;
+      if (!otherUser?._id) return;
+
+      // Accept the incoming call
+      if (call._id) {
+        try {
+          await apiClient.patch(`/calls/${call._id}`, { status: "connected" });
+        } catch (error) {
+          console.error("Failed to update call status:", error);
+        }
+      }
+
+      // Set call state as receiver (not caller)
+      startCall(otherUser._id, otherUser, false);
+      setCallStatus("connected");
+      setFriend(otherUser);
+      if (call._id) {
+        setCallId(call._id);
+      }
+
+      // Navigate to call page
+      router.push(`/dashboard/friends/call/${otherUser._id}`);
+    } catch (error) {
+      console.error("Failed to pick call:", error);
+      alert("Failed to pick call");
     }
   };
 
@@ -214,7 +254,27 @@ export default function CallsPage() {
                         </div>
                       </div>
                       <div className="d-flex gap-2">
-                        {(call.status === "ringing" || call.status === "connected") && (
+                        {call.direction === "incoming" && (call.status === "initiated" || call.status === "ringing") && (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => handlePickCall(call)}
+                          >
+                            <FaPhone className="me-2" />
+                            Pick Call
+                          </Button>
+                        )}
+                        {(call.status === "ringing" || call.status === "connected") && call.direction === "outgoing" && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleJoinCall(call)}
+                          >
+                            <FaArrowRight className="me-2" />
+                            Join
+                          </Button>
+                        )}
+                        {call.status === "connected" && call.direction === "incoming" && (
                           <Button
                             variant="primary"
                             size="sm"

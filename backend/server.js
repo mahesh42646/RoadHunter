@@ -426,6 +426,14 @@ io.on('connection', (socket) => {
           receiverId: friendId,
           status: 'ringing',
         });
+        
+        // Also emit to caller's room so they get the callId
+        io.to(`user:${fromUserId}`).emit('call:new', {
+          callId: call._id.toString(),
+          callerId: fromUserId,
+          receiverId: friendId,
+          status: 'ringing',
+        });
       }
     } catch (error) {
       console.error('[Socket.IO] Error initiating friend call:', error);
