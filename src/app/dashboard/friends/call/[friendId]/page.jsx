@@ -65,10 +65,13 @@ export default function FriendCallPage() {
           setCallStatus("calling");
           // Emit call initiation event
           if (socketRef.current && socketRef.current.connected) {
+            console.log("[CallPage] Emitting friend:call:initiate to:", friendId);
             socketRef.current.emit("friend:call:initiate", { friendId });
           } else {
             // Wait for socket to connect
+            console.log("[CallPage] Waiting for socket to connect before emitting call");
             socketRef.current?.on("connect", () => {
+              console.log("[CallPage] Socket connected, now emitting friend:call:initiate to:", friendId);
               socketRef.current.emit("friend:call:initiate", { friendId });
             });
           }

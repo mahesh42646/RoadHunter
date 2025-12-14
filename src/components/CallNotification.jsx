@@ -31,13 +31,22 @@ export default function CallNotification() {
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
+    console.log("[CallNotification] Status check - callStatus:", callStatus, "friend:", friend ? friend.account?.displayName : "null");
+    
     if (callStatus === 'ringing' && friend) {
+      console.log("[CallNotification] Showing notification for:", friend.account?.displayName);
       setIsVisible(true);
       // Play ringtone
-      const ringtone = new Audio('/ringtone.mp3');
-      ringtone.loop = true;
-      ringtone.play().catch(() => {});
-      setAudio(ringtone);
+      try {
+        const ringtone = new Audio('/ringtone.mp3');
+        ringtone.loop = true;
+        ringtone.play().catch((err) => {
+          console.error("[CallNotification] Failed to play ringtone:", err);
+        });
+        setAudio(ringtone);
+      } catch (error) {
+        console.error("[CallNotification] Error creating ringtone:", error);
+      }
     } else {
       setIsVisible(false);
       if (audio) {
@@ -90,7 +99,15 @@ export default function CallNotification() {
     };
   }, [isDragging, position]);
 
-  if (!isVisible || !friend) return null;
+  // Debug logging
+  useEffect(() => {
+    console.log("[CallNotification] Render check - isVisible:", isVisible, "friend:", friend ? friend.account?.displayName : "null", "callStatus:", callStatus);
+  }, [isVisible, friend, callStatus]);
+
+  if (!isVisible || !friend) {
+    console.log("[CallNotification] Not rendering - isVisible:", isVisible, "friend:", friend ? "exists" : "null");
+    return null;
+  }
 
   const handleAccept = () => {
     if (audio) {

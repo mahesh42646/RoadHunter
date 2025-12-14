@@ -146,6 +146,16 @@ io.on('connection', (socket) => {
     io.emit('user:online', { userId });
     console.log(`[Socket.IO] User ${userId} auto-joined personal room and marked as online`);
   }
+
+  // Handle explicit user:join event (for reconnection scenarios)
+  socket.on('user:join', () => {
+    const userId = socket.data.user?.sub;
+    if (userId) {
+      socket.join(`user:${userId}`);
+      onlineUsers.set(userId, { socketId: socket.id, lastSeen: Date.now() });
+      console.log(`[Socket.IO] User ${userId} explicitly joined personal room via user:join event`);
+    }
+  });
   
   // Track client in game engine
   if (gameEngine) {
@@ -367,10 +377,20 @@ io.on('connection', (socket) => {
       // For now, we'll allow the call and let the recipient handle it
 
       // Find friend's socket (they should be in a room with their userId)
+      console.log(`[Socket.IO] Emitting friend:call:incoming to user:${friendId} from ${fromUserId}`);
       io.to(`user:${friendId}`).emit('friend:call:incoming', {
         fromUserId,
         friendId,
       });
+      
+      // Also emit to all sockets of the friend (in case they have multiple connections)
+      const friendSockets = await io.in(`user:${friendId}`).fetchSockets();
+      console.log(`[Socket.IO] Friend ${friendId} has ${friendSockets.length} socket(s) in room`);
+      
+      if (friendSockets.length === 0) {
+        console.log(`[Socket.IO] WARNING: Friend ${friendId} has no active socket connections`);
+        socket.emit('friend:call:error', { error: 'Friend is not online or not connected' });
+      }
     } catch (error) {
       console.error('[Socket.IO] Error initiating friend call:', error);
       socket.emit('friend:call:error', { error: 'Failed to initiate call' });

@@ -49,21 +49,52 @@ export default function CallManager() {
     });
 
     socket.on("connect", () => {
+      console.log("[CallManager] Socket connected, emitting user:join");
       socket.emit("user:join");
     });
 
-    // Handle incoming call
-    socket.on("friend:call:incoming", async (data) => {
+    // Handle incoming call - use once to prevent duplicate handlers
+    const handleIncomingCall = async (data) => {
       try {
-        console.log("Incoming call from:", data.fromUserId);
+        console.log("[CallManager] ===== INCOMING CALL RECEIVED =====");
+        console.log("[CallManager] From user ID:", data.fromUserId);
+        console.log("[CallManager] Friend ID:", data.friendId);
+        console.log("[CallManager] Full data:", JSON.stringify(data, null, 2));
+        
+        // Check if we're already in a call
+        const currentCallStatus = useCallStore.getState().callStatus;
+        if (currentCallStatus === "connected" || currentCallStatus === "calling") {
+          console.log("[CallManager] Already in a call, rejecting incoming call");
+          socket.emit("friend:call:reject", { friendId: data.fromUserId });
+          return;
+        }
+        
+        console.log("[CallManager] Fetching caller profile...");
         const response = await apiClient.get(`/friends/profile/${data.fromUserId}`);
         const callerFriend = response.data.user;
         
+        console.log("[CallManager] Caller friend data loaded:", callerFriend.account?.displayName);
+        console.log("[CallManager] Starting call with friend:", callerFriend);
+        
         startCall(data.fromUserId, callerFriend, false);
         setCallStatus("ringing");
+        
+        console.log("[CallManager] ✅ Call status set to 'ringing'");
+        console.log("[CallManager] Friend in store:", useCallStore.getState().friend);
+        console.log("[CallManager] Call status in store:", useCallStore.getState().callStatus);
       } catch (error) {
-        console.error("Failed to load caller info:", error);
+        console.error("[CallManager] ❌ Failed to load caller info:", error);
+        console.error("[CallManager] Error details:", error.response?.data || error.message);
       }
+    };
+    
+    socket.on("friend:call:incoming", handleIncomingCall);
+
+    // Handle call errors
+    socket.on("friend:call:error", (data) => {
+      console.error("[CallManager] Call error:", data.error);
+      alert(data.error || "Call failed");
+      endCall();
     });
 
     // Handle call accepted
@@ -106,9 +137,15 @@ export default function CallManager() {
     socketRef.current = socket;
 
     return () => {
-      socket.disconnect();
+      // Only cleanup on unmount
+      console.log("[CallManager] Component unmounting, cleaning up socket");
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
-  }, [token, friendId, isCaller]);
+  }, [token]); // Only depend on token, not friendId or isCaller
 
   // Restore call state on mount and reconnect peer if needed
   useEffect(() => {
