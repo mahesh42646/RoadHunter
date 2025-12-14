@@ -3,6 +3,7 @@
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const steps = [
   {
@@ -1216,10 +1217,13 @@ export default function HowItWorksPage() {
           <Row className="align-items-center g-5">
             <Col lg={6} className="animate-fade-in">
               <div className="main-image-wrapper">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&q=80"
                   alt="Gaming Experience"
+                  width={800}
+                  height={450}
                   className="main-hero-image"
+                  unoptimized
                 />
                 <div className="image-overlay-badge">
                   <span>🎮</span>
@@ -1340,10 +1344,13 @@ export default function HowItWorksPage() {
           <Row className="align-items-center g-5">
             <Col lg={5} className="order-lg-2">
               <div className="features-image-wrapper">
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80"
                   alt="Gaming Community"
+                  width={800}
+                  height={400}
                   className="features-main-image"
+                  unoptimized
                 />
                 <div className="features-image-float features-float-1">
                   <span>🏆</span>

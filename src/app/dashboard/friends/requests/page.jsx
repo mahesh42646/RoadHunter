@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, Button, Row, Col, Badge } from "react-bootstrap";
 import { FaCheck, FaTimes, FaUserPlus } from "react-icons/fa";
+import Image from "next/image";
 
 import apiClient from "@/lib/apiClient";
 import { getImageUrl } from "@/lib/imageUtils";
@@ -86,11 +87,14 @@ export default function FriendRequestsPage() {
                       className="d-flex align-items-center justify-content-between p-3 bg-dark rounded"
                     >
                       <div className="d-flex align-items-center gap-3">
-                        <img
+                        <Image
                           src={getImageUrl(user.account?.photoUrl) || "/default-avatar.png"}
                           alt={user.account?.displayName}
+                          width={50}
+                          height={50}
                           className="rounded-circle"
-                          style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                          style={{ objectFit: "cover" }}
+                          unoptimized
                         />
                         <div>
                           <div className="fw-bold">{user.account?.displayName || user.account?.email}</div>
@@ -141,11 +145,14 @@ export default function FriendRequestsPage() {
                       className="d-flex align-items-center justify-content-between p-3 bg-dark rounded"
                     >
                       <div className="d-flex align-items-center gap-3">
-                        <img
+                        <Image
                           src={getImageUrl(user.account?.photoUrl) || "/default-avatar.png"}
                           alt={user.account?.displayName}
+                          width={50}
+                          height={50}
                           className="rounded-circle"
-                          style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                          style={{ objectFit: "cover" }}
+                          unoptimized
                         />
                         <div>
                           <div className="fw-bold">{user.account?.displayName || user.account?.email}</div>

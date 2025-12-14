@@ -2,6 +2,7 @@
 
 import { Container, Row, Col, Card, Badge } from "react-bootstrap";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 const teamMembers = [
   {
@@ -597,10 +598,13 @@ export default function AboutUsPage() {
                 <span className="floating-emoji emoji-1">🎊</span>
                 <span className="floating-emoji emoji-2">🎮</span>
                 <span className="floating-emoji emoji-3">🏆</span>
-                <img 
+                <Image 
                   src="https://images.unsplash.com/photo-1511882150382-421056c89033?w=800&q=80"
                   alt="Gaming Party"
+                  width={800}
+                  height={600}
                   className="hero-image"
+                  unoptimized
                 />
               </div>
             </Col>
@@ -630,10 +634,13 @@ export default function AboutUsPage() {
         <Container>
           <Row className="align-items-center g-5">
             <Col lg={6} className="animate-fade-in">
-              <img 
+              <Image 
                 src="https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&q=80"
                 alt="Our Story"
+                width={800}
+                height={600}
                 className="story-image"
+                unoptimized
               />
             </Col>
             <Col lg={6} className="animate-fade-in delay-2">
@@ -716,10 +723,13 @@ export default function AboutUsPage() {
               <Col md={6} lg={3} key={index} className={`animate-fade-in delay-${index + 1}`}>
                 <div className="team-card">
                   <div className="team-image-container">
-                    <img 
+                    <Image 
                       src={member.image}
                       alt={member.name}
+                      width={400}
+                      height={280}
                       className="team-image"
+                      unoptimized
                     />
                     <div className="team-overlay"></div>
                   </div>
@@ -747,27 +757,36 @@ export default function AboutUsPage() {
           </div>
           <Row className="g-3">
             <Col md={4} className="animate-fade-in delay-1">
-              <img 
+              <Image 
                 src="https://images.unsplash.com/photo-1529543544277-750e01beec4d?w=600&q=80"
                 alt="Gaming moment"
+                width={600}
+                height={250}
                 className="w-100 rounded-4"
-                style={{ height: '250px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                unoptimized
               />
             </Col>
             <Col md={4} className="animate-fade-in delay-2">
-              <img 
+              <Image 
                 src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80"
                 alt="Esports"
+                width={600}
+                height={250}
                 className="w-100 rounded-4"
-                style={{ height: '250px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                unoptimized
               />
             </Col>
             <Col md={4} className="animate-fade-in delay-3">
-              <img 
+              <Image 
                 src="https://images.unsplash.com/photo-1493711662062-fa541f7f3d24?w=600&q=80"
                 alt="Celebration"
+                width={600}
+                height={250}
                 className="w-100 rounded-4"
-                style={{ height: '250px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                unoptimized
               />
             </Col>
           </Row>

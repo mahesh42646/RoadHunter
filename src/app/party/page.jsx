@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button, Card, Modal, Form, Badge } from "react-bootstrap";
 
 import apiClient from "@/lib/apiClient";
@@ -36,26 +37,19 @@ export default function PartyListPage() {
       return;
     }
 
+    // If user is already in a party, redirect to that party immediately
+    // This ensures refresh on party page keeps user in party
+    if (currentPartyId) {
+      router.replace(`/party/${currentPartyId}`);
+      return;
+    }
+
     // Always load parties first
     loadParties();
 
-    // If user is already in a party (and not host), redirect to that party
-    if (currentPartyId && !isHost) {
-      // Small delay to ensure parties are loaded
-      const timer = setTimeout(() => {
-        router.replace(`/party/${currentPartyId}`);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-
-    // If user is host, check if their party still exists and auto-rejoin
-    if (currentPartyId && isHost) {
-      checkAndRejoinHostParty();
-    }
-
     const interval = setInterval(loadParties, 5000);
     return () => clearInterval(interval);
-  }, [hydrated, isAuthenticated, router, currentPartyId, isHost]);
+  }, [hydrated, isAuthenticated, router, currentPartyId]);
 
   const checkAndRejoinHostParty = async () => {
     try {
@@ -389,9 +383,11 @@ export default function PartyListPage() {
               </Form.Text>
               {posterPreview && (
                 <div className="mt-2">
-                  <img
+                  <Image
                     src={posterPreview}
                     alt="Poster preview"
+                    width={800}
+                    height={200}
                     style={{
                       maxWidth: "100%",
                       maxHeight: "200px",
@@ -399,6 +395,7 @@ export default function PartyListPage() {
                       borderRadius: "8px",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                     }}
+                    unoptimized
                   />
                 </div>
               )}

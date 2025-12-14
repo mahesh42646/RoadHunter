@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, Table, Button, Badge, Modal, Form, Alert } from "react-bootstrap";
 import { BsPlusCircle, BsPencil, BsTrash, BsImage, BsTrophy } from "react-icons/bs";
+import Image from "next/image";
 import adminApiClient from "@/lib/adminApiClient";
 
 export default function GameManagement({ adminToken }) {
@@ -311,13 +312,13 @@ export default function GameManagement({ adminToken }) {
                 )}
                 {carForm.topViewImage && isValidUrl(carForm.topViewImage) && (
                   <div className="mt-2">
-                    <img
+                    <Image
                       src={carForm.topViewImage}
                       alt="Top view preview"
-                      style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "0.25rem" }}
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
+                      width={400}
+                      height={100}
+                      style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "0.25rem", objectFit: "contain" }}
+                      unoptimized
                     />
                   </div>
                 )}
@@ -341,13 +342,13 @@ export default function GameManagement({ adminToken }) {
                 )}
                 {carForm.sideViewImage && isValidUrl(carForm.sideViewImage) && (
                   <div className="mt-2">
-                    <img
+                    <Image
                       src={carForm.sideViewImage}
                       alt="Side view preview"
-                      style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "0.25rem" }}
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
+                      width={400}
+                      height={100}
+                      style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "0.25rem", objectFit: "contain" }}
+                      unoptimized
                     />
                   </div>
                 )}

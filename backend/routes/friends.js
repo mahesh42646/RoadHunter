@@ -30,6 +30,22 @@ async function authenticate(req, res, next) {
 function sanitizeUser(user) {
   if (!user) return null;
   const plain = user.toObject ? user.toObject({ versionKey: false }) : user;
+  
+  // Remove Google photo URLs - only keep /uploads/ photos or null
+  let photoUrl = plain.account?.photoUrl;
+  if (photoUrl && typeof photoUrl === 'string') {
+    // If it's a Google URL or any external URL that's not api.darkunde.in, set to null
+    if ((photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) && 
+        !photoUrl.includes('api.darkunde.in') && !photoUrl.includes('darkunde.in')) {
+      photoUrl = null;
+    } else if (photoUrl && !photoUrl.startsWith('/uploads') && !photoUrl.startsWith('http') && !photoUrl.startsWith('data:')) {
+      // If it's not /uploads/, not http, and not data URL, set to null (only allow uploaded photos)
+      photoUrl = null;
+    }
+  } else {
+    photoUrl = null;
+  }
+  
   return {
     _id: plain._id,
     account: {
@@ -37,7 +53,7 @@ function sanitizeUser(user) {
       email: plain.account?.email,
       displayName: plain.account?.displayName,
       username: plain.account?.username,
-      photoUrl: plain.account?.photoUrl,
+      photoUrl: photoUrl,
       profileCompleted: plain.account?.profileCompleted,
     },
     progress: plain.progress,
@@ -508,6 +524,46 @@ module.exports = function createFriendsRouter(io) {
       };
 
       res.json({ user: profile });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get followers list
+  router.get('/followers', authenticate, async (req, res, next) => {
+    try {
+      const user = await ensureSocial(req.user);
+      const followerIds = user.social.followers || [];
+      
+      const followers = await User.find({ _id: { $in: followerIds } })
+        .select('account progress social.profilePrivacy')
+        .lean();
+
+      res.json({
+        followers: followers.map((f) => sanitizeUser(f)),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get following list
+  router.get('/following', authenticate, async (req, res, next) => {
+    try {
+      const user = await ensureSocial(req.user);
+      const followingIds = [
+        ...user.social.friends.map((id) => id.toString()),
+        ...user.social.following.map((id) => id.toString()),
+      ];
+      const uniqueFollowingIds = [...new Set(followingIds)];
+      
+      const following = await User.find({ _id: { $in: uniqueFollowingIds } })
+        .select('account progress social.profilePrivacy')
+        .lean();
+
+      res.json({
+        following: following.map((f) => sanitizeUser(f)),
+      });
     } catch (error) {
       next(error);
     }

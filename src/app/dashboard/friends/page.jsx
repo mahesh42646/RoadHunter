@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, Button, Badge, Row, Col, InputGroup, Form } from "react-bootstrap";
 import { FaUserPlus, FaCheck, FaTimes, FaComments, FaVideo, FaGift, FaSearch } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 import apiClient from "@/lib/apiClient";
 import { getImageUrl } from "@/lib/imageUtils";
@@ -107,11 +108,14 @@ export default function FriendsPage() {
                       className="d-flex align-items-center justify-content-between p-3 bg-dark rounded"
                     >
                       <div className="d-flex align-items-center gap-3">
-                        <img
+                        <Image
                           src={getImageUrl(friend.account?.photoUrl) || "/default-avatar.png"}
                           alt={friend.account?.displayName}
+                          width={50}
+                          height={50}
                           className="rounded-circle"
-                          style={{ width: "50px", height: "50px", objectFit: "cover" }}
+                          style={{ objectFit: "cover" }}
+                          unoptimized
                         />
                         <div>
                           <div className="fw-bold">{friend.account?.displayName || friend.account?.email}</div>
@@ -167,11 +171,14 @@ export default function FriendsPage() {
                       className="d-flex align-items-center justify-content-between p-2 bg-dark rounded"
                     >
                       <div className="d-flex align-items-center gap-2">
-                        <img
+                        <Image
                           src={getImageUrl(user.account?.photoUrl) || "/default-avatar.png"}
                           alt={user.account?.displayName}
+                          width={40}
+                          height={40}
                           className="rounded-circle"
-                          style={{ width: "40px", height: "40px", objectFit: "cover" }}
+                          style={{ objectFit: "cover" }}
+                          unoptimized
                         />
                         <div>
                           <div className="small fw-bold">{user.account?.displayName || user.account?.email}</div>

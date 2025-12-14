@@ -16,6 +16,16 @@ export default function DashboardLayout({ children }) {
   const markActive = useAuthStore((state) => state.markActive);
   const clearSession = useAuthStore((state) => state.clearSession);
   const [checking, setChecking] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) {
@@ -58,9 +68,10 @@ export default function DashboardLayout({ children }) {
       >
         <Sidebar />
         <section 
-          className="flex-grow-1 p-4 pb-5 pb-md-4" 
+          className="flex-grow-1 p-3 p-md-4 pb-5 pb-md-4" 
           style={{ 
-            background: "transparent"
+            background: "transparent",
+            paddingTop: isMobile ? "60px" : "1.5rem"
           }}
         >
           {children}

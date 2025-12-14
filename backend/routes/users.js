@@ -107,6 +107,20 @@ function sanitizeUser(user) {
   if (plain.transactions) {
     plain.transactions = plain.transactions.slice(-20);
   }
+  // Remove Google photo URLs - only keep /uploads/ photos or null
+  if (plain.account?.photoUrl && typeof plain.account.photoUrl === 'string') {
+    const photoUrl = plain.account.photoUrl;
+    // If it's a Google URL or any external URL that's not api.darkunde.in, set to null
+    if ((photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) && 
+        !photoUrl.includes('api.darkunde.in') && !photoUrl.includes('darkunde.in')) {
+      plain.account.photoUrl = null;
+      return plain; // Return early since we've set it to null
+    }
+    // If it's not /uploads/, set to null (only allow uploaded photos)
+    if (photoUrl && !photoUrl.startsWith('/uploads') && !photoUrl.startsWith('http') && !photoUrl.startsWith('data:')) {
+      plain.account.photoUrl = null;
+    }
+  }
   return plain;
 }
 
@@ -157,7 +171,7 @@ module.exports = function createUserRouter(io) {
             email: decoded.email,
             emailVerified: decoded.email_verified,
             displayName: decoded.name,
-            photoUrl: decoded.picture,
+            photoUrl: null, // Never use Google photos - only uploaded photos or null for initials
             providers: providerId ? [{ providerId, providerUid: firebaseUid }] : [],
             profileCompleted: false,
             status: 'active',
@@ -186,7 +200,17 @@ module.exports = function createUserRouter(io) {
         user.account.email = decoded.email || user.account.email;
         user.account.emailVerified = decoded.email_verified ?? user.account.emailVerified;
         user.account.displayName = decoded.name || user.account.displayName;
-        user.account.photoUrl = decoded.picture || user.account.photoUrl;
+        
+        // NEVER use Google photos - only preserve uploaded photos (/uploads/)
+        // If user has uploaded a custom photo, keep it
+        // If not, set to null so initials are shown
+        const hasCustomPhoto = user.account.photoUrl && user.account.photoUrl.startsWith('/uploads');
+        if (!hasCustomPhoto) {
+          // Remove any Google photo URLs - set to null for initials
+          user.account.photoUrl = null;
+        }
+        // If user has custom photo, keep it and never overwrite
+        
         if (providerId && !user.account.providers.some((p) => p.providerId === providerId)) {
           user.account.providers.push({ providerId, providerUid: firebaseUid });
         }

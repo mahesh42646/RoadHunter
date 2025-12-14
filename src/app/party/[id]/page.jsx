@@ -35,8 +35,10 @@ import {
 import { HiSparkles } from "react-icons/hi";
 
 import apiClient from "@/lib/apiClient";
+import { getImageUrl, getInitials } from "@/lib/imageUtils";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 import usePartyStore from "@/store/usePartyStore";
+import useUIStateStore from "@/store/useUIStateStore";
 import usePartySocket from "@/hooks/usePartySocket";
 import useWebRTC from "@/hooks/useWebRTC";
 import GiftSelector from "../components/GiftSelector";
@@ -46,26 +48,33 @@ export default function PartyRoomPage() {
   const router = useRouter();
   const params = useParams();
   const partyId = params.id;
+  const hydrated = useAuthStore((state) => state.hydrated);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const user = useAuthStore((state) => state.user);
   const setCurrentParty = usePartyStore((state) => state.setCurrentParty);
   const clearCurrentParty = usePartyStore((state) => state.clearCurrentParty);
   const currentPartyId = usePartyStore((state) => state.currentPartyId);
+  
+  // UI State from persisted store
+  const partyRoomState = useUIStateStore((state) => state.partyRoomState);
+  const updatePartyRoomState = useUIStateStore((state) => state.updatePartyRoomState);
+  const clearPartyState = useUIStateStore((state) => state.clearPartyState);
+  
   const [party, setParty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [sendingChat, setSendingChat] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showParticipantMenu, setShowParticipantMenu] = useState(null);
-  const [activeBottomNav, setActiveBottomNav] = useState("chat");
+  const [showTransferModal, setShowTransferModal] = useState(partyRoomState.showTransferModal || false);
+  const [showParticipantMenu, setShowParticipantMenu] = useState(partyRoomState.showParticipantMenu || null);
+  const [activeBottomNav, setActiveBottomNav] = useState(partyRoomState.activeBottomNav || "chat");
   const [wallet, setWallet] = useState(null);
   const [giftAnimations, setGiftAnimations] = useState([]);
   const chatEndRef = useRef(null);
   const handleLeaveRef = useRef(null);
   const handleEndPartyRef = useRef(null);
-  const [hostMicEnabled, setHostMicEnabled] = useState(false);
-  const [hostCameraEnabled, setHostCameraEnabled] = useState(false);
+  const [hostMicEnabled, setHostMicEnabled] = useState(partyRoomState.hostMicEnabled || false);
+  const [hostCameraEnabled, setHostCameraEnabled] = useState(partyRoomState.hostCameraEnabled || false);
   const offlineTimerRef = useRef(null);
   const removeTimerRef = useRef(null);
   const isTabVisibleRef = useRef(true);
@@ -89,16 +98,60 @@ export default function PartyRoomPage() {
   const chatMessages = party?.chatMessages || [];
   const recentMessages = chatMessages.slice(-50);
 
+  // Restore UI state from persisted store
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace("/user/login");
+    if (partyRoomState.activeBottomNav) {
+      setActiveBottomNav(partyRoomState.activeBottomNav);
+    }
+    if (partyRoomState.hostMicEnabled !== undefined) {
+      setHostMicEnabled(partyRoomState.hostMicEnabled);
+    }
+    if (partyRoomState.hostCameraEnabled !== undefined) {
+      setHostCameraEnabled(partyRoomState.hostCameraEnabled);
+    }
+  }, []);
+
+  // Persist UI state changes
+  useEffect(() => {
+    updatePartyRoomState({
+      activeBottomNav,
+      showTransferModal,
+      showParticipantMenu,
+      hostMicEnabled,
+      hostCameraEnabled,
+    });
+  }, [activeBottomNav, showTransferModal, showParticipantMenu, hostMicEnabled, hostCameraEnabled, updatePartyRoomState]);
+
+  useEffect(() => {
+    // Wait for auth store to hydrate
+    if (!hydrated) {
       return;
     }
 
-    // Check if user is already in a different party
+    if (!isAuthenticated) {
+      // Only redirect if not authenticated, but check if user was in a party first
+      if (currentPartyId) {
+        // User was in a party, try to restore it
+        router.replace(`/party/${currentPartyId}`);
+      } else {
+        router.replace("/user/login");
+      }
+      return;
+    }
+
+    // If user was in a different party, redirect to that party
     if (currentPartyId && currentPartyId !== partyId) {
       router.replace(`/party/${currentPartyId}`);
       return;
+    }
+
+    // If user was in this party, restore state
+    if (currentPartyId === partyId) {
+      // Set current party to ensure it's persisted
+      const isUserHost = party?.hostId?.toString() === user?._id?.toString();
+      if (party) {
+        setCurrentParty(partyId, isUserHost);
+      }
     }
 
     loadParty();
@@ -109,7 +162,7 @@ export default function PartyRoomPage() {
     return () => {
       document.body.classList.remove("party-page");
     };
-  }, [isAuthenticated, router, partyId, currentPartyId]);
+  }, [hydrated, isAuthenticated, router, partyId, currentPartyId, party, user, setCurrentParty]);
 
   const loadWallet = async () => {
     try {
@@ -240,6 +293,7 @@ export default function PartyRoomPage() {
       
       if (!partyData.isActive) {
         clearCurrentParty();
+        clearPartyState();
         setLoading(false);
         router.replace("/party");
         return;
@@ -248,6 +302,9 @@ export default function PartyRoomPage() {
       setParty(partyData);
       
       const isUserHost = partyData.hostId?.toString() === user?._id?.toString();
+      
+      // Always set current party when party is loaded (for refresh persistence)
+      setCurrentParty(partyId, isUserHost);
       
       // Check if user is already a participant
       const currentParticipant = partyData.participants?.find(
@@ -269,7 +326,7 @@ export default function PartyRoomPage() {
             setCurrentParty(partyId, true);
           }
         } else {
-          // User is already an active participant, set current party
+          // User is already an active participant, ensure current party is set
           setCurrentParty(partyId, true);
         }
       } else if (currentParticipant) {
@@ -289,9 +346,14 @@ export default function PartyRoomPage() {
             // If rejoin fails and user is not in party, clear store
             if (joinError.response?.status === 404 || joinError.response?.status === 403) {
               clearCurrentParty();
+              clearPartyState();
             }
           }
         }
+      } else {
+        // User is not a participant but party exists
+        // Don't auto-join, just set loading to false so they can see the party
+        // and choose to join
       }
 
       setLoading(false);
@@ -300,11 +362,18 @@ export default function PartyRoomPage() {
       // Only redirect if it's a 404 or party doesn't exist
       if (error.response?.status === 404) {
         clearCurrentParty();
+        clearPartyState();
         router.replace("/party");
         return;
       }
-      // For other errors, still set loading to false
-      setLoading(false);
+      // For other errors, still set loading to false and try to keep user on page
+      // if they were in the party (might be temporary network issue)
+      if (currentPartyId === partyId) {
+        // User was in this party, keep them here even if load fails
+        setLoading(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -356,6 +425,7 @@ export default function PartyRoomPage() {
     try {
       await apiClient.post(`/parties/${partyId}/leave`);
       clearCurrentParty();
+      clearPartyState(); // Clear party UI state
       router.push("/party");
     } catch (error) {
       console.error("Failed to leave party", error);
@@ -363,6 +433,7 @@ export default function PartyRoomPage() {
       // If party not found or user not in party, clear store and allow navigation
       if (error.response?.status === 404 || error.response?.data?.message === 'Not in party') {
         clearCurrentParty();
+        clearPartyState(); // Clear party UI state
         router.push("/party");
         return;
       }
@@ -371,6 +442,7 @@ export default function PartyRoomPage() {
       alert(errorMsg);
       // Even on error, try to clear store and navigate
       clearCurrentParty();
+      clearPartyState(); // Clear party UI state
       router.push("/party");
     }
   };
@@ -414,6 +486,7 @@ export default function PartyRoomPage() {
     try {
       await apiClient.delete(`/parties/${partyId}`);
       clearCurrentParty();
+      clearPartyState(); // Clear party UI state
       router.push("/party");
     } catch (error) {
       alert(error.response?.data?.error || "Failed to end party");
@@ -770,7 +843,7 @@ export default function PartyRoomPage() {
         }}
       >
         <div className="d-flex justify-content-between align-items-start mb-2" style={{ gap: "0.5rem" }}>
-          <div className="flex-grow-1" style={{ minWidth: 0 }}>
+          <div className="d-flex justify-content-between align-items-center" style={{ minWidth: 0 }}>
             <div className="d-flex align-items-center gap-2 mb-1">
               <h6 className="fw-bold mb-0 text-truncate" style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
                 {party.name}
@@ -791,7 +864,7 @@ export default function PartyRoomPage() {
                   padding: "0.2rem 0.4rem",
                 }}
               >
-                {party.privacy === "public" ? "Public" : "Private"}
+               
               </Badge>
               <div className="d-flex align-items-center gap-1" style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>
                 <BsPeople style={{ fontSize: "0.75rem" }} />
@@ -799,7 +872,7 @@ export default function PartyRoomPage() {
               </div>
             </div>
           </div>
-          <div className="d-flex gap-1 flex-shrink-0 align-items-center">
+          <div className="d-flex gap-1 border flex-shrink-0 align-items-center p-0">
             {!isParticipant && (
               <Button variant="primary" size="sm" onClick={handleJoin} disabled={joining} style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}>
                 {joining ? "..." : "Join"}
@@ -813,7 +886,7 @@ export default function PartyRoomPage() {
                       variant={hostMicEnabled ? "success" : "outline-secondary"}
                       size="sm"
                       onClick={handleToggleMic}
-                      style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem", minWidth: "36px" }}
+                      style={{ fontSize: "0.7rem",  minWidth: "36px" }}
                       title={hostMicEnabled ? "Turn off microphone" : "Turn on microphone"}
                     >
                       {hostMicEnabled ? <BsMic /> : <BsMicMute />}
@@ -822,17 +895,17 @@ export default function PartyRoomPage() {
                       variant={hostCameraEnabled ? "success" : "outline-secondary"}
                       size="sm"
                       onClick={handleToggleCamera}
-                      style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem", minWidth: "36px" }}
+                      style={{ fontSize: "0.7rem",  minWidth: "36px" }}
                       title={hostCameraEnabled ? "Turn off camera" : "Turn on camera"}
                     >
                       {hostCameraEnabled ? <BsCameraVideo /> : <BsCameraVideoOff />}
                     </Button>
-                    <Button variant="outline-danger" size="sm" onClick={handleEndParty} style={{ fontSize: "0.7rem", padding: "0.25rem 0.5rem" }}>
+                    <Button className="border "  onClick={handleEndParty} >
                       End
                     </Button>
                   </>
                 )}
-                <Button variant="outline-light" size="sm" onClick={handleLeave} style={{ padding: "0.25rem 0.5rem", minWidth: "36px" }} title="Leave Party">
+                <Button className="border p-0 " onClick={handleLeave}  title="Leave Party">
                   <BsArrowLeft />
                 </Button>
               </>
@@ -1030,8 +1103,8 @@ export default function PartyRoomPage() {
                           style={{
                             position: "absolute",
                             inset: 0,
-                    background: participant.avatarUrl
-                      ? `url(${participant.avatarUrl}) center/cover`
+                    background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                      ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
                       : "rgba(255, 45, 149, 0.3)",
                     display: "flex",
                     alignItems: "center",
@@ -1041,7 +1114,7 @@ export default function PartyRoomPage() {
                             fontSize: "2rem",
                   }}
                 >
-                  {!participant.avatarUrl && (participant.username?.[0]?.toUpperCase() || "?")}
+                  {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
                 </div>
                       )}
                     </>
@@ -1051,8 +1124,8 @@ export default function PartyRoomPage() {
                       style={{
                         width: "100%",
                         height: "100%",
-                        background: participant.avatarUrl
-                          ? `url(${participant.avatarUrl}) center/cover`
+                        background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                          ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
                           : "rgba(255, 45, 149, 0.3)",
                         display: "flex",
                         alignItems: "center",
@@ -1062,7 +1135,7 @@ export default function PartyRoomPage() {
                         fontSize: "2rem",
                       }}
                     >
-                      {!participant.avatarUrl && (participant.username?.[0]?.toUpperCase() || "?")}
+                      {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
                     </div>
                   )}
                 </div>
@@ -1153,8 +1226,8 @@ export default function PartyRoomPage() {
                       borderRadius: "50%",
                       overflow: "hidden",
                       flexShrink: 0,
-                      background: msg.avatarUrl
-                        ? `url(${msg.avatarUrl}) center/cover`
+                      background: msg.avatarUrl && getImageUrl(msg.avatarUrl)
+                        ? `url(${getImageUrl(msg.avatarUrl)}) center/cover`
                         : "rgba(255, 45, 149, 0.3)",
                       display: "flex",
                       alignItems: "center",
@@ -1165,7 +1238,7 @@ export default function PartyRoomPage() {
                     }}
                     
                   >
-                    {!msg.avatarUrl && (msg.username?.[0]?.toUpperCase() || "?")}
+                    {(!msg.avatarUrl || !getImageUrl(msg.avatarUrl)) && getInitials(msg.username || "?")}
                   </div>
                   <div className="flex-grow-1" style={{ minWidth: 0 }}>
                     <div className="d-flex align-items-center gap-1 mb-1">
@@ -1445,6 +1518,8 @@ export default function PartyRoomPage() {
           >
             <BsGift style={{ fontSize: "1.1rem" }} />
           </button>
+      
+     
           <button
             onClick={handleLeave}
             style={{
@@ -1478,30 +1553,7 @@ export default function PartyRoomPage() {
       )}
 
       {/* Wallet Balance Display */}
-      {isParticipant && wallet && (
-        <div
-          style={{
-            position: "fixed",
-            top: "0.75rem",
-            right: "0.75rem",
-            background: "rgba(15, 22, 36, 0.95)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            borderRadius: "0.75rem",
-            padding: "0.4rem 0.75rem",
-            zIndex: 1000,
-            display: "flex",
-            alignItems: "center",
-            gap: "0.4rem",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-          }}
-        >
-          <BsCoin style={{ color: "#FFD700", fontSize: "1rem" }} />
-          <span style={{ color: "var(--text-primary)", fontSize: "0.85rem", fontWeight: "bold" }}>
-            {wallet.partyCoins?.toLocaleString() || 0}
-          </span>
-        </div>
-      )}
+     
 
       {/* Participant Audio Controls */}
       {isParticipant && !isHost && (hostMicEnabled || hostCameraEnabled) && (
@@ -1689,8 +1741,8 @@ export default function PartyRoomPage() {
                       height: "36px",
                       borderRadius: "50%",
                       overflow: "hidden",
-                      background: participant.avatarUrl
-                        ? `url(${participant.avatarUrl}) center/cover`
+                      background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                        ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
                         : "rgba(255, 45, 149, 0.3)",
                       display: "flex",
                       alignItems: "center",
@@ -1700,7 +1752,7 @@ export default function PartyRoomPage() {
                       fontSize: "0.9rem",
                     }}
                   >
-                    {!participant.avatarUrl && (participant.username?.[0]?.toUpperCase() || "?")}
+                    {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
                   </div>
                   <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>{participant.username}</span>
                 </div>

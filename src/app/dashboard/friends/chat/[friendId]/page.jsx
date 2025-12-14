@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Card, Button, Form, InputGroup } from "react-bootstrap";
 import { FaPaperPlane, FaArrowLeft } from "react-icons/fa";
 import { useRouter, useParams } from "next/navigation";
+import Image from "next/image";
 import { io } from "socket.io-client";
 
 import apiClient from "@/lib/apiClient";
@@ -120,11 +121,14 @@ export default function FriendChatPage() {
           <FaArrowLeft />
         </Button>
         <div className="d-flex align-items-center gap-2">
-          <img
+          <Image
             src={getImageUrl(friend.account?.photoUrl) || "/default-avatar.png"}
             alt={friend.account?.displayName}
+            width={40}
+            height={40}
             className="rounded-circle"
-            style={{ width: "40px", height: "40px", objectFit: "cover" }}
+            style={{ objectFit: "cover" }}
+            unoptimized
           />
           <div>
             <div className="fw-bold">{friend.account?.displayName || friend.account?.email}</div>

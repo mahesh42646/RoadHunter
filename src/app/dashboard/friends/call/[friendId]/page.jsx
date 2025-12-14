@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Button, Card } from "react-bootstrap";
 import { FaPhone, FaPhoneSlash, FaVideo, FaVideoSlash, FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
 import { useRouter, useParams } from "next/navigation";
+import Image from "next/image";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
 
@@ -248,11 +249,14 @@ export default function FriendCallPage() {
             ) : (
               <div className="d-flex align-items-center justify-content-center h-100">
                 <div className="text-center">
-                  <img
+                  <Image
                     src={getImageUrl(friend.account?.photoUrl) || "/default-avatar.png"}
                     alt={friend.account?.displayName}
+                    width={150}
+                    height={150}
                     className="rounded-circle mb-3"
-                    style={{ width: "150px", height: "150px", objectFit: "cover" }}
+                    style={{ objectFit: "cover" }}
+                    unoptimized
                   />
                   <div className="h4">{friend.account?.displayName || friend.account?.email}</div>
                   {callStatus === "ringing" && <div className="text-muted">Incoming call...</div>}

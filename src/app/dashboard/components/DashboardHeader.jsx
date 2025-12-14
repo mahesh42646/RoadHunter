@@ -5,10 +5,11 @@ import { Navbar, Nav, Badge, Dropdown } from "react-bootstrap";
 import { FaBell, FaUserCircle } from "react-icons/fa";
 import { io } from "socket.io-client";
 import Link from "next/link";
+import Image from "next/image";
 
 import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
-import { getImageUrl } from "@/lib/imageUtils";
+import Avatar from "@/components/Avatar";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
@@ -91,16 +92,12 @@ export default function DashboardHeader() {
         <div className="d-flex align-items-center gap-3">
           <Link href="/dashboard/profile" className="text-decoration-none">
             <div className="d-flex align-items-center gap-2">
-              {user?.account?.photoUrl ? (
-                <img
-                  src={getImageUrl(user.account.photoUrl)}
-                  alt={user.account.displayName}
-                  className="rounded-circle"
-                  style={{ width: "40px", height: "40px", objectFit: "cover" }}
-                />
-              ) : (
-                <FaUserCircle size={40} color="#FF2D95" />
-              )}
+              <Avatar
+                photoUrl={user?.account?.photoUrl}
+                name={user?.account?.displayName}
+                email={user?.account?.email}
+                size={40}
+              />
               <div>
                 <div className="text-light fw-bold">
                   {user?.account?.displayName || user?.account?.email || "User"}
