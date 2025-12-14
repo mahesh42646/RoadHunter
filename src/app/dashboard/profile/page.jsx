@@ -301,12 +301,34 @@ export default function ProfilePage() {
     router.push(`/dashboard/friends/chat/${userId}`);
   };
 
-  const handleVoiceCall = (userId) => {
-    router.push(`/dashboard/friends/call/${userId}`);
+  const handleVoiceCall = async (userId) => {
+    try {
+      const response = await apiClient.get(`/friends/profile/${userId}`);
+      const friendData = response.data.user;
+      const { startCall, setCallStatus } = useCallStore.getState();
+      startCall(userId, friendData, true);
+      setCallStatus("calling");
+      // Navigate to call page which will handle socket emission
+      router.push(`/dashboard/friends/call/${userId}`);
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      alert("Failed to start call");
+    }
   };
 
-  const handleVideoCall = (userId) => {
-    router.push(`/dashboard/friends/call/${userId}?video=true`);
+  const handleVideoCall = async (userId) => {
+    try {
+      const response = await apiClient.get(`/friends/profile/${userId}`);
+      const friendData = response.data.user;
+      const { startCall, setCallStatus } = useCallStore.getState();
+      startCall(userId, friendData, true);
+      setCallStatus("calling");
+      // Navigate to call page which will handle socket emission
+      router.push(`/dashboard/friends/call/${userId}`);
+    } catch (error) {
+      console.error("Failed to start call:", error);
+      alert("Failed to start call");
+    }
   };
 
   const handleReport = (userId) => {

@@ -8,6 +8,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "@/app/common/components/Header";
 import MobileBottomNav from "@/app/common/components/MobileBottomNav";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
+import CallManager from "@/components/CallManager";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -78,6 +79,7 @@ export default function DashboardLayout({ children }) {
         </section>
       </div>
       {/* <MobileBottomNav /> */}
+      <CallManager />
     </div>
   );
 }
