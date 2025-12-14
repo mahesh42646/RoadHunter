@@ -16,7 +16,7 @@ export function getImageUrl(imageUrl) {
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
     // Only allow api.darkunde.in URLs
     if (imageUrl.includes("api.darkunde.in") || imageUrl.includes("darkunde.in")) {
-      return imageUrl;
+    return imageUrl;
     }
     // Reject all other external URLs (Google, etc.)
     return null;

@@ -5,10 +5,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Card, Col, Form, Row, Button, Alert, InputGroup, Modal, Badge } from "react-bootstrap";
 import { FaCamera, FaUser, FaLock, FaUnlock, FaUpload, FaTimes, FaCopy, FaCheck } from "react-icons/fa";
+import { io } from "socket.io-client";
 
 import useAuthStore from "@/store/useAuthStore";
 import apiClient from "@/lib/apiClient";
 import { getImageUrl, getInitials } from "@/lib/imageUtils";
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -67,6 +70,51 @@ export default function ProfilePage() {
       loadReferralData();
     }
   }, [isProfileComplete]);
+
+  // Socket listener for social updates (followers/following count changes)
+  useEffect(() => {
+    const token = useAuthStore.getState().token;
+    if (!token || !user?._id) return;
+
+    const socket = io(SOCKET_URL, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("connect", () => {
+      socket.emit("user:join");
+    });
+
+    // Listen for social updates (follower/following count changes)
+    socket.on("user:socialUpdated", async (data) => {
+      if (data.userId === user._id) {
+        // Refresh user data to get updated follower/following counts
+        try {
+          const response = await apiClient.get("/users/me");
+          updateUser(response.data.user);
+        } catch (error) {
+          console.error("Failed to refresh user data:", error);
+        }
+      }
+    });
+
+    // Listen for when someone follows you
+    socket.on("friends:followed", async (data) => {
+      if (data.targetId === user._id) {
+        // Someone followed you, refresh user data
+        try {
+          const response = await apiClient.get("/users/me");
+          updateUser(response.data.user);
+        } catch (error) {
+          console.error("Failed to refresh user data:", error);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user?._id, updateUser]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -166,18 +214,12 @@ export default function ProfilePage() {
 
   const handleFollow = async (userId, profilePrivacy) => {
     try {
-      if (profilePrivacy === 'public') {
-        // Direct follow for public profiles
-        await apiClient.post(`/friends/request/${userId}`);
-      } else {
-        // Send follow request for private profiles
-        await apiClient.post(`/friends/request/${userId}`);
-      }
+      await apiClient.post(`/friends/request/${userId}`);
+      // Wait a bit for backend to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await refreshUserData();
       await loadFollowers();
       await loadFollowing();
-      // Refresh user data
-      const meResponse = await apiClient.get("/users/me");
-      updateUser(meResponse.data.user);
     } catch (error) {
       alert(error.response?.data?.error || "Failed to follow user");
     }
@@ -186,11 +228,11 @@ export default function ProfilePage() {
   const handleFollowBack = async (userId, profilePrivacy) => {
     try {
       await apiClient.post(`/friends/follow-back/${userId}`);
+      // Wait a bit for backend to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await refreshUserData();
       await loadFollowers();
       await loadFollowing();
-      // Refresh user data
-      const meResponse = await apiClient.get("/users/me");
-      updateUser(meResponse.data.user);
     } catch (error) {
       alert(error.response?.data?.error || "Failed to follow back");
     }
@@ -199,22 +241,35 @@ export default function ProfilePage() {
   const handleUnfollow = async (userId) => {
     try {
       await apiClient.delete(`/friends/${userId}`);
+      // Wait a bit for backend to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await refreshUserData();
       await loadFollowers();
       await loadFollowing();
-      // Refresh user data
-      const meResponse = await apiClient.get("/users/me");
-      updateUser(meResponse.data.user);
     } catch (error) {
       alert(error.response?.data?.error || "Failed to unfollow");
     }
   };
 
-  const handleFollowersClick = () => {
+  const refreshUserData = async () => {
+    try {
+      const response = await apiClient.get("/users/me");
+      updateUser(response.data.user);
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+    }
+  };
+
+  const handleFollowersClick = async () => {
+    // Refresh user data first to get latest follower count
+    await refreshUserData();
     setShowFollowersModal(true);
     loadFollowers();
   };
 
-  const handleFollowingClick = () => {
+  const handleFollowingClick = async () => {
+    // Refresh user data first to get latest following count
+    await refreshUserData();
     setShowFollowingModal(true);
     loadFollowing();
   };
@@ -519,18 +574,18 @@ export default function ProfilePage() {
             <Col xs={12} md={4} className="text-center text-md-start mb-4 mb-md-0">
               <div className="position-relative d-inline-block">
                 {getImageUrl(user?.account?.photoUrl) ? (
-                  <Image
-                    src={getImageUrl(user?.account?.photoUrl)}
-                    alt={user?.account?.displayName || "Profile"}
-                    width={150}
-                    height={150}
-                    className="rounded-circle"
-                    style={{
-                      objectFit: "cover",
-                      border: "3px solid #FF2D95",
-                    }}
-                    unoptimized
-                  />
+                <Image
+                  src={getImageUrl(user?.account?.photoUrl)}
+                  alt={user?.account?.displayName || "Profile"}
+                  width={150}
+                  height={150}
+                  className="rounded-circle"
+                  style={{
+                    objectFit: "cover",
+                    border: "3px solid #FF2D95",
+                  }}
+                  unoptimized
+                />
                 ) : (
                   <div
                     className="rounded-circle d-flex align-items-center justify-content-center"
@@ -606,7 +661,7 @@ export default function ProfilePage() {
       <Row className="gy-3 mb-4">
         <Col xs={12} sm={6} md={4}>
           <Card className="bg-transparent border-light h-100">
-            <Card.Body>
+        <Card.Body>
               <Card.Title className="text-muted small mb-2">Level</Card.Title>
               <Card.Text className="display-5 fw-bold mb-0">{user?.progress?.level ?? 1}</Card.Text>
             </Card.Body>
@@ -639,9 +694,9 @@ export default function ProfilePage() {
                     {copiedCode ? <FaCheck /> : <FaCopy />}
                   </Button>
                 )}
-              </div>
-            </Card.Body>
-          </Card>
+          </div>
+        </Card.Body>
+      </Card>
         </Col>
       </Row>
 

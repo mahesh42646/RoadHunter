@@ -225,14 +225,23 @@ module.exports = function createFriendsRouter(io) {
 
       // If profile is public, auto-follow instead of sending request
       if (target.social.profilePrivacy === 'public') {
-        if (!user.social.following.some((id) => id.toString() === userId)) {
+        // User A follows User B (public profile)
+        // Add User B to User A's following list
+        const alreadyFollowing = user.social.following.some((id) => id.toString() === userId);
+        if (!alreadyFollowing) {
           user.social.following.push(targetUser._id);
-          if (!target.social.followers.some((id) => id.toString() === user._id.toString())) {
-            target.social.followers.push(user._id);
-          }
+          user.markModified('social.following');
         }
-        await user.save();
-        await target.save();
+        
+        // Add User A to User B's followers list
+        const alreadyFollower = target.social.followers.some((id) => id.toString() === user._id.toString());
+        if (!alreadyFollower) {
+          target.social.followers.push(user._id);
+          target.markModified('social.followers');
+        }
+        
+        // Save both users to ensure followers count is updated
+        await Promise.all([user.save(), target.save()]);
 
         // Notify the followed user
         io.to(`user:${targetUser._id}`).emit('friends:followed', {
@@ -245,11 +254,22 @@ module.exports = function createFriendsRouter(io) {
           },
         });
 
+        // Emit update events to refresh both users' data
+        io.emit('user:socialUpdated', {
+          userId: user._id.toString(),
+          following: user.social.following.length,
+        });
+        io.emit('user:socialUpdated', {
+          userId: targetUser._id.toString(),
+          followers: target.social.followers.length,
+        });
+
         res.json({ message: 'Now following', following: true, user: sanitizeUser(target) });
         return;
       }
 
       // Send follow request for private profiles
+      // IMPORTANT: Do NOT add to following/followers until request is accepted
       if (!user.social.followRequests) {
         user.social.followRequests = { sent: [], received: [] };
       }
@@ -257,8 +277,13 @@ module.exports = function createFriendsRouter(io) {
         target.social.followRequests = { sent: [], received: [] };
       }
 
-      user.social.followRequests.sent.push(targetUser._id);
-      target.social.followRequests.received.push(user._id);
+      // Only add to followRequests, NOT to following or followers
+      if (!user.social.followRequests.sent.some((id) => id.toString() === userId)) {
+        user.social.followRequests.sent.push(targetUser._id);
+      }
+      if (!target.social.followRequests.received.some((id) => id.toString() === user._id.toString())) {
+        target.social.followRequests.received.push(user._id);
+      }
 
       await user.save();
       await target.save();
@@ -310,50 +335,54 @@ module.exports = function createFriendsRouter(io) {
 
       // Handle friend request
       if (hasFriendRequest) {
-        // Add to friends
-        if (!user.social.friends.some((id) => id.toString() === userId)) {
-          user.social.friends.push(targetUser._id);
-        }
-        if (!target.social.friends.some((id) => id.toString() === user._id.toString())) {
-          target.social.friends.push(user._id);
-        }
+      // Add to friends
+      if (!user.social.friends.some((id) => id.toString() === userId)) {
+        user.social.friends.push(targetUser._id);
+      }
+      if (!target.social.friends.some((id) => id.toString() === user._id.toString())) {
+        target.social.friends.push(user._id);
+      }
 
-        // Remove from requests
-        user.social.friendRequests.received = user.social.friendRequests.received.filter(
-          (id) => id.toString() !== userId
-        );
-        target.social.friendRequests.sent = target.social.friendRequests.sent.filter(
-          (id) => id.toString() !== user._id.toString()
-        );
+      // Remove from requests
+      user.social.friendRequests.received = user.social.friendRequests.received.filter(
+        (id) => id.toString() !== userId
+      );
+      target.social.friendRequests.sent = target.social.friendRequests.sent.filter(
+        (id) => id.toString() !== user._id.toString()
+      );
 
-        // Remove from removed lists if present
-        user.social.removedFriends = user.social.removedFriends.filter(
-          (id) => id.toString() !== userId
-        );
-        target.social.removedBy = target.social.removedBy.filter(
-          (id) => id.toString() !== user._id.toString()
-        );
+      // Remove from removed lists if present
+      user.social.removedFriends = user.social.removedFriends.filter(
+        (id) => id.toString() !== userId
+      );
+      target.social.removedBy = target.social.removedBy.filter(
+        (id) => id.toString() !== user._id.toString()
+      );
 
-        await user.save();
-        await target.save();
+      await user.save();
+      await target.save();
 
-        io.emit('friends:requestAccepted', {
-          userId: user._id.toString(),
-          friendId: targetUser._id.toString(),
-        });
+      io.emit('friends:requestAccepted', {
+        userId: user._id.toString(),
+        friendId: targetUser._id.toString(),
+      });
 
-        res.json({ message: 'Friend request accepted', friend: sanitizeUser(target) });
+      res.json({ message: 'Friend request accepted', friend: sanitizeUser(target) });
         return;
       }
 
       // Handle follow request
       if (hasFollowRequest) {
-        // Add to following/followers
-        if (!user.social.following.some((id) => id.toString() === userId)) {
-          user.social.following.push(targetUser._id);
+        // When User B accepts User A's follow request:
+        // - User A should be added to User A's following list (User A is now following User B)
+        // - User A should be added to User B's followers list (User B has a new follower)
+        // Note: user = User B (who is accepting), targetUser = User A (who sent the request)
+        
+        if (!target.social.following.some((id) => id.toString() === user._id.toString())) {
+          target.social.following.push(user._id);
         }
-        if (!target.social.followers.some((id) => id.toString() === user._id.toString())) {
-          target.social.followers.push(user._id);
+        if (!user.social.followers.some((id) => id.toString() === targetUser._id.toString())) {
+          user.social.followers.push(targetUser._id);
         }
 
         // Remove from follow requests
@@ -364,12 +393,26 @@ module.exports = function createFriendsRouter(io) {
           (id) => id.toString() !== user._id.toString()
         );
 
+        // Mark nested objects as modified to ensure they're saved
+        target.markModified('social.following');
+        user.markModified('social.followers');
+        
         await user.save();
         await target.save();
 
         io.emit('friends:followRequestAccepted', {
           userId: user._id.toString(),
           followerId: targetUser._id.toString(),
+        });
+
+        // Emit update events to refresh both users' data
+        io.emit('user:socialUpdated', {
+          userId: targetUser._id.toString(),
+          following: target.social.following.length,
+        });
+        io.emit('user:socialUpdated', {
+          userId: user._id.toString(),
+          followers: user.social.followers.length,
         });
 
         res.json({ message: 'Follow request accepted', user: sanitizeUser(target) });
@@ -740,8 +783,33 @@ module.exports = function createFriendsRouter(io) {
 
       // If target profile is public, auto-follow
       if (target.social.profilePrivacy === 'public') {
-        user.social.following.push(targetUser._id);
-        await user.save();
+        // User B (PartynGame) follows back User A (Mahesh Darkunde) who is already following User B
+        // Add User A (Mahesh Darkunde) to User B's (PartynGame's) following list
+        const alreadyFollowing = user.social.following.some((id) => id.toString() === userId);
+        if (!alreadyFollowing) {
+          user.social.following.push(targetUser._id);
+          user.markModified('social.following');
+        }
+        
+        // Add User B (PartynGame) to User A's (Mahesh Darkunde's) followers list
+        const alreadyFollower = target.social.followers.some((id) => id.toString() === user._id.toString());
+        if (!alreadyFollower) {
+          target.social.followers.push(user._id);
+          target.markModified('social.followers');
+        }
+        
+        // Ensure both users are saved
+        await Promise.all([user.save(), target.save()]);
+
+        // Emit update events to refresh both users' data
+        io.emit('user:socialUpdated', {
+          userId: user._id.toString(),
+          following: user.social.following.length,
+        });
+        io.emit('user:socialUpdated', {
+          userId: targetUser._id.toString(),
+          followers: target.social.followers.length,
+        });
 
         io.emit('friends:followed', {
           userId: user._id.toString(),

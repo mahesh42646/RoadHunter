@@ -121,64 +121,64 @@ export default function Sidebar() {
               fontWeight: 600 
             }}
           >
-            Player Center
-          </p>
-          <h5 className="fw-bold rainbow-text">Dashboard</h5>
-        </div>
+          Player Center
+        </p>
+        <h5 className="fw-bold rainbow-text">Dashboard</h5>
+      </div>
 
-        <Nav className="flex-column gap-2">
-          {items.map((item) => {
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Nav.Link
-                as={Link}
-                href={item.href}
-                key={item.href}
-                className="px-3 py-3 rounded"
-                style={{
-                  color: isActive ? "var(--text-primary)" : "var(--text-muted)",
-                  background: isActive 
-                    ? "linear-gradient(135deg, rgba(255, 45, 149, 0.2), rgba(0, 245, 255, 0.2))" 
-                    : "transparent",
-                  border: isActive 
-                    ? "1px solid rgba(255, 45, 149, 0.4)" 
-                    : "1px solid transparent",
-                  fontWeight: isActive ? 600 : 500,
-                  transition: "all 0.3s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
+      <Nav className="flex-column gap-2">
+        {items.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Nav.Link
+              as={Link}
+              href={item.href}
+              key={item.href}
+              className="px-3 py-3 rounded"
+              style={{
+                color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+                background: isActive 
+                  ? "linear-gradient(135deg, rgba(255, 45, 149, 0.2), rgba(0, 245, 255, 0.2))" 
+                  : "transparent",
+                border: isActive 
+                  ? "1px solid rgba(255, 45, 149, 0.4)" 
+                  : "1px solid transparent",
+                fontWeight: isActive ? 600 : 500,
+                transition: "all 0.3s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
                   textDecoration: "none",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
-                    e.currentTarget.style.color = "var(--text-secondary)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }
-                }}
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.currentTarget.style.color = "var(--text-secondary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.borderColor = "transparent";
+                  e.currentTarget.style.color = "var(--text-muted)";
+                }
+              }}
                 onClick={() => {
                   // Close sidebar on mobile when item is clicked
                   if (isMobile) {
                     setIsCollapsed(true);
                   }
                 }}
-              >
+            >
                 <span style={{ fontSize: "1.25rem", minWidth: "24px", textAlign: "center" }}>
                   {item.icon}
                 </span>
-                <span>{item.label}</span>
-              </Nav.Link>
-            );
-          })}
-        </Nav>
+              <span>{item.label}</span>
+            </Nav.Link>
+          );
+        })}
+      </Nav>
       </aside>
     </>
   );
