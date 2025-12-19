@@ -1010,17 +1010,17 @@ export default function Html5RaceGamePage() {
         const laneX = roadLeft + laneWidth * laneIndex;
         const segments = track.segments || ["regular", "regular", "regular"];
 
-        // Segments are drawn top-to-bottom (idx 0=top, 2=bottom)
-        // But backend segments are bottom-to-top (segment 0=start/bottom, 2=finish/top)
-        // Reverse the index when accessing terrain
+        // Draw segments bottom-to-top to match backend order
+        // Backend: segments[0] = first 100m (start/bottom), segments[2] = third 100m (finish/top)
+        // Visual: Draw segments[0] at bottom, segments[2] at top
         segments.forEach((terrain, idx) => {
-          // Visual position: idx 0 at top, idx 2 at bottom
-          const y = trackTop + idx * segmentHeight;
+          // Reverse visual order: idx 0 (backend segment 0) at bottom, idx 2 (backend segment 2) at top
+          const visualIdx = segments.length - 1 - idx;
+          const y = trackTop + visualIdx * segmentHeight;
           const segmentBottom = y + segmentHeight;
           
-          // Backend segment index: reverse (idx 2 -> segment 0, idx 0 -> segment 2)
-          const backendSegmentIdx = segments.length - 1 - idx;
-          const actualTerrain = segments[backendSegmentIdx];
+          // Use terrain directly (no reversing needed now)
+          const actualTerrain = terrain;
           
           // During predictions: check if segment is in visible area (bottom 30%)
           if (isPredictions) {
@@ -1447,16 +1447,17 @@ export default function Html5RaceGamePage() {
         }
         
         // Get current terrain for particle effects
-        // Segments are drawn top-to-bottom (idx 0=top, 2=bottom)
-        // But backend segments are bottom-to-top (segment 0=start/bottom, 2=finish/top)
-        // So we need to reverse the index
-        const visualSegment = Math.floor((startY - currentY) / segmentHeight);
+        // Segments are now drawn bottom-to-top to match backend order
+        // Backend: segments[0] = start/bottom, segments[2] = finish/top
+        // Car starts at bottom (startY) and moves to top (finishY)
+        // Calculate which segment the car is in (0 = bottom/start, 2 = top/finish)
+        const distanceFromStart = startY - currentY; // 0 at start, trackHeight at finish
+        const segmentIndex = Math.floor(distanceFromStart / segmentHeight);
+        // Clamp to valid segment range
         const track = tracks[trackIndex];
         const segmentCount = track?.segments?.length || 3;
-        // Reverse: visual segment 0 (top) = backend segment 2 (finish)
-        // visual segment 2 (bottom) = backend segment 0 (start)
-        const backendSegmentIndex = segmentCount - 1 - visualSegment;
-        const currentTerrain = track?.segments?.[backendSegmentIndex] || "regular";
+        const clampedSegmentIndex = Math.max(0, Math.min(segmentCount - 1, segmentIndex));
+        const currentTerrain = track?.segments?.[clampedSegmentIndex] || "regular";
         
         // Initialize particles for this car if not exists
         if (!particlesRef.current[carId]) {
