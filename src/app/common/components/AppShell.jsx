@@ -8,7 +8,7 @@ import Footer from "./Footer";
 import Header from "./Header";
 import MobileBottomNav from "./MobileBottomNav";
 
-const chromeFreeRoutes = ["/party"];
+const chromeFreeRoutes = ["/party", "/game"];
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
@@ -22,10 +22,26 @@ export default function AppShell({ children }) {
   return (
     <>
       {!hideChrome && <Header />}
-      <main className={mainClass} style={{ paddingBottom: hideChrome ? "0" : "80px" }}>{children}</main>
+      <main 
+        className={mainClass} 
+        style={{ 
+          paddingBottom: hideChrome ? "0" : "80px",
+          // For chrome-free routes (like /game), ensure full viewport
+          ...(hideChrome ? {
+            height: "100dvh",
+            width: "100dvw",
+            overflow: "hidden",
+            margin: 0,
+            padding: 0,
+          } : {})
+        }}
+      >
+        {children}
+      </main>
       {!hideChrome && <Footer />}
       {!hideChrome && <FloatingHelp />}
-      {!hideChrome && <MobileBottomNav />}
+      {/* Always show bottom nav, even on chrome-free routes */}
+      <MobileBottomNav />
     </>
   );
 }
