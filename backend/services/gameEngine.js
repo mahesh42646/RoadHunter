@@ -322,8 +322,20 @@ class GameEngine {
   async startRace(gameId) {
     try {
       const game = await Game.findById(gameId).populate('cars.carId');
-      if (!game || game.status === 'finished') {
+      if (!game) {
+        console.log(`[Game Engine] Game ${gameId} not found, cannot start race`);
         return;
+      }
+      
+      if (game.status === 'finished') {
+        console.log(`[Game Engine] Game ${game.gameNumber} already finished, cannot start race`);
+        return;
+      }
+
+      // Clear any existing race animation interval
+      if (this.raceAnimationInterval) {
+        clearInterval(this.raceAnimationInterval);
+        this.raceAnimationInterval = null;
       }
 
       game.status = 'racing';
@@ -332,6 +344,11 @@ class GameEngine {
 
       // Calculate race results
       const results = this.calculateRaceResults(game);
+      if (!results || results.length === 0) {
+        console.error(`[Game Engine] No race results calculated for game ${game.gameNumber}`);
+        return;
+      }
+
       game.results = results;
       game.winnerCarId = results[0].carId; // First place is winner
       await game.save();
@@ -350,12 +367,13 @@ class GameEngine {
         results: raceResults,
       });
 
-      console.log(`[Game Engine] Race started for game ${game.gameNumber}`);
+      console.log(`[Game Engine] Race started for game ${game.gameNumber}, starting animation...`);
 
       // Animate race progress
       this.animateRace(game, results);
     } catch (error) {
       console.error('[Game Engine] Error starting race:', error);
+      console.error(error.stack);
     }
   }
 
@@ -418,11 +436,29 @@ class GameEngine {
     let currentUpdate = 0;
     let raceFinished = false;
 
-    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber}, duration: ${animationDuration}ms, maxTime: ${maxTime}s`);
+    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber}, duration: ${animationDuration}ms, maxTime: ${maxTime}s, totalUpdates: ${totalUpdates}`);
+
+    // Send initial progress (cars at start line)
+    const initialPositions = {};
+    results.forEach((result) => {
+      const carIdStr = result.carId.toString();
+      initialPositions[carIdStr] = {
+        distance: 0,
+        progress: 0,
+        segment: 0,
+      };
+    });
+    this.io.emit('game:race_progress', {
+      gameId: game._id.toString(),
+      carPositions: initialPositions,
+      progress: 0,
+    });
+    console.log(`[Game Engine] Sent initial race progress for game ${game.gameNumber}`);
 
     this.raceAnimationInterval = setInterval(() => {
       if (raceFinished) {
         clearInterval(this.raceAnimationInterval);
+        this.raceAnimationInterval = null;
         return;
       }
 
@@ -475,6 +511,10 @@ class GameEngine {
       }
 
       // Emit progress update (always emit, even if winner reached)
+      if (currentUpdate % 10 === 0 || winnerReached) {
+        // Log every 10th update to avoid spam
+        console.log(`[Game Engine] Race progress update ${currentUpdate}/${totalUpdates} for game ${game.gameNumber}, progress: ${(progress * 100).toFixed(1)}%`);
+      }
       this.io.emit('game:race_progress', {
         gameId: game._id.toString(),
         carPositions,

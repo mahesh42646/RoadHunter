@@ -500,6 +500,7 @@ export default function Html5RaceGamePage() {
 
     const handleRaceStart = (data) => {
       // Exact same logic as party game
+      console.log('[Game] Race start event received:', data);
       setGameStatus("racing");
       setRaceProgress({}); // Reset progress when race starts
       if (data.tracks) {
@@ -516,10 +517,16 @@ export default function Html5RaceGamePage() {
     const handleRaceProgress = (data) => {
       // Exact same logic as party game - simple and direct
       const currentGameId = game?._id?.toString();
-      if (data.gameId === currentGameId && gameStatus === "racing") {
-        setRaceProgress(data.carPositions || {});
-        // Force re-render to update car positions
-        setGame(prev => prev ? { ...prev } : prev);
+      if (data.gameId === currentGameId) {
+        if (gameStatus === "racing") {
+          setRaceProgress(data.carPositions || {});
+          // Force re-render to update car positions
+          setGame(prev => prev ? { ...prev } : prev);
+        } else {
+          console.log('[Game] Race progress received but game status is not racing:', gameStatus);
+        }
+      } else {
+        console.log('[Game] Race progress received for different game:', data.gameId, 'current:', currentGameId);
       }
     };
 
