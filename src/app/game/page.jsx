@@ -54,6 +54,117 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Generate fixed obstacles for a segment (prevents flickering)
+function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, segmentPadding, gameId, trackIndex, segmentIndex) {
+  const key = `${gameId}-${trackIndex}-${segmentIndex}`;
+  
+  // Use seeded random for consistent positions
+  let seed = 0;
+  for (let i = 0; i < key.length; i++) {
+    seed = ((seed << 5) - seed) + key.charCodeAt(i);
+    seed = seed & seed; // Convert to 32bit integer
+  }
+  
+  // Simple seeded random function
+  const seededRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  
+  const obstacles = [];
+  const minX = laneX + segmentPadding * 2;
+  const maxX = laneX + laneWidth - segmentPadding * 2;
+  const minY = segmentY;
+  const maxY = segmentY + segmentHeight;
+  
+  if (terrain === "desert") {
+    // Generate stones
+    const stoneCount = Math.max(6, Math.floor(laneWidth * segmentHeight / 800));
+    for (let i = 0; i < stoneCount; i++) {
+      obstacles.push({
+        type: "stone",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        size: Math.max(2, laneWidth * 0.02 + seededRandom() * laneWidth * 0.03),
+        rotation: seededRandom() * Math.PI * 2,
+      });
+    }
+    
+    // Generate sand texture dots
+    const sandDotCount = Math.max(8, Math.floor(laneWidth * segmentHeight / 200));
+    for (let i = 0; i < sandDotCount; i++) {
+      obstacles.push({
+        type: "sandDot",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        size: Math.max(0.5, laneWidth * 0.008),
+      });
+    }
+  } else if (terrain === "muddy") {
+    // Generate potholes
+    const potholeCount = Math.max(3, Math.floor(laneWidth / 60));
+    for (let i = 0; i < potholeCount; i++) {
+      obstacles.push({
+        type: "pothole",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        size: Math.max(4, laneWidth * 0.1 + seededRandom() * laneWidth * 0.1),
+        rotation: seededRandom() * Math.PI * 2,
+      });
+    }
+    
+    // Generate mud patches
+    const mudPatchCount = Math.max(4, Math.floor(laneWidth / 40));
+    for (let i = 0; i < mudPatchCount; i++) {
+      obstacles.push({
+        type: "mudPatch",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        size: Math.max(3, laneWidth * 0.06 + seededRandom() * laneWidth * 0.08),
+        rotation: seededRandom() * Math.PI * 2,
+        widthScale: 0.8 + seededRandom() * 0.4,
+        heightScale: 0.6 + seededRandom() * 0.4,
+      });
+    }
+    
+    // Add debris/rocks in mud
+    const debrisCount = Math.max(2, Math.floor(laneWidth / 80));
+    for (let i = 0; i < debrisCount; i++) {
+      obstacles.push({
+        type: "debris",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        size: Math.max(2, laneWidth * 0.03 + seededRandom() * laneWidth * 0.04),
+      });
+    }
+  } else {
+    // Regular road - road markings and wear
+    const wearPatchCount = Math.max(2, Math.floor(laneWidth / 80));
+    for (let i = 0; i < wearPatchCount; i++) {
+      obstacles.push({
+        type: "wearPatch",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        size: Math.max(2, laneWidth * 0.04),
+      });
+    }
+    
+    // Add small cracks
+    const crackCount = Math.max(1, Math.floor(laneWidth / 100));
+    for (let i = 0; i < crackCount; i++) {
+      obstacles.push({
+        type: "crack",
+        x: minX + seededRandom() * (maxX - minX),
+        y: minY + seededRandom() * (maxY - minY),
+        length: Math.max(5, laneWidth * 0.1 + seededRandom() * laneWidth * 0.15),
+        rotation: seededRandom() * Math.PI * 2,
+      });
+    }
+  }
+  
+  return obstacles;
+}
+
 // Particle class for dust and mud effects
 class Particle {
   constructor(x, y, type = "dust", scale = 1) {
@@ -234,6 +345,7 @@ export default function Html5RaceGamePage() {
   const animationFrameRef = useRef(null);
   const carImagesRef = useRef({});
   const particlesRef = useRef({}); // Store particles per car
+  const obstaclesRef = useRef({}); // Store fixed obstacle positions per game/segment
   const latestStateRef = useRef({
     game: null,
     raceProgress: {},
@@ -469,6 +581,9 @@ export default function Html5RaceGamePage() {
       setRaceResults(null);
       setPredictionCounts({});
       setError(null);
+      
+      // Clear obstacles for new game
+      obstaclesRef.current = {};
 
       if (data.game.predictionEndTime) {
         const endTime = new Date(data.game.predictionEndTime);
@@ -776,9 +891,20 @@ export default function Html5RaceGamePage() {
       // Clear entire canvas
       ctx.clearRect(0, 0, width, height);
 
-      // Background grass - ALWAYS DRAW THIS FIRST
-      ctx.fillStyle = "#1f9d55";
+      // Background grass with 3D gradient - ALWAYS DRAW THIS FIRST
+      const grassGradient = ctx.createLinearGradient(0, 0, 0, height);
+      grassGradient.addColorStop(0, "#2db366"); // Lighter at top
+      grassGradient.addColorStop(0.5, "#1f9d55"); // Medium
+      grassGradient.addColorStop(1, "#178045"); // Darker at bottom
+      ctx.fillStyle = grassGradient;
       ctx.fillRect(0, 0, width, height);
+      
+      // Add grass texture (subtle)
+      ctx.fillStyle = "rgba(40, 150, 80, 0.15)";
+      for (let i = 0; i < Math.floor(height / 20); i++) {
+        const y = i * 20;
+        ctx.fillRect(0, y, width, 1);
+      }
 
       // Always draw 3 lanes even if game data isn't loaded yet
       const laneCount = 3;
@@ -789,20 +915,44 @@ export default function Html5RaceGamePage() {
       const roadRight = roadLeft + roadWidth;
       const laneWidth = roadWidth / laneCount;
 
-      // Main road surface (dark gray asphalt)
-      ctx.fillStyle = "#2a2d35";
+      // Main road surface with 3D gradient (darker edges, lighter center)
+      const roadGradient = ctx.createLinearGradient(roadLeft, 0, roadRight, 0);
+      roadGradient.addColorStop(0, "#1f2126"); // Dark edge
+      roadGradient.addColorStop(0.5, "#2a2d35"); // Lighter center
+      roadGradient.addColorStop(1, "#1f2126"); // Dark edge
+      ctx.fillStyle = roadGradient;
       ctx.fillRect(roadLeft, 0, roadWidth, height);
       
-      // Road border (scales with canvas)
+      // Road border with shadow for 3D effect (scales with canvas)
       const borderWidth = Math.max(1, width * 0.008); // ~0.8% of width, min 1px
+      
+      // Border shadow (darker)
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+      ctx.lineWidth = borderWidth * 1.5;
+      ctx.strokeRect(roadLeft + 1, 1, roadWidth - 2, height - 2);
+      
+      // Main border (white)
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = borderWidth;
       ctx.strokeRect(roadLeft, 0, roadWidth, height);
 
-      // Road edges (white lines) - scales with canvas
+      // Road edges with 3D effect (white lines with shadow) - scales with canvas
       const edgeWidth = Math.max(1, width * 0.01); // ~1% of width
+      
+      // Left edge shadow
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+      ctx.fillRect(roadLeft - edgeWidth + 1, 1, edgeWidth, height - 2);
+      
+      // Left edge highlight
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(roadLeft - edgeWidth, 0, edgeWidth, height);
+      
+      // Right edge shadow
+      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+      ctx.fillRect(roadRight + 1, 1, edgeWidth, height - 2);
+      
+      // Right edge highlight
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(roadRight, 0, edgeWidth, height);
 
       // Red/white striped barrier on right edge - scales with canvas
@@ -908,102 +1058,265 @@ export default function Html5RaceGamePage() {
           // Responsive padding - scales with lane width
           const segmentPadding = Math.max(1, laneWidth * 0.02); // 2% of lane width
           
-          // Fill terrain segment (only visible part)
-          ctx.fillStyle = terrainColor;
-          ctx.fillRect(laneX + segmentPadding, drawY, laneWidth - (segmentPadding * 2), drawHeight);
+          // Fill terrain segment with 3D gradient effect (only visible part)
+          const roadWidth = laneWidth - (segmentPadding * 2);
+          const roadX = laneX + segmentPadding;
+          
+          // Create 3D gradient (lighter in center, darker on edges for depth)
+          const roadGradient = ctx.createLinearGradient(
+            roadX,
+            drawY,
+            roadX + roadWidth,
+            drawY
+          );
+          
+          // Adjust gradient colors based on terrain
+          if (terrainKey === "regular") {
+            roadGradient.addColorStop(0, "#1f2126"); // Dark edge
+            roadGradient.addColorStop(0.5, "#2a2d35"); // Lighter center
+            roadGradient.addColorStop(1, "#1f2126"); // Dark edge
+          } else if (terrainKey === "desert") {
+            roadGradient.addColorStop(0, "#c49a5f"); // Darker sand edge
+            roadGradient.addColorStop(0.5, "#d4a574"); // Lighter center
+            roadGradient.addColorStop(1, "#c49a5f"); // Darker sand edge
+          } else {
+            roadGradient.addColorStop(0, "#5a3520"); // Darker mud edge
+            roadGradient.addColorStop(0.5, "#6b4423"); // Lighter center
+            roadGradient.addColorStop(1, "#5a3520"); // Darker mud edge
+          }
+          
+          ctx.fillStyle = roadGradient;
+          ctx.fillRect(roadX, drawY, roadWidth, drawHeight);
+          
+          // Add subtle top highlight for 3D effect
+          const highlightGradient = ctx.createLinearGradient(
+            roadX,
+            drawY,
+            roadX,
+            drawY + Math.min(drawHeight * 0.3, 10)
+          );
+          highlightGradient.addColorStop(0, "rgba(255, 255, 255, 0.08)");
+          highlightGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+          ctx.fillStyle = highlightGradient;
+          ctx.fillRect(roadX, drawY, roadWidth, Math.min(drawHeight * 0.3, 10));
 
-          // Add terrain-specific patterns - draw in visible area (including predictions phase)
+          // Add terrain-specific patterns with fixed obstacles (no flickering) and 3D effects
           if (drawHeight > 0) {
-            // Draw patterns for visible segments (including visible part during predictions)
-            if (terrainKey === "desert") {
-              // Desert with stones/rocks scattered
-              const stoneCount = Math.max(6, Math.floor(laneWidth * drawHeight / 800)); // More stones on larger segments
-              for (let i = 0; i < stoneCount; i += 1) {
-                const stoneX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
-                const stoneY = drawY + Math.random() * drawHeight;
-                const stoneSize = Math.max(2, laneWidth * 0.02 + Math.random() * laneWidth * 0.03); // Varying sizes
-                
-                // Draw stone shadow
-                ctx.fillStyle = "rgba(139, 115, 85, 0.5)";
-                ctx.beginPath();
-                ctx.ellipse(stoneX + stoneSize * 0.3, stoneY + stoneSize * 0.3, stoneSize * 0.8, stoneSize * 0.4, 0, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Draw stone
-                ctx.fillStyle = "rgba(120, 100, 80, 0.8)";
-                ctx.beginPath();
-                ctx.arc(stoneX, stoneY, stoneSize, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Stone highlight
-                ctx.fillStyle = "rgba(160, 140, 110, 0.6)";
-                ctx.beginPath();
-                ctx.arc(stoneX - stoneSize * 0.3, stoneY - stoneSize * 0.3, stoneSize * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-              }
+            const gameId = g?._id?.toString() || "default";
+            const obstacleKey = `${gameId}-${laneIndex}-${idx}`;
+            
+            // Get or generate fixed obstacles for this segment
+            if (!obstaclesRef.current[obstacleKey]) {
+              obstaclesRef.current[obstacleKey] = generateObstacles(
+                terrainKey,
+                laneX,
+                laneWidth,
+                drawY,
+                drawHeight,
+                segmentPadding,
+                gameId,
+                laneIndex,
+                idx
+              );
+            }
+            
+            const obstacles = obstaclesRef.current[obstacleKey];
+            
+            // Draw obstacles with 3D effects
+            obstacles.forEach((obstacle) => {
+              // Ensure obstacle is within visible bounds
+              const minX = laneX + segmentPadding * 2;
+              const maxX = laneX + laneWidth - segmentPadding * 2;
+              const minY = drawY;
+              const maxY = drawY + drawHeight;
               
-              // Sand texture (smaller dots)
-              const sandDotSize = Math.max(0.5, laneWidth * 0.008);
-              ctx.fillStyle = "rgba(200, 163, 69, 0.3)";
-              const sandDotCount = Math.max(8, Math.floor(laneWidth * drawHeight / 200));
-              for (let i = 0; i < sandDotCount; i += 1) {
-                const dotX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
-                const dotY = drawY + Math.random() * drawHeight;
-                ctx.beginPath();
-                ctx.arc(dotX, dotY, sandDotSize, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            } else if (terrainKey === "muddy") {
-              // Muddy road with potholes and mud patches
-              const potholeCount = Math.max(3, Math.floor(laneWidth / 60));
-              for (let i = 0; i < potholeCount; i += 1) {
-                const potholeX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
-                const potholeY = drawY + Math.random() * drawHeight;
-                const potholeSize = Math.max(4, laneWidth * 0.1 + Math.random() * laneWidth * 0.1); // Larger potholes
+              // Clamp obstacle position to segment bounds
+              const obsX = Math.max(minX, Math.min(maxX, obstacle.x));
+              const obsY = Math.max(minY, Math.min(maxY, obstacle.y));
+              
+              if (obstacle.type === "stone") {
+                // 3D stone with shadow and highlight
+                const shadowOffset = obstacle.size * 0.2;
                 
-                // Pothole shadow (darker)
-                ctx.fillStyle = "rgba(60, 40, 25, 0.8)";
+                // Stone shadow (darker, offset)
+                ctx.fillStyle = "rgba(100, 80, 60, 0.6)";
                 ctx.beginPath();
-                ctx.ellipse(potholeX, potholeY, potholeSize, potholeSize * 0.6, 0, 0, Math.PI * 2);
+                ctx.ellipse(
+                  obsX + shadowOffset,
+                  obsY + shadowOffset,
+                  obstacle.size * 0.9,
+                  obstacle.size * 0.5,
+                  0,
+                  0,
+                  Math.PI * 2
+                );
                 ctx.fill();
                 
-                // Pothole rim (lighter)
-                ctx.strokeStyle = "rgba(120, 80, 50, 0.9)";
-                ctx.lineWidth = Math.max(1, laneWidth * 0.01);
+                // Stone base (3D gradient effect)
+                const gradient = ctx.createRadialGradient(
+                  obsX - obstacle.size * 0.3,
+                  obsY - obstacle.size * 0.3,
+                  0,
+                  obsX,
+                  obsY,
+                  obstacle.size
+                );
+                gradient.addColorStop(0, "rgba(160, 140, 110, 0.9)");
+                gradient.addColorStop(0.5, "rgba(120, 100, 80, 0.9)");
+                gradient.addColorStop(1, "rgba(90, 70, 50, 0.9)");
+                ctx.fillStyle = gradient;
                 ctx.beginPath();
-                ctx.ellipse(potholeX, potholeY, potholeSize, potholeSize * 0.6, 0, 0, Math.PI * 2);
+                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Stone highlight (top-left)
+                ctx.fillStyle = "rgba(180, 160, 130, 0.7)";
+                ctx.beginPath();
+                ctx.arc(obsX - obstacle.size * 0.3, obsY - obstacle.size * 0.3, obstacle.size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (obstacle.type === "sandDot") {
+                // Simple sand texture dot
+                ctx.fillStyle = "rgba(200, 163, 69, 0.3)";
+                ctx.beginPath();
+                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (obstacle.type === "pothole") {
+                // 3D pothole with depth effect
+                const depth = obstacle.size * 0.3;
+                
+                // Pothole shadow (inner darkness)
+                ctx.fillStyle = "rgba(40, 25, 15, 0.9)";
+                ctx.beginPath();
+                ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Pothole rim highlight (3D edge)
+                const rimGradient = ctx.createLinearGradient(
+                  obsX - obstacle.size,
+                  obsY,
+                  obsX + obstacle.size,
+                  obsY
+                );
+                rimGradient.addColorStop(0, "rgba(140, 100, 70, 0.8)");
+                rimGradient.addColorStop(0.5, "rgba(100, 70, 45, 0.9)");
+                rimGradient.addColorStop(1, "rgba(80, 55, 35, 0.8)");
+                ctx.strokeStyle = rimGradient;
+                ctx.lineWidth = Math.max(1, laneWidth * 0.012);
+                ctx.beginPath();
+                ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner pothole highlight (depth illusion)
+                ctx.fillStyle = "rgba(60, 40, 25, 0.6)";
+                ctx.beginPath();
+                ctx.ellipse(obsX, obsY + depth, obstacle.size * 0.7, obstacle.size * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (obstacle.type === "mudPatch") {
+                // 3D mud patch with irregular shape
+                ctx.save();
+                ctx.translate(obsX, obsY);
+                ctx.rotate(obstacle.rotation);
+                
+                // Mud patch shadow
+                ctx.fillStyle = "rgba(70, 45, 25, 0.6)";
+                ctx.beginPath();
+                ctx.ellipse(
+                  0,
+                  obstacle.size * 0.2,
+                  obstacle.size * obstacle.widthScale,
+                  obstacle.size * obstacle.heightScale,
+                  0,
+                  0,
+                  Math.PI * 2
+                );
+                ctx.fill();
+                
+                // Mud patch (gradient for 3D)
+                const mudGradient = ctx.createRadialGradient(
+                  -obstacle.size * 0.2,
+                  -obstacle.size * 0.2,
+                  0,
+                  0,
+                  0,
+                  obstacle.size
+                );
+                mudGradient.addColorStop(0, "rgba(110, 75, 45, 0.8)");
+                mudGradient.addColorStop(1, "rgba(80, 50, 30, 0.8)");
+                ctx.fillStyle = mudGradient;
+                ctx.beginPath();
+                ctx.ellipse(
+                  0,
+                  0,
+                  obstacle.size * obstacle.widthScale,
+                  obstacle.size * obstacle.heightScale,
+                  0,
+                  0,
+                  Math.PI * 2
+                );
+                ctx.fill();
+                
+                ctx.restore();
+              } else if (obstacle.type === "debris") {
+                // Debris/rock in mud
+                ctx.fillStyle = "rgba(60, 50, 40, 0.9)";
+                ctx.beginPath();
+                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Debris highlight
+                ctx.fillStyle = "rgba(80, 70, 60, 0.7)";
+                ctx.beginPath();
+                ctx.arc(obsX - obstacle.size * 0.3, obsY - obstacle.size * 0.3, obstacle.size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (obstacle.type === "wearPatch") {
+                // Road wear (subtle 3D)
+                const wearGradient = ctx.createRadialGradient(obsX, obsY, 0, obsX, obsY, obstacle.size);
+                wearGradient.addColorStop(0, "rgba(220, 220, 220, 0.15)");
+                wearGradient.addColorStop(1, "rgba(200, 200, 200, 0.05)");
+                ctx.fillStyle = wearGradient;
+                ctx.beginPath();
+                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (obstacle.type === "crack") {
+                // Road crack
+                ctx.strokeStyle = "rgba(100, 100, 100, 0.6)";
+                ctx.lineWidth = Math.max(0.5, laneWidth * 0.003);
+                ctx.beginPath();
+                ctx.moveTo(obsX, obsY);
+                ctx.lineTo(
+                  obsX + Math.cos(obstacle.rotation) * obstacle.length,
+                  obsY + Math.sin(obstacle.rotation) * obstacle.length
+                );
                 ctx.stroke();
               }
-              
-              // Mud patches (irregular shapes)
-              const mudPatchCount = Math.max(4, Math.floor(laneWidth / 40));
-              for (let i = 0; i < mudPatchCount; i += 1) {
-                const patchX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
-                const patchY = drawY + Math.random() * drawHeight;
-                const patchSize = Math.max(3, laneWidth * 0.06 + Math.random() * laneWidth * 0.08);
-                
-                ctx.fillStyle = "rgba(91, 59, 33, 0.7)";
-                ctx.beginPath();
-                // Irregular mud patch shape
-                ctx.ellipse(patchX, patchY, patchSize * (0.8 + Math.random() * 0.4), patchSize * (0.6 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            } else {
-              // Regular highway - add road markings and texture
-              // Center line (dashed)
+            });
+            
+            // Add terrain-specific base patterns
+            if (terrainKey === "regular") {
+              // Center line (dashed) - 3D effect
               const centerLineY = drawY + drawHeight / 2;
               const dashLength = Math.max(8, drawHeight * 0.15);
               const dashGap = dashLength * 0.5;
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-              ctx.lineWidth = Math.max(1, laneWidth * 0.01);
+              
+              // Line shadow
+              ctx.strokeStyle = "rgba(200, 200, 200, 0.3)";
+              ctx.lineWidth = Math.max(1, laneWidth * 0.011);
               ctx.setLineDash([dashLength, dashGap]);
+              ctx.beginPath();
+              ctx.moveTo(laneX + laneWidth / 2, drawY + 1);
+              ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight + 1);
+              ctx.stroke();
+              
+              // Main line
+              ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+              ctx.lineWidth = Math.max(1, laneWidth * 0.01);
               ctx.beginPath();
               ctx.moveTo(laneX + laneWidth / 2, drawY);
               ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight);
               ctx.stroke();
               ctx.setLineDash([]);
               
-              // Road texture (subtle wear marks)
+              // Road texture lines (subtle)
               const textureLineWidth = Math.max(0.5, laneWidth * 0.0015);
               ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
               const textureLineCount = Math.max(4, Math.floor(drawHeight / 15));
@@ -1011,18 +1324,6 @@ export default function Html5RaceGamePage() {
                 const texX = laneX + segmentPadding;
                 const texY = drawY + (i * drawHeight) / textureLineCount;
                 ctx.fillRect(texX, texY, laneWidth - (segmentPadding * 2), textureLineWidth);
-              }
-              
-              // Road wear patches (subtle)
-              const wearPatchCount = Math.max(2, Math.floor(laneWidth / 80));
-              for (let i = 0; i < wearPatchCount; i += 1) {
-                const wearX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
-                const wearY = drawY + Math.random() * drawHeight;
-                const wearSize = Math.max(2, laneWidth * 0.04);
-                ctx.fillStyle = "rgba(200, 200, 200, 0.1)";
-                ctx.beginPath();
-                ctx.arc(wearX, wearY, wearSize, 0, Math.PI * 2);
-                ctx.fill();
               }
             }
           }
