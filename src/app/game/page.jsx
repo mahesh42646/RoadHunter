@@ -17,11 +17,11 @@ import useAuthStore from "@/store/useAuthStore";
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
 
-// Terrain colors similar to backend terrains but adapted for vertical road
+// Terrain colors - realistic highway, desert, and mud
 const TERRAIN_COLORS = {
-  regular: "#3b3f4c", // asphalt
-  desert: "#c8a345", // sand
-  muddy: "#5b3b21", // mud
+  regular: "#2a2d35", // Dark asphalt/gray highway
+  desert: "#d4a574", // Sandy beige desert
+  muddy: "#6b4423", // Dark brown mud
 };
 
 function formatNumber(value) {
@@ -912,42 +912,117 @@ export default function Html5RaceGamePage() {
           ctx.fillStyle = terrainColor;
           ctx.fillRect(laneX + segmentPadding, drawY, laneWidth - (segmentPadding * 2), drawHeight);
 
-          // Add terrain-specific patterns - only in visible area
-          if (drawHeight > 0 && !isPredictions) {
-            // Only draw patterns if segment is fully visible (not during predictions for hidden parts)
+          // Add terrain-specific patterns - draw in visible area (including predictions phase)
+          if (drawHeight > 0) {
+            // Draw patterns for visible segments (including visible part during predictions)
             if (terrainKey === "desert") {
-              // Sand texture dots - size scales with lane width
-              const dotSize = Math.max(1, laneWidth * 0.015); // ~1.5% of lane width
-              ctx.fillStyle = "rgba(200, 163, 69, 0.4)";
-              const dotCount = Math.max(4, Math.floor(laneWidth / 30)); // More dots on wider lanes
-              for (let i = 0; i < dotCount; i += 1) {
+              // Desert with stones/rocks scattered
+              const stoneCount = Math.max(6, Math.floor(laneWidth * drawHeight / 800)); // More stones on larger segments
+              for (let i = 0; i < stoneCount; i += 1) {
+                const stoneX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
+                const stoneY = drawY + Math.random() * drawHeight;
+                const stoneSize = Math.max(2, laneWidth * 0.02 + Math.random() * laneWidth * 0.03); // Varying sizes
+                
+                // Draw stone shadow
+                ctx.fillStyle = "rgba(139, 115, 85, 0.5)";
+                ctx.beginPath();
+                ctx.ellipse(stoneX + stoneSize * 0.3, stoneY + stoneSize * 0.3, stoneSize * 0.8, stoneSize * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw stone
+                ctx.fillStyle = "rgba(120, 100, 80, 0.8)";
+                ctx.beginPath();
+                ctx.arc(stoneX, stoneY, stoneSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Stone highlight
+                ctx.fillStyle = "rgba(160, 140, 110, 0.6)";
+                ctx.beginPath();
+                ctx.arc(stoneX - stoneSize * 0.3, stoneY - stoneSize * 0.3, stoneSize * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+              }
+              
+              // Sand texture (smaller dots)
+              const sandDotSize = Math.max(0.5, laneWidth * 0.008);
+              ctx.fillStyle = "rgba(200, 163, 69, 0.3)";
+              const sandDotCount = Math.max(8, Math.floor(laneWidth * drawHeight / 200));
+              for (let i = 0; i < sandDotCount; i += 1) {
                 const dotX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
                 const dotY = drawY + Math.random() * drawHeight;
                 ctx.beginPath();
-                ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+                ctx.arc(dotX, dotY, sandDotSize, 0, Math.PI * 2);
                 ctx.fill();
               }
             } else if (terrainKey === "muddy") {
-              // Mud puddles - size scales with lane width
-              const puddleSize = Math.max(3, laneWidth * 0.08); // ~8% of lane width
-              ctx.fillStyle = "rgba(91, 59, 33, 0.6)";
-              const puddleCount = Math.max(2, Math.floor(laneWidth / 50)); // More puddles on wider lanes
-              for (let i = 0; i < puddleCount; i += 1) {
-                const puddleX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
-                const puddleY = drawY + Math.random() * drawHeight;
+              // Muddy road with potholes and mud patches
+              const potholeCount = Math.max(3, Math.floor(laneWidth / 60));
+              for (let i = 0; i < potholeCount; i += 1) {
+                const potholeX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
+                const potholeY = drawY + Math.random() * drawHeight;
+                const potholeSize = Math.max(4, laneWidth * 0.1 + Math.random() * laneWidth * 0.1); // Larger potholes
+                
+                // Pothole shadow (darker)
+                ctx.fillStyle = "rgba(60, 40, 25, 0.8)";
                 ctx.beginPath();
-                ctx.arc(puddleX, puddleY, puddleSize, 0, Math.PI * 2);
+                ctx.ellipse(potholeX, potholeY, potholeSize, potholeSize * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Pothole rim (lighter)
+                ctx.strokeStyle = "rgba(120, 80, 50, 0.9)";
+                ctx.lineWidth = Math.max(1, laneWidth * 0.01);
+                ctx.beginPath();
+                ctx.ellipse(potholeX, potholeY, potholeSize, potholeSize * 0.6, 0, 0, Math.PI * 2);
+                ctx.stroke();
+              }
+              
+              // Mud patches (irregular shapes)
+              const mudPatchCount = Math.max(4, Math.floor(laneWidth / 40));
+              for (let i = 0; i < mudPatchCount; i += 1) {
+                const patchX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
+                const patchY = drawY + Math.random() * drawHeight;
+                const patchSize = Math.max(3, laneWidth * 0.06 + Math.random() * laneWidth * 0.08);
+                
+                ctx.fillStyle = "rgba(91, 59, 33, 0.7)";
+                ctx.beginPath();
+                // Irregular mud patch shape
+                ctx.ellipse(patchX, patchY, patchSize * (0.8 + Math.random() * 0.4), patchSize * (0.6 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
                 ctx.fill();
               }
             } else {
-              // Regular road - add subtle texture - line width scales
-              const textureLineWidth = Math.max(0.5, laneWidth * 0.002); // Very thin, scales with lane
-              ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-              const textureLineCount = Math.max(3, Math.floor(drawHeight / 20)); // More lines on taller segments
+              // Regular highway - add road markings and texture
+              // Center line (dashed)
+              const centerLineY = drawY + drawHeight / 2;
+              const dashLength = Math.max(8, drawHeight * 0.15);
+              const dashGap = dashLength * 0.5;
+              ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+              ctx.lineWidth = Math.max(1, laneWidth * 0.01);
+              ctx.setLineDash([dashLength, dashGap]);
+              ctx.beginPath();
+              ctx.moveTo(laneX + laneWidth / 2, drawY);
+              ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              
+              // Road texture (subtle wear marks)
+              const textureLineWidth = Math.max(0.5, laneWidth * 0.0015);
+              ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+              const textureLineCount = Math.max(4, Math.floor(drawHeight / 15));
               for (let i = 0; i < textureLineCount; i += 1) {
                 const texX = laneX + segmentPadding;
                 const texY = drawY + (i * drawHeight) / textureLineCount;
                 ctx.fillRect(texX, texY, laneWidth - (segmentPadding * 2), textureLineWidth);
+              }
+              
+              // Road wear patches (subtle)
+              const wearPatchCount = Math.max(2, Math.floor(laneWidth / 80));
+              for (let i = 0; i < wearPatchCount; i += 1) {
+                const wearX = laneX + segmentPadding * 2 + Math.random() * (laneWidth - segmentPadding * 4);
+                const wearY = drawY + Math.random() * drawHeight;
+                const wearSize = Math.max(2, laneWidth * 0.04);
+                ctx.fillStyle = "rgba(200, 200, 200, 0.1)";
+                ctx.beginPath();
+                ctx.arc(wearX, wearY, wearSize, 0, Math.PI * 2);
+                ctx.fill();
               }
             }
           }

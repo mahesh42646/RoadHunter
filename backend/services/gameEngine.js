@@ -140,13 +140,30 @@ class GameEngine {
           }
         }
         
-        // If game is in predictions but predictionEndTime has passed, lock predictions
-        if (activeGame.status === 'predictions' && activeGame.predictionEndTime) {
-          const endTime = new Date(activeGame.predictionEndTime);
+        // If game is in predictions, check if it should be locked
+        if (activeGame.status === 'predictions') {
           const now = new Date();
-          const timeSinceEnd = (now - endTime) / 1000; // seconds
+          let shouldLock = false;
+          let timeSinceEnd = 0;
           
-          if (timeSinceEnd > 0) {
+          if (activeGame.predictionEndTime) {
+            const endTime = new Date(activeGame.predictionEndTime);
+            timeSinceEnd = (now - endTime) / 1000; // seconds
+            if (timeSinceEnd > 0) {
+              shouldLock = true;
+            }
+          } else if (activeGame.startTime) {
+            // Fallback: if no predictionEndTime, check if game has been in predictions for more than 15 seconds
+            const startTime = new Date(activeGame.startTime);
+            const timeSinceStart = (now - startTime) / 1000;
+            if (timeSinceStart > 15) {
+              console.log(`[Game Engine] Game ${activeGame.gameNumber} stuck in predictions for ${timeSinceStart.toFixed(1)}s (no predictionEndTime), forcing lock...`);
+              shouldLock = true;
+              timeSinceEnd = timeSinceStart - 15; // Assume it expired timeSinceStart - 15 seconds ago
+            }
+          }
+          
+          if (shouldLock) {
             console.log(`[Game Engine] Prediction time expired (${timeSinceEnd.toFixed(1)}s ago), locking predictions...`);
             await this.lockPredictions(activeGame._id);
             
@@ -541,29 +558,38 @@ class GameEngine {
 
       currentUpdate++;
       const progress = Math.min(currentUpdate / totalUpdates, 1);
-      // Calculate elapsedTime: fastest car finishes in 10 seconds (when progress = 1)
-      // elapsedTime = progress * fastestTime means fastest car finishes at progress = 1
-      const elapsedTime = progress * fastestTime;
+      // Animation time: 0 to 10 seconds (fixed)
+      const animationTime = progress * 10; // 0 to 10 seconds
+      
+      // Scale factor: fastest car finishes in 10 seconds
+      // If fastest car's actual time is fastestTime, scale = 10 / fastestTime
+      const timeScale = 10 / fastestTime;
 
       const carPositions = {};
       let winnerReached = false;
       
-      // Calculate positions for all cars
+      // Calculate positions for all cars based on their own speeds
       for (const result of results) {
+        // Scale the animation time to this car's actual race time
+        // If animationTime = 10s and this car takes 15s, its elapsedTime = 15s
+        // This ensures cars move at their correct relative speeds
+        const elapsedTime = animationTime * (result.totalTime / fastestTime);
+        
         let distance = 0;
         let segmentProgress = 0;
         let currentSegment = 0;
 
         for (let i = 0; i < result.segmentTimes.length; i++) {
-          // Use original segmentTime
+          // Use original segmentTime (already calculated based on car's speed for this terrain)
           const segmentTime = result.segmentTimes[i];
           if (elapsedTime >= segmentProgress + segmentTime) {
             distance += 100; // Completed segment
             segmentProgress += segmentTime;
             currentSegment = i + 1;
           } else {
-            // In current segment
+            // In current segment - calculate distance based on time spent in this segment
             const timeInSegment = elapsedTime - segmentProgress;
+            // Speed for this segment = 100m / segmentTime (already accounts for terrain)
             const speed = 100 / segmentTime; // m per second
             distance += speed * timeInSegment;
             break;
