@@ -104,13 +104,22 @@ class GameEngine {
           return;
         }
 
-        // If game is stuck in racing state for more than 30 seconds, finish it
+        // If game is in racing state, check if animation is running
         if (activeGame.status === 'racing' && activeGame.raceStartTime) {
           const raceStartTime = new Date(activeGame.raceStartTime);
           const now = new Date();
           const raceDuration = (now - raceStartTime) / 1000; // seconds
           
-          if (raceDuration > 30) {
+          // If race animation isn't running and race just started (< 5 seconds), restart it
+          if (!this.raceAnimationInterval && raceDuration < 5 && activeGame.results && activeGame.results.length > 0) {
+            console.log('[Game Engine] Race animation not running, restarting for game', activeGame.gameNumber);
+            await activeGame.populate('cars.carId');
+            this.animateRace(activeGame, activeGame.results);
+            return;
+          }
+          
+          // If game is stuck in racing state for more than 15 seconds, finish it (races should finish in 3-10s)
+          if (raceDuration > 15) {
             console.log('[Game Engine] Race stuck for', raceDuration, 'seconds, finishing it...');
             await this.finishRace(activeGame._id);
             // After finishing, generate new game (only if clients are still connected)
@@ -182,8 +191,25 @@ class GameEngine {
         status: { $in: ['waiting', 'predictions', 'racing'] },
       });
       if (existingGame) {
-        console.log('[Game Engine] Active game already exists, skipping generation');
-        return;
+        // If game is stuck in racing status for more than 15 seconds, finish it first (races should finish in 3-10s)
+        if (existingGame.status === 'racing' && existingGame.raceStartTime) {
+          const raceStartTime = new Date(existingGame.raceStartTime);
+          const now = new Date();
+          const raceDuration = (now - raceStartTime) / 1000; // seconds
+          
+          if (raceDuration > 15) {
+            console.log(`[Game Engine] Found stuck race (${raceDuration.toFixed(1)}s), finishing it before generating new game...`);
+            await this.finishRace(existingGame._id);
+            // Wait a moment for the finish to complete, then continue
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            console.log('[Game Engine] Active game already exists and is racing, skipping generation');
+            return;
+          }
+        } else if (existingGame.status !== 'finished') {
+          console.log(`[Game Engine] Active game already exists (status: ${existingGame.status}), skipping generation`);
+          return;
+        }
       }
 
       // Get active cars
