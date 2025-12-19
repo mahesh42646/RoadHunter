@@ -1010,9 +1010,17 @@ export default function Html5RaceGamePage() {
         const laneX = roadLeft + laneWidth * laneIndex;
         const segments = track.segments || ["regular", "regular", "regular"];
 
+        // Segments are drawn top-to-bottom (idx 0=top, 2=bottom)
+        // But backend segments are bottom-to-top (segment 0=start/bottom, 2=finish/top)
+        // Reverse the index when accessing terrain
         segments.forEach((terrain, idx) => {
+          // Visual position: idx 0 at top, idx 2 at bottom
           const y = trackTop + idx * segmentHeight;
           const segmentBottom = y + segmentHeight;
+          
+          // Backend segment index: reverse (idx 2 -> segment 0, idx 0 -> segment 2)
+          const backendSegmentIdx = segments.length - 1 - idx;
+          const actualTerrain = segments[backendSegmentIdx];
           
           // During predictions: check if segment is in visible area (bottom 30%)
           if (isPredictions) {
@@ -1039,7 +1047,7 @@ export default function Html5RaceGamePage() {
               if (drawHeight <= 0) return;
               
               // Draw visible part with terrain
-              const terrainKey = terrain === "hidden" ? "regular" : terrain;
+              const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
               const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
               const segmentPadding = Math.max(1, laneWidth * 0.02);
               ctx.fillStyle = terrainColor;
@@ -1052,7 +1060,7 @@ export default function Html5RaceGamePage() {
           const drawY = y;
           const drawHeight = segmentHeight;
           
-          const terrainKey = terrain === "hidden" ? "regular" : terrain;
+          const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
           const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
 
           // Responsive padding - scales with lane width
@@ -1439,9 +1447,16 @@ export default function Html5RaceGamePage() {
         }
         
         // Get current terrain for particle effects
-        const currentSegment = Math.floor((startY - currentY) / segmentHeight);
+        // Segments are drawn top-to-bottom (idx 0=top, 2=bottom)
+        // But backend segments are bottom-to-top (segment 0=start/bottom, 2=finish/top)
+        // So we need to reverse the index
+        const visualSegment = Math.floor((startY - currentY) / segmentHeight);
         const track = tracks[trackIndex];
-        const currentTerrain = track?.segments?.[currentSegment] || "regular";
+        const segmentCount = track?.segments?.length || 3;
+        // Reverse: visual segment 0 (top) = backend segment 2 (finish)
+        // visual segment 2 (bottom) = backend segment 0 (start)
+        const backendSegmentIndex = segmentCount - 1 - visualSegment;
+        const currentTerrain = track?.segments?.[backendSegmentIndex] || "regular";
         
         // Initialize particles for this car if not exists
         if (!particlesRef.current[carId]) {

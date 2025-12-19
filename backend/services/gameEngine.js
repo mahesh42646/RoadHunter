@@ -516,21 +516,24 @@ class GameEngine {
     return results;
   }
 
-  // Animate race progress - Fixed 10 second animation
+  // Animate race progress - Dynamic duration based on actual speeds (~10 seconds target)
   animateRace(game, results) {
-    // Fixed animation duration: exactly 10 seconds
-    const animationDuration = 10000; // 10 seconds exactly
+    // Find fastest car (lowest totalTime)
+    const fastestTime = Math.min(...results.map((r) => r.totalTime));
+    
+    // Dynamic animation duration: target ~10 seconds, but scale based on actual speeds
+    // If fastest car takes 8s, animation = 10s (normal speed)
+    // If fastest car takes 20s (all slow), animation = 20s (slower race)
+    // Clamp between 8s (very fast) and 15s (very slow) for reasonable viewing
+    const baseDuration = 10000; // 10 seconds base
+    const animationDuration = Math.max(8000, Math.min(15000, fastestTime * 1000));
     const updateInterval = 12; // Update every 12ms (~83fps for smooth movement)
     const totalUpdates = Math.ceil(animationDuration / updateInterval);
     let currentUpdate = 0;
     let raceFinished = false;
+    let winnerReached = false;
 
-    // Find fastest car (lowest totalTime) - this will finish at 10 seconds
-    const fastestTime = Math.min(...results.map((r) => r.totalTime));
-    // Scale factor: fastest car finishes in 10 seconds, others proportionally slower
-    const timeScale = fastestTime / 10; // How much to scale actual race times
-
-    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber} - Phase: racing (10s fixed), fastestTime: ${fastestTime.toFixed(2)}s`);
+    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber} - Duration: ${(animationDuration/1000).toFixed(1)}s, fastestTime: ${fastestTime.toFixed(2)}s`);
 
     // Send initial progress (cars at start line)
     const initialPositions = {};
@@ -558,46 +561,46 @@ class GameEngine {
 
       currentUpdate++;
       const progress = Math.min(currentUpdate / totalUpdates, 1);
-      // Animation time: 0 to 10 seconds (fixed)
-      const animationTime = progress * 10; // 0 to 10 seconds
+      // Animation time: 0 to animationDuration seconds
+      const animationTime = progress * (animationDuration / 1000); // in seconds
       
-      // Scale factor: fastest car finishes in 10 seconds
-      // If fastest car's actual time is fastestTime, scale = 10 / fastestTime
-      const timeScale = 10 / fastestTime;
+      // Scale animation time to match fastest car's actual time
+      // If fastest car takes fastestTime seconds, scale animationTime to match
+      const timeScale = fastestTime / (animationDuration / 1000);
+      const scaledAnimationTime = animationTime * timeScale;
 
       const carPositions = {};
-      let winnerReached = false;
       
-      // Calculate positions for all cars based on their own speeds
+      // Calculate positions for all cars based on their ACTUAL speeds per segment
       for (const result of results) {
-        // Scale the animation time to this car's actual race time
-        // If animationTime = 10s and this car takes 15s, its elapsedTime = 15s
-        // This ensures cars move at their correct relative speeds
-        const elapsedTime = animationTime * (result.totalTime / fastestTime);
+        // Use scaled animation time directly - this represents actual elapsed time
+        const elapsedTime = scaledAnimationTime;
         
         let distance = 0;
         let segmentProgress = 0;
         let currentSegment = 0;
 
+        // Calculate distance based on actual segment speeds (no additional scaling)
         for (let i = 0; i < result.segmentTimes.length; i++) {
-          // Use original segmentTime (already calculated based on car's speed for this terrain)
-          const segmentTime = result.segmentTimes[i];
+          const segmentTime = result.segmentTimes[i]; // Actual time for this segment
+          
           if (elapsedTime >= segmentProgress + segmentTime) {
-            distance += 100; // Completed segment
+            // Completed this segment
+            distance += 100; // 100m per segment
             segmentProgress += segmentTime;
             currentSegment = i + 1;
           } else {
-            // In current segment - calculate distance based on time spent in this segment
+            // Currently in this segment - calculate partial distance
             const timeInSegment = elapsedTime - segmentProgress;
-            // Speed for this segment = 100m / segmentTime (already accounts for terrain)
-            const speed = 100 / segmentTime; // m per second
+            // Speed for this segment = 100m / segmentTime (actual speed for this terrain)
+            const speed = 100 / segmentTime; // meters per second
             distance += speed * timeInSegment;
             break;
           }
         }
 
         const carIdStr = result.carId.toString();
-        const finalDistance = Math.min(distance, 300); // Cap at 300m
+        const finalDistance = Math.min(distance, 300); // Cap at 300m (finish line)
         const finalProgress = Math.min((finalDistance / 300) * 100, 100);
         
         carPositions[carIdStr] = {
@@ -609,6 +612,7 @@ class GameEngine {
         // Check if any car reached finish line (100% progress) - declare winner immediately
         if (finalProgress >= 100 && !winnerReached) {
           winnerReached = true;
+          console.log(`[Game Engine] Winner reached finish line! Car: ${carIdStr}, Progress: ${finalProgress.toFixed(1)}%`);
         }
       }
 
@@ -623,35 +627,45 @@ class GameEngine {
         progress: progress * 100,
       });
 
-      // Finish race immediately when any car reaches finish line
+      // Finish race ONLY when at least one car reaches finish line (100% progress)
       // But ensure at least 10 updates have been sent for smooth animation
       if (winnerReached && !raceFinished && currentUpdate >= 10) {
         raceFinished = true;
         clearInterval(this.raceAnimationInterval);
-        // Send final progress update with all cars at finish
-        const finalPositions = {};
-        results.forEach((result) => {
-          const carIdStr = result.carId.toString();
-          finalPositions[carIdStr] = {
-            distance: 300,
-            progress: 100,
-            segment: 3,
-          };
-        });
+        // Send final progress update with actual car positions (not all at 100%)
         this.io.emit('game:race_progress', {
           gameId: game._id.toString(),
-          carPositions: finalPositions,
+          carPositions,
           progress: 100,
         });
+        console.log(`[Game Engine] Race finished - winner reached finish line for game ${game.gameNumber}`);
         this.finishRace(game._id);
         return; // Exit interval callback
       }
 
-      // Finish race if animation completed (fallback, but winner should finish first)
+      // Finish race if animation completed AND at least one car reached finish
+      // This is a fallback in case winner detection didn't trigger
       if (currentUpdate >= totalUpdates && !raceFinished) {
-        raceFinished = true;
-        clearInterval(this.raceAnimationInterval);
-        this.finishRace(game._id);
+        // Check if any car actually reached 100%
+        const anyCarFinished = Object.values(carPositions).some((pos) => pos.progress >= 100);
+        
+        if (anyCarFinished) {
+          raceFinished = true;
+          clearInterval(this.raceAnimationInterval);
+          // Send final progress update with actual positions
+          this.io.emit('game:race_progress', {
+            gameId: game._id.toString(),
+            carPositions,
+            progress: 100,
+          });
+          console.log(`[Game Engine] Race animation completed - at least one car finished for game ${game.gameNumber}`);
+          this.finishRace(game._id);
+        } else {
+          // No car reached finish - log warning but don't finish yet
+          console.log(`[Game Engine] WARNING: Animation completed but no car reached finish line for game ${game.gameNumber}`);
+          // Extend animation by continuing (will check again next update)
+        }
+        return;
       }
     }, updateInterval);
   }
