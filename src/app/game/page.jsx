@@ -516,9 +516,9 @@ export default function Html5RaceGamePage() {
     const handleRaceProgress = (data) => {
       // Exact same logic as party game - simple and direct
       const currentGameId = game?._id?.toString();
-      if (data.gameId === currentGameId) {
+      if (data.gameId === currentGameId && gameStatus === "racing") {
         setRaceProgress(data.carPositions || {});
-        // Force re-render to update car positions (but don't set to null)
+        // Force re-render to update car positions
         setGame(prev => prev ? { ...prev } : prev);
       }
     };

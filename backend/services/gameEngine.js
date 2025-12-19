@@ -170,7 +170,22 @@ class GameEngine {
 
   // Generate a new game
   async generateNewGame() {
+    // Prevent multiple games from being generated simultaneously
+    if (this.currentGame) {
+      console.log('[Game Engine] Game generation already in progress, skipping...');
+      return;
+    }
+
     try {
+      // Check if there's already an active game
+      const existingGame = await Game.findOne({
+        status: { $in: ['waiting', 'predictions', 'racing'] },
+      });
+      if (existingGame) {
+        console.log('[Game Engine] Active game already exists, skipping generation');
+        return;
+      }
+
       // Get active cars
       const activeCars = await Car.find({ isActive: true });
       if (activeCars.length < 3) {
@@ -395,11 +410,15 @@ class GameEngine {
   // Animate race progress
   animateRace(game, results) {
     const maxTime = Math.max(...results.map((r) => r.totalTime));
-    const animationDuration = 10000; // 10 seconds (1/3 of original 30 seconds)
+    // Animation duration: cars finish in 1/3 of their actual time, so animation is shorter
+    // If maxTime is ~10 seconds, animation should be ~3-4 seconds
+    const animationDuration = Math.max(3000, Math.min(10000, (maxTime / 3) * 1000)); // 3-10 seconds
     const updateInterval = 33; // Update every 33ms (~30fps for smooth movement)
-    const totalUpdates = animationDuration / updateInterval;
+    const totalUpdates = Math.ceil(animationDuration / updateInterval);
     let currentUpdate = 0;
     let raceFinished = false;
+
+    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber}, duration: ${animationDuration}ms, maxTime: ${maxTime}s`);
 
     this.raceAnimationInterval = setInterval(() => {
       if (raceFinished) {
@@ -408,9 +427,11 @@ class GameEngine {
       }
 
       currentUpdate++;
-      const progress = currentUpdate / totalUpdates;
-      // Use progress to calculate elapsed time (0 to maxTime over 10 seconds)
-      const elapsedTime = progress * maxTime;
+      const progress = Math.min(currentUpdate / totalUpdates, 1);
+      // Scale elapsedTime by 3 to make cars move 3x faster through the track
+      // Progress goes 0-1 over animationDuration, but cars should finish in 1/3 of maxTime
+      // Cap at maxTime to prevent going beyond actual race completion
+      const elapsedTime = Math.min(progress * maxTime * 3, maxTime);
 
       const carPositions = {};
       let winnerReached = false;
@@ -422,8 +443,8 @@ class GameEngine {
         let currentSegment = 0;
 
         for (let i = 0; i < result.segmentTimes.length; i++) {
-          // Divide segmentTime by 3 to make cars move 3x faster
-          const segmentTime = result.segmentTimes[i] / 3;
+          // Use original segmentTime, but elapsedTime is already scaled by 3x
+          const segmentTime = result.segmentTimes[i];
           if (elapsedTime >= segmentProgress + segmentTime) {
             distance += 100; // Completed segment
             segmentProgress += segmentTime;
@@ -431,7 +452,7 @@ class GameEngine {
           } else {
             // In current segment
             const timeInSegment = elapsedTime - segmentProgress;
-            const speed = 100 / segmentTime; // m per second (already 3x faster due to segmentTime/3)
+            const speed = 100 / segmentTime; // m per second
             distance += speed * timeInSegment;
             break;
           }
@@ -453,7 +474,7 @@ class GameEngine {
         }
       }
 
-      // Emit progress update
+      // Emit progress update (always emit, even if winner reached)
       this.io.emit('game:race_progress', {
         gameId: game._id.toString(),
         carPositions,
@@ -461,9 +482,25 @@ class GameEngine {
       });
 
       // Finish race immediately when any car reaches finish line
-      if (winnerReached && !raceFinished) {
+      // But ensure at least 10 updates have been sent for smooth animation
+      if (winnerReached && !raceFinished && currentUpdate >= 10) {
         raceFinished = true;
         clearInterval(this.raceAnimationInterval);
+        // Send final progress update with all cars at finish
+        const finalPositions = {};
+        results.forEach((result) => {
+          const carIdStr = result.carId.toString();
+          finalPositions[carIdStr] = {
+            distance: 300,
+            progress: 100,
+            segment: 3,
+          };
+        });
+        this.io.emit('game:race_progress', {
+          gameId: game._id.toString(),
+          carPositions: finalPositions,
+          progress: 100,
+        });
         this.finishRace(game._id);
         return; // Exit interval callback
       }
