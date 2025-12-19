@@ -558,26 +558,45 @@ export default function Html5RaceGamePage() {
         setMyPredictions([]);
       }
 
-      setResultPhase(1);
-      setResultCountdown(2); // Show results for 2 seconds only
+      // Use fixed timing from backend: 3s phase 1 + 5s phase 2 = 8s total
+      const phase1Duration = data.game?.phaseTiming?.resultsPhase1Duration || 3000; // 3 seconds
+      const phase2Duration = data.game?.phaseTiming?.resultsPhase2Duration || 5000; // 5 seconds
+
+      setResultPhase(0); // Start with phase 0: user selections
+      setResultCountdown(Math.ceil(phase1Duration / 1000)); // 3 seconds
 
       if (resultPhaseTimeoutRef.current) clearTimeout(resultPhaseTimeoutRef.current);
       if (resultCountdownIntervalRef.current)
         clearInterval(resultCountdownIntervalRef.current);
 
-      // Phase 1: winner banner (1.5s)
-      resultPhaseTimeoutRef.current = setTimeout(() => {
-        setResultPhase(0);
-        setResultCountdown(1);
+      // Phase 0: User selections (3 seconds)
+      let countdown1 = Math.ceil(phase1Duration / 1000);
+      resultCountdownIntervalRef.current = setInterval(() => {
+        countdown1 -= 1;
+        setResultCountdown(countdown1);
+        if (countdown1 <= 0) {
+          clearInterval(resultCountdownIntervalRef.current);
+          resultCountdownIntervalRef.current = null;
+        }
+      }, 1000);
 
-        // Phase 0: your result (1s), then immediately load next game
-        resultPhaseTimeoutRef.current = setTimeout(() => {
-          // Backend starts new game after 500ms, so wait 1.5s total then load
-          setTimeout(() => {
+      resultPhaseTimeoutRef.current = setTimeout(() => {
+        setResultPhase(1); // Switch to phase 1: winner announcement
+        setResultCountdown(Math.ceil(phase2Duration / 1000)); // 5 seconds
+
+        // Phase 1: Winner announcement (5 seconds)
+        let countdown2 = Math.ceil(phase2Duration / 1000);
+        resultCountdownIntervalRef.current = setInterval(() => {
+          countdown2 -= 1;
+          setResultCountdown(countdown2);
+          if (countdown2 <= 0) {
+            clearInterval(resultCountdownIntervalRef.current);
+            resultCountdownIntervalRef.current = null;
+            // Backend starts new game after 8s, so load it
             loadActiveGame();
-          }, 1500);
+          }
         }, 1000);
-      }, 1500);
+      }, phase1Duration);
     };
 
     const handlePredictionCounts = (data) => {
@@ -1595,13 +1614,27 @@ export default function Html5RaceGamePage() {
           >
             {resultPhase === 1 && (
               <div className="text-center">
-                <div className="fs-5 fw-bold mb-1">🏆 Winning car</div>
-                <div className="fs-4 text-warning fw-bold mb-1">
-                  {winnerCar?.name || game.winnerName || "Unknown"}
+                <div className="fs-5 fw-bold mb-2">🏆 Winner</div>
+                <div className="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  {winnerCar?.sideViewImage && (
+                    <img
+                      src={winnerCar.sideViewImage}
+                      alt="Winner Car"
+                      style={{ width: "80px", height: "50px", objectFit: "contain" }}
+                    />
+                  )}
+                  <div className="fs-4 text-warning fw-bold">
+                    {winnerCar?.name || game.winnerName || "Unknown"}
+                  </div>
                 </div>
-                {isWinner && (
+                {isWinner && winningSelections.length > 0 && (
                   <div className="text-success fw-semibold">
-                    You picked the winning car!
+                    You have won {formatNumber(totalPayout)} coins for {winningSelections.length} selection{winningSelections.length > 1 ? "s" : ""} on winner car
+                  </div>
+                )}
+                {!isWinner && myPredictions.length > 0 && (
+                  <div className="text-danger fw-semibold">
+                    You lost {formatNumber(totalInvested)} coins
                   </div>
                 )}
               </div>
@@ -1609,46 +1642,34 @@ export default function Html5RaceGamePage() {
 
             {resultPhase === 0 && (
               <div className="text-center">
-                <div className="fs-5 fw-bold mb-1">
-                  {myPredictions.length
-                    ? isWinner
-                      ? "🎉 Correct prediction"
-                      : "Prediction missed"
-                    : "Race finished"}
-                </div>
-                {myPredictions.length > 0 && (
+                {myPredictions.length > 0 ? (
                   <>
-                    <div className="text-white-50 mb-1">
-                      Selections: {myPredictions.length} (
-                      {formatNumber(totalInvested)} coins)
+                    <div className="fs-5 fw-bold mb-2">
+                      You made {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} on car
                     </div>
-                    <div className={isWinner ? "text-success" : "text-danger"}>
-                      {isWinner
-                        ? `Virtual win: ${formatNumber(totalPayout)} coins`
-                        : `Virtual loss: ${formatNumber(
-                            totalInvested
-                          )} coins`}
+                    <div className="d-flex align-items-center justify-content-center gap-2 mb-2">
+                      {myPredictions[0]?.predictedCarId && (
+                        <>
+                          {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
+                            <img
+                              src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
+                              alt="Car"
+                              style={{ width: "60px", height: "40px", objectFit: "contain" }}
+                            />
+                          )}
+                          <div className="fs-4 text-warning fw-bold">
+                            {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
+                ) : (
+                  <div className="fs-5 fw-bold mb-1">No selections made</div>
                 )}
               </div>
             )}
 
-            {resultPhase === 2 && (
-              <div className="text-center">
-                <div className="fw-semibold mb-1">Next race starting in</div>
-                <div
-                  className="fw-bold"
-                  style={{
-                    fontSize: "2.4rem",
-                    color: "#38bdf8",
-                    textShadow: "0 0 16px rgba(56,189,248,0.8)",
-                  }}
-                >
-                  {resultCountdown}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

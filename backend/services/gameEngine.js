@@ -94,14 +94,24 @@ class GameEngine {
       if (activeGame) {
         console.log('[Game Engine] Active game exists:', activeGame.gameNumber, 'Status:', activeGame.status);
         
-        // Skip games that are already finished
+        // Skip games that are already finished (results phase should be max 8 seconds)
         if (activeGame.status === 'finished') {
-          console.log('[Game Engine] Active game is already finished, generating new game...');
-          // Generate new game immediately if old one is finished
-          if (this.connectedClients.size > 0) {
-            await this.generateNewGame();
+          const finishedTime = activeGame.raceEndTime ? new Date(activeGame.raceEndTime) : new Date(activeGame.updatedAt);
+          const now = new Date();
+          const timeSinceFinished = (now - finishedTime) / 1000; // seconds
+          
+          // If finished more than 8 seconds ago (results phase duration), start new game
+          if (timeSinceFinished > 8) {
+            console.log(`[Game Engine] Finished game ${activeGame.gameNumber} completed results phase (${timeSinceFinished.toFixed(1)}s ago), generating new game...`);
+            if (this.connectedClients.size > 0) {
+              await this.generateNewGame();
+            }
+            return;
+          } else {
+            // Still in results phase, wait for it to complete
+            console.log(`[Game Engine] Finished game ${activeGame.gameNumber} still in results phase (${timeSinceFinished.toFixed(1)}s / 8s)`);
+            return;
           }
-          return;
         }
 
         // If game is in racing state, check if animation is running
@@ -118,8 +128,8 @@ class GameEngine {
             return;
           }
           
-          // If game is stuck in racing state for more than 15 seconds, finish it (races should finish in 3-10s)
-          if (raceDuration > 15) {
+          // If game is stuck in racing state for more than 12 seconds, finish it (races should finish in exactly 10s)
+          if (raceDuration > 12) {
             console.log('[Game Engine] Race stuck for', raceDuration, 'seconds, finishing it...');
             await this.finishRace(activeGame._id);
             // After finishing, generate new game (only if clients are still connected)
@@ -134,14 +144,27 @@ class GameEngine {
         if (activeGame.status === 'predictions' && activeGame.predictionEndTime) {
           const endTime = new Date(activeGame.predictionEndTime);
           const now = new Date();
-          if (now > endTime) {
-            console.log('[Game Engine] Prediction time expired, locking predictions...');
+          const timeSinceEnd = (now - endTime) / 1000; // seconds
+          
+          if (timeSinceEnd > 0) {
+            console.log(`[Game Engine] Prediction time expired (${timeSinceEnd.toFixed(1)}s ago), locking predictions...`);
             await this.lockPredictions(activeGame._id);
-            setTimeout(() => {
+            
+            // If predictions were locked more than 5 seconds ago, start race immediately
+            if (timeSinceEnd > 5) {
+              console.log('[Game Engine] Countdown phase expired, starting race immediately...');
               if (this.connectedClients.size > 0) {
                 this.startRace(activeGame._id);
               }
-            }, 1000);
+            } else {
+              // Schedule race start after remaining countdown time
+              const remainingCountdown = 5000 - (timeSinceEnd * 1000);
+              setTimeout(() => {
+                if (this.connectedClients.size > 0) {
+                  this.startRace(activeGame._id);
+                }
+              }, Math.max(0, remainingCountdown));
+            }
             return;
           }
         }
@@ -233,9 +256,9 @@ class GameEngine {
         tracks.push({ segments });
       }
 
-      // Create game
+      // Create game with fixed timing: 15s predictions + 5s countdown + 10s race = 30s total
       const startTime = new Date();
-      const predictionEndTime = new Date(startTime.getTime() + 30000); // 30 seconds
+      const predictionEndTime = new Date(startTime.getTime() + 15000); // 15 seconds for predictions
 
       const game = await Game.create({
         gameNumber,
@@ -249,6 +272,9 @@ class GameEngine {
         predictionEndTime,
         totalPot: 0,
         totalPredictions: 0,
+        phaseStartTimes: {
+          predictions: startTime,
+        },
       });
 
       this.currentGame = game;
@@ -270,21 +296,17 @@ class GameEngine {
         },
       });
 
-      console.log(`[Game Engine] Game ${gameNumber} started`);
+      console.log(`[Game Engine] Game ${gameNumber} started - Phase: predictions (15s)`);
 
-      // Schedule prediction lock (30 seconds) - only if clients are still connected
-      setTimeout(() => {
+      // Schedule prediction lock (15 seconds) - only if clients are still connected
+      const predictionLockTimeout = setTimeout(() => {
         if (this.connectedClients.size > 0) {
           this.lockPredictions(game._id);
         }
-      }, 30000);
+      }, 15000);
 
-      // Schedule race start (35 seconds = 30s predictions + 5s delay) - only if clients are still connected
-      setTimeout(() => {
-        if (this.connectedClients.size > 0) {
-          this.startRace(game._id);
-        }
-      }, 35000); // Start race 5 seconds after predictions lock
+      // Store timeout for cleanup if needed
+      game.predictionLockTimeout = predictionLockTimeout;
     } catch (error) {
       console.error('[Game Engine] Error generating game:', error);
     }
@@ -322,6 +344,14 @@ class GameEngine {
         return;
       }
 
+      // Record phase end time
+      const predictionsEndTime = new Date();
+      if (!game.phaseStartTimes) game.phaseStartTimes = {};
+      if (!game.phaseEndTimes) game.phaseEndTimes = {};
+      game.phaseEndTimes.predictions = predictionsEndTime;
+      game.phaseStartTimes.countdown = predictionsEndTime;
+      await game.save();
+
       // Get final prediction counts
       const predictions = await Prediction.find({ gameId });
       const counts = {};
@@ -338,7 +368,17 @@ class GameEngine {
         totalPot: game.totalPot,
       });
 
-      console.log(`[Game Engine] Predictions locked for game ${game.gameNumber}`);
+      console.log(`[Game Engine] Predictions locked for game ${game.gameNumber} - Phase: countdown (5s)`);
+
+      // Schedule race start after 5 second countdown - only if clients are still connected
+      const raceStartTimeout = setTimeout(() => {
+        if (this.connectedClients.size > 0) {
+          this.startRace(gameId);
+        }
+      }, 5000); // 5 seconds countdown
+
+      // Store timeout for cleanup
+      game.raceStartTimeout = raceStartTimeout;
     } catch (error) {
       console.error('[Game Engine] Error locking predictions:', error);
     }
@@ -364,8 +404,16 @@ class GameEngine {
         this.raceAnimationInterval = null;
       }
 
+      // Record phase times
+      const countdownEndTime = new Date();
+      const raceStartTime = new Date();
+      if (!game.phaseStartTimes) game.phaseStartTimes = {};
+      if (!game.phaseEndTimes) game.phaseEndTimes = {};
+      game.phaseEndTimes.countdown = countdownEndTime;
+      game.phaseStartTimes.racing = raceStartTime;
+
       game.status = 'racing';
-      game.raceStartTime = new Date();
+      game.raceStartTime = raceStartTime;
       await game.save();
 
       // Calculate race results
@@ -451,18 +499,21 @@ class GameEngine {
     return results;
   }
 
-  // Animate race progress
+  // Animate race progress - Fixed 10 second animation
   animateRace(game, results) {
-    const maxTime = Math.max(...results.map((r) => r.totalTime));
-    // Animation duration: cars finish in 1/3 of their actual time, so animation is shorter
-    // If maxTime is ~10 seconds, animation should be ~3-4 seconds
-    const animationDuration = Math.max(3000, Math.min(10000, (maxTime / 3) * 1000)); // 3-10 seconds
-    const updateInterval = 33; // Update every 33ms (~30fps for smooth movement)
+    // Fixed animation duration: exactly 10 seconds
+    const animationDuration = 10000; // 10 seconds exactly
+    const updateInterval = 12; // Update every 12ms (~83fps for smooth movement)
     const totalUpdates = Math.ceil(animationDuration / updateInterval);
     let currentUpdate = 0;
     let raceFinished = false;
 
-    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber}, duration: ${animationDuration}ms, maxTime: ${maxTime}s, totalUpdates: ${totalUpdates}`);
+    // Find fastest car (lowest totalTime) - this will finish at 10 seconds
+    const fastestTime = Math.min(...results.map((r) => r.totalTime));
+    // Scale factor: fastest car finishes in 10 seconds, others proportionally slower
+    const timeScale = fastestTime / 10; // How much to scale actual race times
+
+    console.log(`[Game Engine] Starting race animation for game ${game.gameNumber} - Phase: racing (10s fixed), fastestTime: ${fastestTime.toFixed(2)}s`);
 
     // Send initial progress (cars at start line)
     const initialPositions = {};
@@ -490,10 +541,9 @@ class GameEngine {
 
       currentUpdate++;
       const progress = Math.min(currentUpdate / totalUpdates, 1);
-      // Scale elapsedTime by 3 to make cars move 3x faster through the track
-      // Progress goes 0-1 over animationDuration, but cars should finish in 1/3 of maxTime
-      // Cap at maxTime to prevent going beyond actual race completion
-      const elapsedTime = Math.min(progress * maxTime * 3, maxTime);
+      // Calculate elapsedTime: fastest car finishes in 10 seconds (when progress = 1)
+      // elapsedTime = progress * fastestTime means fastest car finishes at progress = 1
+      const elapsedTime = progress * fastestTime;
 
       const carPositions = {};
       let winnerReached = false;
@@ -505,7 +555,7 @@ class GameEngine {
         let currentSegment = 0;
 
         for (let i = 0; i < result.segmentTimes.length; i++) {
-          // Use original segmentTime, but elapsedTime is already scaled by 3x
+          // Use original segmentTime
           const segmentTime = result.segmentTimes[i];
           if (elapsedTime >= segmentProgress + segmentTime) {
             distance += 100; // Completed segment
@@ -667,11 +717,18 @@ class GameEngine {
         await loser.save();
       }
 
+      // Record phase times
+      const raceEndTime = new Date();
+      if (!game.phaseStartTimes) game.phaseStartTimes = {};
+      if (!game.phaseEndTimes) game.phaseEndTimes = {};
+      game.phaseEndTimes.racing = raceEndTime;
+      game.phaseStartTimes.results = raceEndTime;
+
       game.status = 'finished';
-      game.raceEndTime = new Date();
+      game.raceEndTime = raceEndTime;
       await game.save();
 
-      // Broadcast results
+      // Broadcast results with phase timing
       const winnerCar = game.winnerCarId;
       this.io.emit('game:finished', {
         game: {
@@ -691,28 +748,34 @@ class GameEngine {
           totalPredictions: predictions.length,
           winningSelectionsCount: winningSelections.length,
           payoutPerSelection: winningSelections.length > 0 ? parseFloat(payoutPerSelection.toFixed(2)) : 0,
+          phaseTiming: {
+            resultsPhase1Duration: 3000, // 3 seconds - user selections
+            resultsPhase2Duration: 5000, // 5 seconds - winner announcement
+          },
         },
       });
 
-      console.log(`[Game Engine] Race finished for game ${game.gameNumber}`);
+      console.log(`[Game Engine] Race finished for game ${game.gameNumber} - Phase: results (8s total: 3s selections + 5s winner)`);
       console.log(`[Game Engine] Winning selections: ${winningSelections.length}, Payout per selection: ${winningSelections.length > 0 ? payoutPerSelection.toFixed(2) : 0}`);
 
       this.currentGame = null;
 
-      // Start next game immediately (minimal gap - 500ms for event processing)
+      // Start next game after results phases (3s + 5s = 8s total)
       // Only start next game if clients are still connected
-      console.log('[Game Engine] Starting next game in 500ms...');
+      console.log('[Game Engine] Starting next game in 8s (after results phases)...');
       if (this.connectedClients.size > 0) {
-        // Minimal delay to ensure race finish event is processed, then start new game
-        setTimeout(() => {
+        const nextGameTimeout = setTimeout(() => {
           if (this.connectedClients.size > 0) {
-            // Directly generate new game instead of going through runGameCycle check
+            // Directly generate new game
             this.generateNewGame();
           } else {
             console.log('[Game Engine] No clients connected, waiting for clients before starting next game...');
             this.isWaitingForClients = true;
           }
-        }, 500); // 500ms delay to ensure race finish is broadcast
+        }, 8000); // 8 seconds: 3s phase 1 + 5s phase 2
+
+        // Store timeout for cleanup
+        game.nextGameTimeout = nextGameTimeout;
       } else {
         console.log('[Game Engine] No clients connected, waiting for clients before starting next game...');
         this.isWaitingForClients = true;
