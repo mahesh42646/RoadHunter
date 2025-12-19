@@ -402,10 +402,10 @@ export default function Html5RaceGamePage() {
         setTimeRemaining(0);
         setPredictionCounts({});
         setMyPredictions([]);
-        // Poll again after a short delay to catch new game quickly
+        // Poll aggressively (every 500ms) to catch new game immediately
         setTimeout(() => {
           loadActiveGame();
-        }, 2000);
+        }, 500);
       }
     } catch (err) {
       console.error("[Html5RaceGame] Failed to load active game", err);
@@ -552,33 +552,25 @@ export default function Html5RaceGamePage() {
       }
 
       setResultPhase(1);
-      setResultCountdown(10);
+      setResultCountdown(2); // Show results for 2 seconds only
 
       if (resultPhaseTimeoutRef.current) clearTimeout(resultPhaseTimeoutRef.current);
       if (resultCountdownIntervalRef.current)
         clearInterval(resultCountdownIntervalRef.current);
 
-      // Phase 1: winner banner (10s)
+      // Phase 1: winner banner (1.5s)
       resultPhaseTimeoutRef.current = setTimeout(() => {
         setResultPhase(0);
-        setResultCountdown(10);
+        setResultCountdown(1);
 
-        // Phase 0: your result (10s)
+        // Phase 0: your result (1s), then immediately load next game
         resultPhaseTimeoutRef.current = setTimeout(() => {
-          setResultPhase(2);
-          let count = 10;
-          setResultCountdown(count);
-          resultCountdownIntervalRef.current = setInterval(() => {
-            count -= 1;
-            setResultCountdown(count);
-            if (count <= 0) {
-              clearInterval(resultCountdownIntervalRef.current);
-              resultCountdownIntervalRef.current = null;
-              loadActiveGame();
-            }
-          }, 1000);
-        }, 10_000);
-      }, 10_000);
+          // Backend starts new game after 500ms, so wait 1.5s total then load
+          setTimeout(() => {
+            loadActiveGame();
+          }, 1500);
+        }, 1000);
+      }, 1500);
     };
 
     const handlePredictionCounts = (data) => {

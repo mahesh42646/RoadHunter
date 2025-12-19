@@ -409,18 +409,21 @@ class GameEngine {
 
       currentUpdate++;
       const progress = currentUpdate / totalUpdates;
+      // Use progress to calculate elapsed time (0 to maxTime over 10 seconds)
       const elapsedTime = progress * maxTime;
 
       const carPositions = {};
       let winnerReached = false;
       
-      results.forEach((result) => {
+      // Calculate positions for all cars
+      for (const result of results) {
         let distance = 0;
         let segmentProgress = 0;
         let currentSegment = 0;
 
         for (let i = 0; i < result.segmentTimes.length; i++) {
-          const segmentTime = result.segmentTimes[i];
+          // Divide segmentTime by 3 to make cars move 3x faster
+          const segmentTime = result.segmentTimes[i] / 3;
           if (elapsedTime >= segmentProgress + segmentTime) {
             distance += 100; // Completed segment
             segmentProgress += segmentTime;
@@ -428,7 +431,7 @@ class GameEngine {
           } else {
             // In current segment
             const timeInSegment = elapsedTime - segmentProgress;
-            const speed = 100 / segmentTime; // m per second
+            const speed = 100 / segmentTime; // m per second (already 3x faster due to segmentTime/3)
             distance += speed * timeInSegment;
             break;
           }
@@ -444,12 +447,13 @@ class GameEngine {
           segment: currentSegment,
         };
 
-        // Check if any car reached finish line (100% progress)
+        // Check if any car reached finish line (100% progress) - declare winner immediately
         if (finalProgress >= 100 && !winnerReached) {
           winnerReached = true;
         }
-      });
+      }
 
+      // Emit progress update
       this.io.emit('game:race_progress', {
         gameId: game._id.toString(),
         carPositions,
@@ -457,7 +461,15 @@ class GameEngine {
       });
 
       // Finish race immediately when any car reaches finish line
-      if (winnerReached || currentUpdate >= totalUpdates) {
+      if (winnerReached && !raceFinished) {
+        raceFinished = true;
+        clearInterval(this.raceAnimationInterval);
+        this.finishRace(game._id);
+        return; // Exit interval callback
+      }
+
+      // Finish race if animation completed (fallback, but winner should finish first)
+      if (currentUpdate >= totalUpdates && !raceFinished) {
         raceFinished = true;
         clearInterval(this.raceAnimationInterval);
         this.finishRace(game._id);
@@ -584,19 +596,20 @@ class GameEngine {
 
       this.currentGame = null;
 
-      // Start next game immediately (no gap between games)
+      // Start next game immediately (minimal gap - 500ms for event processing)
       // Only start next game if clients are still connected
-      console.log('[Game Engine] Starting next game immediately...');
+      console.log('[Game Engine] Starting next game in 500ms...');
       if (this.connectedClients.size > 0) {
-        // Small delay to ensure race finish event is processed, then start new game
+        // Minimal delay to ensure race finish event is processed, then start new game
         setTimeout(() => {
           if (this.connectedClients.size > 0) {
-            this.runGameCycle();
+            // Directly generate new game instead of going through runGameCycle check
+            this.generateNewGame();
           } else {
             console.log('[Game Engine] No clients connected, waiting for clients before starting next game...');
             this.isWaitingForClients = true;
           }
-        }, 1000); // 1 second delay to ensure race finish is broadcast
+        }, 500); // 500ms delay to ensure race finish is broadcast
       } else {
         console.log('[Game Engine] No clients connected, waiting for clients before starting next game...');
         this.isWaitingForClients = true;
