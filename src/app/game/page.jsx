@@ -13,6 +13,7 @@ import {
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
+import Game3D from "./Game3D";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
@@ -1833,14 +1834,12 @@ export default function Html5RaceGamePage() {
             flex: "1 1 auto", // Grow and shrink as needed
           }}
         >
-          <canvas
-            ref={raceCanvasRef}
-            style={{
-              display: "block",
-              width: "100%",
-              height: "100%",
-              background: "#1f9d55",
-            }}
+          <Game3D
+            game={game}
+            raceProgress={raceProgress}
+            gameStatus={gameStatus}
+            tracks={game?.tracks || []}
+            cars={game?.cars || []}
           />
 
           {raceStartCountdown > 0 && gameStatus !== "racing" && (
