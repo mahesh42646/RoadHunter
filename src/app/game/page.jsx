@@ -1755,7 +1755,7 @@ export default function Html5RaceGamePage() {
       : 0;
   }, [myTotalSelections, totalSelections, winnerPool]);
 
-  const getCarById = (carId) => {
+  const getCarById = useCallback((carId) => {
     if (!carId || !game?.cars) return null;
     const found = game.cars.find(
       (c) =>
@@ -1763,7 +1763,7 @@ export default function Html5RaceGamePage() {
         c.carId?.toString() === carId.toString()
     );
     return found?.carId;
-  };
+  }, [game?.cars]);
 
   if (loading && !game) {
     return (
@@ -1771,8 +1771,8 @@ export default function Html5RaceGamePage() {
         className="d-flex align-items-center justify-content-center"
         style={{ minHeight: 400 }}
       >
-        <div className="text-center text-white-50">
-          <div className="spinner-border text-primary mb-3" role="status" />
+        <div className="text-center" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+          <div className="spinner-border mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }} role="status" />
           <p>Loading game...</p>
         </div>
       </div>
@@ -1786,10 +1786,10 @@ export default function Html5RaceGamePage() {
         className="d-flex align-items-center justify-content-center"
         style={{ minHeight: 400 }}
       >
-        <div className="text-center text-white-50">
-          <div className="spinner-border text-primary mb-3" role="status" />
+        <div className="text-center" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+          <div className="spinner-border mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }} role="status" />
           <p>Waiting for next race...</p>
-          <p className="small text-white-50 mt-2">
+          <p className="small mt-2" style={{ color: "var(--text-dim, #7a85a3)" }}>
             A new race will start automatically
           </p>
         </div>
@@ -1827,7 +1827,8 @@ export default function Html5RaceGamePage() {
         margin: 0,
         padding: 0,
         boxSizing: "border-box",
-        background: "#020617",
+        background: "var(--bg-darker, #050810)",
+        fontFamily: "var(--font-space-grotesk), 'Poppins', 'Segoe UI', system-ui, sans-serif",
       }}
     >
       {/* Responsive canvas container - maintains vertical aspect ratio */}
@@ -1854,41 +1855,56 @@ export default function Html5RaceGamePage() {
 
       {/* Minimal header overlay - top right */}
       <div
-        className="position-absolute"
+        className="position-absolute glass-card"
         style={{
           top: "clamp(0.5rem, 1vw, 1rem)",
           right: "clamp(0.5rem, 1vw, 1rem)",
           zIndex: 10,
-          background: "#0f172a",
           borderRadius: "0.75rem",
           padding: "clamp(0.5rem, 1vw, 0.75rem)",
-          border: "1px solid #475569",
         }}
       >
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <div className="d-flex align-items-center gap-1">
-            <span className="badge bg-primary bg-gradient small">
+            <span 
+              className="badge small"
+              style={{
+                background: "linear-gradient(135deg, var(--accent, #ca0000) 0%, var(--accent-tertiary, #ce0000) 100%)",
+                color: "var(--text-primary, #ffffff)",
+                boxShadow: "0 0 10px var(--glow-pink, rgba(200, 0, 100, 0.4))",
+              }}
+            >
               Game&nbsp;#{game.gameNumber}
             </span>
           </div>
           {gameStatus === "predictions" && (
             <Badge
-              bg={
-                timeRemaining > 10
-                  ? "success"
-                  : timeRemaining > 5
-                  ? "warning"
-                  : "danger"
-              }
               className="small"
+              style={{
+                background: timeRemaining > 10
+                  ? "rgba(0, 245, 255, 0.2)"
+                  : timeRemaining > 5
+                  ? "rgba(255, 193, 7, 0.2)"
+                  : "rgba(202, 0, 0, 0.2)",
+                color: timeRemaining > 10
+                  ? "var(--accent-secondary, #00f5ff)"
+                  : timeRemaining > 5
+                  ? "#ffc107"
+                  : "var(--accent, #ca0000)",
+                border: `1px solid ${timeRemaining > 10
+                  ? "var(--accent-secondary, #00f5ff)"
+                  : timeRemaining > 5
+                  ? "#ffc107"
+                  : "var(--accent, #ca0000)"}`,
+              }}
             >
               <BsClock className="me-1" />
               {timeRemaining}s
             </Badge>
           )}
           <div className="d-flex align-items-center gap-1 small">
-            <BsCoin className="text-warning" />
-            <span className="fw-semibold text-warning">
+            <BsCoin style={{ color: "var(--accent-secondary, #00f5ff)" }} />
+            <span className="fw-semibold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
               {formatNumber(totalPot)}
             </span>
           </div>
@@ -1907,7 +1923,16 @@ export default function Html5RaceGamePage() {
             maxWidth: "90%",
           }}
         >
-          <div className="alert alert-danger py-2 small mb-0" role="alert">
+          <div 
+            className="alert py-2 small mb-0" 
+            role="alert"
+            style={{
+              background: "rgba(202, 0, 0, 0.2)",
+              border: "1px solid var(--accent, #ca0000)",
+              color: "var(--text-primary, #ffffff)",
+              borderRadius: "0.5rem",
+            }}
+          >
             {error}
           </div>
         </div>
@@ -1921,22 +1946,23 @@ export default function Html5RaceGamePage() {
         keyboard={false}
         centered
         size="md"
-        contentClassName="bg-black border border-secondary"
+        contentClassName="glass-card"
+        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
-        <Modal.Header className="bg-black border-secondary">
-          <Modal.Title className="text-white w-100 text-center">
+        <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <Modal.Title className="w-100 text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
             <div className="fw-semibold mb-2" style={{ fontSize: "clamp(1rem, 2vw, 1.25rem)" }}>
               Race Starting In
             </div>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-black text-center">
+        <Modal.Body className="text-center" style={{ background: "transparent" }}>
           <div
             style={{
               fontSize: "clamp(3rem, 12vw, 6rem)",
               fontWeight: 800,
-              color: "#38bdf8",
-              textShadow: "0 0 20px rgba(56,189,248,0.9)",
+              color: "var(--accent-secondary, #00f5ff)",
+              textShadow: "0 0 30px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
               lineHeight: 1,
               padding: "clamp(1rem, 3vw, 2rem) 0",
             }}
@@ -1949,17 +1975,17 @@ export default function Html5RaceGamePage() {
       {/* Live indicator */}
       {gameStatus === "racing" && (
         <div
-          className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1"
+          className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1 glass-card"
           style={{
             zIndex: 10,
-            background: "#0f172a",
-            border: "1px solid #60a5fa",
+            border: "1px solid var(--accent-secondary, #00f5ff)",
             padding: "clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem)",
             fontSize: "clamp(0.7rem, 1.5vw, 0.875rem)",
+            boxShadow: "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
           }}
         >
-          <span className="text-primary fw-bold">LIVE</span>
-          <span className="text-white-50">Vertical street race</span>
+          <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>LIVE</span>
+          <span style={{ color: "var(--text-muted, #a8b3d0)" }}>Vertical street race</span>
         </div>
       )}
 
@@ -1971,26 +1997,37 @@ export default function Html5RaceGamePage() {
         keyboard={false}
         centered
         size="md"
-        contentClassName="bg-black border border-secondary"
+        contentClassName="glass-card"
+        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
-        <Modal.Header className="bg-black border-secondary">
-          <Modal.Title className="text-white w-100">
+        <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <Modal.Title className="w-100" style={{ color: "var(--text-primary, #ffffff)" }}>
             <div className="d-flex align-items-center justify-content-between w-100">
               <div className="d-flex align-items-center gap-2">
                 <span>🏁</span>
                 <span>Select Your Car</span>
               </div>
               <div className="d-flex align-items-center gap-2">
-                <small className="text-white-50">Game #{game.gameNumber}</small>
+                <small style={{ color: "var(--text-muted, #a8b3d0)" }}>Game #{game.gameNumber}</small>
                 {timeRemaining > 0 && (
                   <Badge
-                    bg={
-                      timeRemaining > 10
-                        ? "success"
+                    style={{
+                      background: timeRemaining > 10
+                        ? "rgba(0, 245, 255, 0.2)"
                         : timeRemaining > 5
-                        ? "warning"
-                        : "danger"
-                    }
+                        ? "rgba(255, 193, 7, 0.2)"
+                        : "rgba(202, 0, 0, 0.2)",
+                      color: timeRemaining > 10
+                        ? "var(--accent-secondary, #00f5ff)"
+                        : timeRemaining > 5
+                        ? "#ffc107"
+                        : "var(--accent, #ca0000)",
+                      border: `1px solid ${timeRemaining > 10
+                        ? "var(--accent-secondary, #00f5ff)"
+                        : timeRemaining > 5
+                        ? "#ffc107"
+                        : "var(--accent, #ca0000)"}`,
+                    }}
                   >
                     <BsClock className="me-1" />
                     {timeRemaining}s
@@ -2000,7 +2037,7 @@ export default function Html5RaceGamePage() {
             </div>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-black">
+        <Modal.Body style={{ background: "transparent" }}>
           <div
             className="d-flex overflow-auto px-2 py-2"
             style={{ gap: "0.75rem", maxHeight: "50vh" }}
@@ -2031,14 +2068,15 @@ export default function Html5RaceGamePage() {
                         borderRadius: "0.75rem",
                         cursor: disabled ? "default" : "pointer",
                         background: hasSelections
-                          ? "linear-gradient(135deg, rgba(59,130,246,0.3), rgba(147,51,234,0.35))"
-                          : "radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.95))",
+                          ? "linear-gradient(135deg, var(--glow-pink, rgba(200, 0, 100, 0.3)), var(--glow-cyan, rgba(0, 245, 255, 0.3)))"
+                          : "rgba(20, 27, 45, 0.6)",
                         border: hasSelections
-                          ? "1px solid rgba(56,189,248,0.8)"
-                          : "1px solid rgba(75,85,99,0.9)",
+                          ? "1px solid var(--accent-secondary, #00f5ff)"
+                          : "1px solid rgba(255, 255, 255, 0.1)",
                         boxShadow: hasSelections
-                          ? "0 0 18px rgba(59,130,246,0.5)"
+                          ? "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))"
                           : "none",
+                        backdropFilter: "blur(10px)",
                       }}
                       onClick={() => {
                         if (disabled) return;
@@ -2076,19 +2114,19 @@ export default function Html5RaceGamePage() {
                           />
                         )}
                       </div>
-                      <div className="fw-semibold small mb-1 text-truncate">
+                      <div className="fw-semibold small mb-1 text-truncate" style={{ color: "var(--text-primary, #ffffff)" }}>
                         {car.name}
                       </div>
-                      <div className="text-white-50" style={{ fontSize: 11 }}>
+                      <div style={{ color: "var(--text-muted, #a8b3d0)", fontSize: 11 }}>
                         Speed: {car.speedRegular}/{car.speedDesert}/
                         {car.speedMuddy}
                       </div>
                       <div className="d-flex justify-content-between align-items-center mt-1 small">
-                        <div className="d-flex align-items-center gap-1 text-white-50">
+                        <div className="d-flex align-items-center gap-1" style={{ color: "var(--text-muted, #a8b3d0)" }}>
                           <BsPeople />
                           <span>{count}</span>
                         </div>
-                        <div className="d-flex align-items-center gap-1 text-warning">
+                        <div className="d-flex align-items-center gap-1" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                           <BsCoin />
                           <span>{count * 100}</span>
                         </div>
@@ -2128,8 +2166,8 @@ export default function Html5RaceGamePage() {
             </div>
 
             {myPredictions.length > 0 && (
-              <div className="px-3 pb-2 small text-center text-white-50 mt-3">
-                <span className="text-success fw-semibold">
+              <div className="px-3 pb-2 small text-center mt-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                <span className="fw-semibold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                   {myPredictions.length} selection
                   {myPredictions.length > 1 ? "s" : ""} placed
                 </span>
@@ -2137,7 +2175,7 @@ export default function Html5RaceGamePage() {
                   ({myPredictions.length * 100} coins used)
                 </span>
                 {potentialPayout > 0 && (
-                  <span className="ms-2 text-warning">
+                  <span className="ms-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                     Potential payout: {formatNumber(potentialPayout)} coins
                   </span>
                 )}
@@ -2154,20 +2192,21 @@ export default function Html5RaceGamePage() {
         keyboard={false}
         centered
         size="md"
-        contentClassName="bg-black border border-secondary"
+        contentClassName="glass-card"
+        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
-        <Modal.Header className="bg-black border-secondary">
-          <Modal.Title className="text-white">
+        <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <Modal.Title style={{ color: "var(--text-primary, #ffffff)" }}>
             <div className="d-flex align-items-center gap-2">
               <span>🏆</span>
               <span>Race Results</span>
             </div>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-black text-center">
+        <Modal.Body className="text-center" style={{ background: "transparent" }}>
           {resultPhase === 1 && (
             <>
-              <div className="fs-5 fw-bold mb-3">Winner</div>
+              <div className="fs-5 fw-bold mb-3" style={{ color: "var(--text-primary, #ffffff)" }}>Winner</div>
               <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
                 {winnerCar?.sideViewImage && (
                   <img
@@ -2176,22 +2215,22 @@ export default function Html5RaceGamePage() {
                     style={{ width: "100px", height: "60px", objectFit: "contain" }}
                   />
                 )}
-                <div className="fs-3 text-warning fw-bold">
+                <div className="fs-3 fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                   {winnerCar?.name || game.winnerName || "Unknown"}
                 </div>
               </div>
               {isWinner && winningSelections.length > 0 && (
-                <div className="text-success fw-semibold fs-5 mb-2">
+                <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                   🎉 You won {formatNumber(totalPayout)} coins!
                 </div>
               )}
               {!isWinner && myPredictions.length > 0 && (
-                <div className="text-danger fw-semibold fs-5 mb-2">
+                <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
                   You lost {formatNumber(totalInvested)} coins
                 </div>
               )}
               {resultCountdown > 0 && (
-                <div className="text-white-50 small mt-3">
+                <div className="small mt-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
                   Next race in {resultCountdown}s
                 </div>
               )}
@@ -2202,7 +2241,7 @@ export default function Html5RaceGamePage() {
             <>
               {myPredictions.length > 0 ? (
                 <>
-                  <div className="fs-5 fw-bold mb-3">
+                  <div className="fs-5 fw-bold mb-3" style={{ color: "var(--text-primary, #ffffff)" }}>
                     Your Selections
                   </div>
                   <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
@@ -2215,18 +2254,18 @@ export default function Html5RaceGamePage() {
                             style={{ width: "80px", height: "50px", objectFit: "contain" }}
                           />
                         )}
-                        <div className="fs-4 text-warning fw-bold">
+                        <div className="fs-4 fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                           {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
                         </div>
                       </>
                     )}
                   </div>
-                  <div className="text-white-50">
+                  <div style={{ color: "var(--text-muted, #a8b3d0)" }}>
                     {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
                   </div>
                 </>
               ) : (
-                <div className="fs-5 fw-bold mb-1">No selections made</div>
+                <div className="fs-5 fw-bold mb-1" style={{ color: "var(--text-primary, #ffffff)" }}>No selections made</div>
               )}
             </>
           )}
