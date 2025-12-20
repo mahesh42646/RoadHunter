@@ -859,18 +859,65 @@ export default function Html5RaceGamePage() {
       const rect = parent.getBoundingClientRect();
       // Use computed style to get actual height if rect is 0
       const computedStyle = window.getComputedStyle(parent);
-      const parentWidth = rect.width || parseFloat(computedStyle.width) || 400;
-      const parentHeight = rect.height || parseFloat(computedStyle.height) || 600;
+      let containerWidth = rect.width || parseFloat(computedStyle.width) || 400;
+      let containerHeight = rect.height || parseFloat(computedStyle.height) || 600;
       
-      const width = Math.max(parentWidth, 300);
-      const height = Math.max(parentHeight, 200);
+      // Account for padding in container (clamp(0.5rem, 2vw, 1rem) on each side)
+      const padding = Math.max(16, Math.min(containerWidth * 0.02, 16)); // ~1rem max
+      containerWidth = Math.max(containerWidth - padding * 2, 300);
+      containerHeight = Math.max(containerHeight - padding * 2, 360);
+      
+      // Target aspect ratio: height should be more than width (vertical game)
+      // Minimum aspect ratio: 1.2:1 (height is 20% more than width)
+      // Ideal aspect ratio: 1.6:1 for vertical racing
+      const minAspectRatio = 1.2; // Height must be at least 1.2x width
+      const idealAspectRatio = 1.6; // Ideal ratio for vertical racing
+      
+      let canvasWidth, canvasHeight;
+      
+      // Calculate optimal size maintaining vertical aspect ratio
+      if (containerHeight / containerWidth >= minAspectRatio) {
+        // Container is tall enough, use full available width
+        canvasWidth = containerWidth;
+        canvasHeight = containerHeight;
+      } else {
+        // Container is too wide/square, maintain aspect ratio with side spacing
+        // Calculate width based on height to maintain aspect ratio
+        canvasHeight = containerHeight;
+        canvasWidth = containerHeight / idealAspectRatio;
+        
+        // Don't exceed container width
+        if (canvasWidth > containerWidth) {
+          canvasWidth = containerWidth;
+          canvasHeight = canvasWidth * idealAspectRatio;
+        }
+      }
+      
+      // Ensure minimum dimensions
+      canvasWidth = Math.max(canvasWidth, 300);
+      canvasHeight = Math.max(canvasHeight, 360); // 300 * 1.2 minimum
+      
+      // Ensure height is always more than width (critical for vertical game)
+      if (canvasHeight <= canvasWidth) {
+        canvasHeight = canvasWidth * minAspectRatio;
+      }
+      
       const dpr = window.devicePixelRatio || 1;
       
-      if (width > 0 && height > 0) {
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
+      if (canvasWidth > 0 && canvasHeight > 0) {
+        canvas.width = canvasWidth * dpr;
+        canvas.height = canvasHeight * dpr;
+        canvas.style.width = `${canvasWidth}px`;
+        canvas.style.height = `${canvasHeight}px`;
+        
+        // Center canvas if container is wider than needed
+        if (containerWidth > canvasWidth) {
+          canvas.style.marginLeft = 'auto';
+          canvas.style.marginRight = 'auto';
+        } else {
+          canvas.style.marginLeft = '0';
+          canvas.style.marginRight = '0';
+        }
         
         // Reset transform and scale for high DPI
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1772,10 +1819,10 @@ export default function Html5RaceGamePage() {
     <div
       className="position-relative"
       style={{
-        // Full height since this component will be used in a parent page
-        height: "100vh",
+        // Full height/width to adapt to parent container
+        height: "100%",
         width: "100%",
-        maxWidth: "100%",
+        minHeight: "400px", // Minimum height for proper display
         overflow: "hidden", // Prevent any scrolling
         margin: 0,
         padding: 0,
@@ -1783,23 +1830,23 @@ export default function Html5RaceGamePage() {
         background: "#020617",
       }}
     >
-      {/* Full screen canvas */}
+      {/* Responsive canvas container - maintains vertical aspect ratio */}
       <div
-        className="position-absolute w-100 h-100"
+        className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
         style={{
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
           zIndex: 1,
+          padding: "clamp(0.5rem, 2vw, 1rem)",
+          boxSizing: "border-box",
         }}
       >
         <canvas
           ref={raceCanvasRef}
           style={{
             display: "block",
-            width: "100%",
-            height: "100%",
             background: "#1f9d55",
           }}
         />
