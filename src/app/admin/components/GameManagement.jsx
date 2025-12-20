@@ -62,6 +62,11 @@ export default function GameManagement({ adminToken }) {
           Authorization: `Bearer ${adminToken}`,
           // Don't set Content-Type - let axios set it automatically with boundary
         },
+        timeout: 60000, // 60 seconds timeout for large files
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`Upload progress (${type}): ${percentCompleted}%`);
+        },
       });
       if (!response.data || !response.data.imageUrl) {
         throw new Error("Invalid response from server");
@@ -69,6 +74,12 @@ export default function GameManagement({ adminToken }) {
       return response.data.imageUrl;
     } catch (error) {
       console.error(`Error uploading ${type} image:`, error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code,
+      });
       const errorMessage = error.response?.data?.error || 
                           error.message || 
                           `Failed to upload ${type} image. Please try again.`;
