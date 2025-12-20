@@ -38,21 +38,33 @@ router.post('/login', async (req, res, next) => {
     }
 
     // Update last login
-    admin.lastLogin = new Date();
-    await admin.save();
+    try {
+      admin.lastLogin = new Date();
+      await admin.save();
+    } catch (saveError) {
+      console.error('[Admin Login] Error saving last login:', saveError);
+      // Continue with login even if saving last login fails
+    }
 
     // Generate JWT token for admin (separate from user tokens)
-    const token = jwt.sign(
-      { 
-        sub: admin._id.toString(), 
-        email: admin.email,
-        type: 'admin' // Distinguish admin tokens from user tokens
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    let token;
+    try {
+      token = jwt.sign(
+        { 
+          sub: admin._id.toString(), 
+          email: admin.email,
+          type: 'admin' // Distinguish admin tokens from user tokens
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+    } catch (tokenError) {
+      console.error('[Admin Login] Error generating token:', tokenError);
+      return res.status(500).json({ error: 'Failed to generate authentication token' });
+    }
 
-    res.json({
+    // Prepare response data
+    const responseData = {
       message: 'Login successful',
       token,
       admin: {
@@ -60,8 +72,11 @@ router.post('/login', async (req, res, next) => {
         email: admin.email,
         name: admin.name,
       },
-    });
+    };
+
+    res.json(responseData);
   } catch (error) {
+    console.error('[Admin Login] Unexpected error:', error);
     next(error);
   }
 });

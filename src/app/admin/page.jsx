@@ -52,11 +52,33 @@ export default function AdminPage() {
   // Handle login
   const handleLogin = async (loginData) => {
     try {
+      if (!loginData) {
+        throw new Error("No login data provided");
+      }
+      
       const { token, admin: adminData } = loginData;
+      
+      if (!token) {
+        throw new Error("No token provided");
+      }
+      
+      if (!adminData) {
+        throw new Error("No admin data provided");
+      }
+      
+      // Validate admin data structure
+      if (!adminData._id || !adminData.email) {
+        throw new Error("Invalid admin data structure");
+      }
+      
+      // Save to localStorage
       localStorage.setItem("adminToken", token);
       localStorage.setItem("adminData", JSON.stringify(adminData));
+      
+      // Update auth store
       setAdminAuth(token, adminData);
     } catch (error) {
+      console.error("[AdminPage] Error in handleLogin:", error);
       throw error;
     }
   };

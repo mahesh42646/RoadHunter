@@ -16,10 +16,30 @@ export default function AdminLogin({ onLogin }) {
 
     try {
       const response = await adminApiClient.post("/admin/login", formData);
+      
+      // Validate response structure
+      if (!response.data) {
+        throw new Error("Invalid response from server");
+      }
+      
       const { token, admin } = response.data;
-      await onLogin({ token, admin });
+      
+      // Validate required fields
+      if (!token || !admin) {
+        throw new Error("Missing token or admin data in response");
+      }
+      
+      // Call onLogin and handle any errors it might throw
+      try {
+        await onLogin({ token, admin });
+      } catch (loginError) {
+        console.error("[AdminLogin] Error in onLogin callback:", loginError);
+        throw new Error(loginError.message || "Failed to complete login process");
+      }
     } catch (err) {
-      setError(err.response?.data?.error || err.message || "Login failed");
+      console.error("[AdminLogin] Login error:", err);
+      const errorMessage = err.response?.data?.error || err.message || "Login failed. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
