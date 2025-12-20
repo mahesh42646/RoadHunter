@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { Badge, Button } from "react-bootstrap";
 import {
@@ -13,7 +13,6 @@ import {
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
-import Game3D from "./Game3D";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
@@ -53,40 +52,6 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
   ctx.lineTo(x, y + radius);
   ctx.quadraticCurveTo(x, y, x + radius, y);
   ctx.closePath();
-}
-
-// 3D Perspective calculation
-// Returns scale factor based on Y position (distance from viewer)
-// y: Y position on canvas (0 = top/far, larger = bottom/near)
-// trackTop: Y position of track top (finish line)
-// trackBottom: Y position of track bottom (start line)
-// perspectiveStrength: How strong the perspective effect is (0-1, default 0.4)
-function getPerspectiveScale(y, trackTop, trackBottom, perspectiveStrength = 0.4) {
-  // Normalize Y position: 0 = top (far), 1 = bottom (near)
-  const normalizedY = (y - trackTop) / (trackBottom - trackTop);
-  // Clamp to valid range
-  const clampedY = Math.max(0, Math.min(1, normalizedY));
-  // Calculate scale: 1.0 at bottom (near), smaller at top (far)
-  // Using exponential curve for realistic perspective
-  const scale = 1.0 - (1.0 - clampedY) * perspectiveStrength;
-  return Math.max(0.3, scale); // Minimum scale to prevent too small
-}
-
-// Get perspective-adjusted lane width at a given Y position
-function getPerspectiveLaneWidth(baseLaneWidth, y, trackTop, trackBottom, perspectiveStrength = 0.4) {
-  const scale = getPerspectiveScale(y, trackTop, trackBottom, perspectiveStrength);
-  return baseLaneWidth * scale;
-}
-
-// Get perspective-adjusted X position (centers lanes as they narrow)
-function getPerspectiveX(baseX, baseLaneWidth, y, trackTop, trackBottom, totalLanes, perspectiveStrength = 0.4) {
-  const scale = getPerspectiveScale(y, trackTop, trackBottom, perspectiveStrength);
-  const scaledLaneWidth = baseLaneWidth * scale;
-  const totalScaledWidth = baseLaneWidth * totalLanes * scale;
-  const totalBaseWidth = baseLaneWidth * totalLanes;
-  const widthDiff = totalBaseWidth - totalScaledWidth;
-  // Center the scaled road
-  return baseX + widthDiff / 2;
 }
 
 // Generate fixed obstacles for a segment (prevents flickering)
@@ -386,7 +351,14 @@ export default function Html5RaceGamePage() {
     raceProgress: {},
     gameStatus: "waiting",
   });
+  const resizeTimeoutRef = useRef(null); // Throttle resize
+  const lastDrawTimeRef = useRef(0); // Throttle drawing
   const [footerHeight, setFooterHeight] = useState(70); // Default footer height
+  
+  // Performance constants
+  const MAX_PARTICLES_PER_CAR = 15; // Limit particles for performance
+  const DRAW_THROTTLE_MS = 16; // ~60fps max
+  const RESIZE_THROTTLE_MS = 200; // Throttle resize operations
 
   useEffect(() => {
     latestStateRef.current = { game, raceProgress, gameStatus };
@@ -804,8 +776,14 @@ export default function Html5RaceGamePage() {
       console.error("[Html5RaceGame] Prediction error", err);
       const msg =
         err?.response?.data?.error ||
-        (action === "add" ? "Failed to add selection" : "Failed to remove selection");
+        err?.message ||
+        (action === "add" ? "Failed to add selection. Please try again." : "Failed to remove selection. Please try again.");
       setError(msg);
+      
+      // Auto-clear error after 5 seconds
+      setTimeout(() => {
+        setError(null);
+      }, 5000);
     } finally {
       setPredicting(false);
     }
@@ -869,6 +847,16 @@ export default function Html5RaceGamePage() {
       }
     };
 
+      // Throttled resize function for better performance
+      const throttledResize = () => {
+        if (resizeTimeoutRef.current) {
+          clearTimeout(resizeTimeoutRef.current);
+        }
+        resizeTimeoutRef.current = setTimeout(() => {
+          resize();
+        }, RESIZE_THROTTLE_MS);
+      };
+      
       // Force initial resize
       const forceResize = () => {
         resize();
@@ -877,17 +865,17 @@ export default function Html5RaceGamePage() {
         setTimeout(resize, 500);
       };
       
-      forceResizeHandler = forceResize;
+      forceResizeHandler = throttledResize;
       forceResize();
-      window.addEventListener("resize", forceResize);
+      window.addEventListener("resize", throttledResize);
       
-      // Also resize when container size changes
+      // Also resize when container size changes (throttled)
       if (canvas.parentElement) {
         resizeObserver = new ResizeObserver((entries) => {
           for (const entry of entries) {
             const { width, height } = entry.contentRect;
             if (width > 0 && height > 0) {
-              resize();
+              throttledResize();
             }
           }
         });
@@ -902,6 +890,15 @@ export default function Html5RaceGamePage() {
 
     const draw = () => {
       if (!canvas || !ctx) return;
+      
+      // Throttle drawing to ~60fps for better performance
+      const now = performance.now();
+      const timeSinceLastDraw = now - lastDrawTimeRef.current;
+      if (timeSinceLastDraw < DRAW_THROTTLE_MS && isDrawing) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
+      lastDrawTimeRef.current = now;
       
       const { game: g, raceProgress: progressMap, gameStatus: status } =
         latestStateRef.current;
@@ -1022,10 +1019,8 @@ export default function Html5RaceGamePage() {
       // Track segments with different terrain patterns
       const trackHeight = height * 0.85;
       const trackTop = height * 0.1;
-      const trackBottom = trackTop + trackHeight;
       const segmentCount = 3;
       const segmentHeight = trackHeight / segmentCount;
-      const perspectiveStrength = 0.5; // 3D perspective strength (0-1)
 
       // During predictions: only show first 30% of track from BOTTOM (start line area), rest is hidden
       // During racing: show full track
@@ -1044,10 +1039,10 @@ export default function Html5RaceGamePage() {
       ];
 
       tracks.forEach((track, laneIndex) => {
-        const baseLaneX = roadLeft + laneWidth * laneIndex;
+        const laneX = roadLeft + laneWidth * laneIndex;
         const segments = track.segments || ["regular", "regular", "regular"];
 
-        // Draw segments bottom-to-top to match backend order with 3D perspective
+        // Draw segments bottom-to-top to match backend order
         // Backend: segments[0] = first 100m (start/bottom), segments[2] = third 100m (finish/top)
         // Visual: Draw segments[0] at bottom, segments[2] at top
         segments.forEach((terrain, idx) => {
@@ -1055,12 +1050,6 @@ export default function Html5RaceGamePage() {
           const visualIdx = segments.length - 1 - idx;
           const y = trackTop + visualIdx * segmentHeight;
           const segmentBottom = y + segmentHeight;
-          const segmentCenterY = y + segmentHeight / 2;
-          
-          // Calculate 3D perspective for this segment
-          const perspectiveScale = getPerspectiveScale(segmentCenterY, trackTop, trackBottom, perspectiveStrength);
-          const perspectiveLaneWidth = getPerspectiveLaneWidth(laneWidth, segmentCenterY, trackTop, trackBottom, perspectiveStrength);
-          const perspectiveLaneX = getPerspectiveX(baseLaneX, laneWidth, segmentCenterY, trackTop, trackBottom, laneCount, perspectiveStrength);
           
           // Use terrain directly (no reversing needed now)
           const actualTerrain = terrain;
@@ -1069,16 +1058,16 @@ export default function Html5RaceGamePage() {
           if (isPredictions) {
             // If segment is completely in hidden area (top 70%), draw grayed out
             if (segmentBottom <= visibleTrackStart) {
-              // This segment is completely in hidden area, draw grayed out (no perspective needed)
+              // This segment is completely in hidden area, draw grayed out
               ctx.fillStyle = "#1a1a1a"; // Dark gray for hidden
-              ctx.fillRect(baseLaneX, y, laneWidth, segmentHeight);
+              ctx.fillRect(laneX, y, laneWidth, segmentHeight);
               
               // Add "???" text in hidden segments
               ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
               ctx.font = `bold ${Math.max(12, laneWidth * 0.15)}px Arial`;
               ctx.textAlign = "center";
               ctx.textBaseline = "middle";
-              ctx.fillText("???", baseLaneX + laneWidth / 2, y + segmentHeight / 2);
+              ctx.fillText("???", laneX + laneWidth / 2, y + segmentHeight / 2);
               return;
             }
             
@@ -1089,35 +1078,29 @@ export default function Html5RaceGamePage() {
               const drawHeight = segmentBottom - visibleTrackStart;
               if (drawHeight <= 0) return;
               
-              // Use perspective for visible part
-              const visibleCenterY = drawY + drawHeight / 2;
-              const visiblePerspectiveScale = getPerspectiveScale(visibleCenterY, trackTop, trackBottom, perspectiveStrength);
-              const visiblePerspectiveLaneWidth = laneWidth * visiblePerspectiveScale;
-              const visiblePerspectiveLaneX = getPerspectiveX(baseLaneX, laneWidth, visibleCenterY, trackTop, trackBottom, laneCount, perspectiveStrength);
-              
               // Draw visible part with terrain
               const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
               const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
-              const segmentPadding = Math.max(1, visiblePerspectiveLaneWidth * 0.02);
+              const segmentPadding = Math.max(1, laneWidth * 0.02);
               ctx.fillStyle = terrainColor;
-              ctx.fillRect(visiblePerspectiveLaneX + segmentPadding, drawY, visiblePerspectiveLaneWidth - (segmentPadding * 2), drawHeight);
+              ctx.fillRect(laneX + segmentPadding, drawY, laneWidth - (segmentPadding * 2), drawHeight);
               return; // Skip patterns for partial segments
             }
           }
           
-          // Segment is fully visible (or during racing) - use 3D perspective
+          // Segment is fully visible (or during racing)
           const drawY = y;
           const drawHeight = segmentHeight;
           
           const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
           const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
 
-          // Responsive padding - scales with perspective-adjusted lane width
-          const segmentPadding = Math.max(1, perspectiveLaneWidth * 0.02); // 2% of lane width
+          // Responsive padding - scales with lane width
+          const segmentPadding = Math.max(1, laneWidth * 0.02); // 2% of lane width
           
           // Fill terrain segment with 3D gradient effect (only visible part)
-          const roadWidth = perspectiveLaneWidth - (segmentPadding * 2);
-          const roadX = perspectiveLaneX + segmentPadding;
+          const roadWidth = laneWidth - (segmentPadding * 2);
+          const roadX = laneX + segmentPadding;
           
           // Create 3D gradient (lighter in center, darker on edges for depth)
           const roadGradient = ctx.createLinearGradient(
@@ -1162,12 +1145,12 @@ export default function Html5RaceGamePage() {
             const gameId = g?._id?.toString() || "default";
             const obstacleKey = `${gameId}-${laneIndex}-${idx}`;
             
-            // Get or generate fixed obstacles for this segment (using perspective-adjusted values)
+            // Get or generate fixed obstacles for this segment
             if (!obstaclesRef.current[obstacleKey]) {
               obstaclesRef.current[obstacleKey] = generateObstacles(
                 terrainKey,
-                perspectiveLaneX,
-                perspectiveLaneWidth,
+                laneX,
+                laneWidth,
                 drawY,
                 drawHeight,
                 segmentPadding,
@@ -1472,7 +1455,8 @@ export default function Html5RaceGamePage() {
         const car = assignment?.carId || assignment;
         if (!car) return;
         const trackIndex = (assignment.trackNumber || 1) - 1;
-        const baseLaneX = roadLeft + laneWidth * trackIndex;
+        const laneX = roadLeft + laneWidth * trackIndex;
+        const centerX = laneX + laneWidth / 2;
 
         // Get car ID (exact same logic as party game)
         const carId = car?._id?.toString() || car?.toString() || car?._id || car;
@@ -1485,13 +1469,6 @@ export default function Html5RaceGamePage() {
         // Vertical: currentY = startY - (progress / 100) * (startY - finishY)
         // startY is bottom (larger), finishY is top (smaller)
         const currentY = startY - (carProgress / 100) * (startY - finishY);
-        
-        // Apply 3D perspective to car size and position
-        const carPerspectiveScale = getPerspectiveScale(currentY, trackTop, trackBottom, perspectiveStrength);
-        const perspectiveCarSize = baseCarSize * carPerspectiveScale;
-        const perspectiveLaneWidth = getPerspectiveLaneWidth(laneWidth, currentY, trackTop, trackBottom, perspectiveStrength);
-        const perspectiveLaneX = getPerspectiveX(baseLaneX, laneWidth, currentY, trackTop, trackBottom, laneCount, perspectiveStrength);
-        const centerX = perspectiveLaneX + perspectiveLaneWidth / 2;
         
         // During predictions: only show cars in visible area (bottom 30% of track)
         if (isPredictions) {
@@ -1524,32 +1501,37 @@ export default function Html5RaceGamePage() {
           particlesRef.current[carId] = [];
         }
         
-        // Add particles based on terrain and speed
-        // Particle scale relative to car size (use perspective-adjusted size)
-        const particleScale = Math.max(0.5, perspectiveCarSize / 50); // Scale based on car size
-        if (status === "racing" && carProgress > 0 && carProgress < 100) {
+        // Add particles based on terrain and speed (optimized with limits)
+        // Particle scale relative to car size
+        const particleScale = Math.max(0.5, baseCarSize / 50); // Scale based on car size
+        const particles = particlesRef.current[carId];
+        
+        // Limit total particles for performance
+        if (particles.length < MAX_PARTICLES_PER_CAR && status === "racing" && carProgress > 0 && carProgress < 100) {
           const speed = carProgress / 100; // 0 to 1
-          const particleChance = speed * 0.3; // More particles at higher speed
+          const particleChance = speed * 0.25; // Reduced chance for better performance
           
           if (currentTerrain === "desert" && Math.random() < particleChance) {
-            // Add dust particles
-            for (let i = 0; i < 2; i++) {
-              particlesRef.current[carId].push(
+            // Add dust particles (limit to 1-2 per frame)
+            const particlesToAdd = Math.min(2, MAX_PARTICLES_PER_CAR - particles.length);
+            for (let i = 0; i < particlesToAdd; i++) {
+              particles.push(
                 new Particle(
-                  centerX + (Math.random() - 0.5) * perspectiveCarSize,
-                  currentY + perspectiveCarSize * 0.6,
+                  centerX + (Math.random() - 0.5) * baseCarSize,
+                  currentY + baseCarSize * 0.6,
                   "dust",
                   particleScale
                 )
               );
             }
           } else if (currentTerrain === "muddy" && Math.random() < particleChance) {
-            // Add mud particles
-            for (let i = 0; i < 3; i++) {
-              particlesRef.current[carId].push(
+            // Add mud particles (limit to 2-3 per frame)
+            const particlesToAdd = Math.min(3, MAX_PARTICLES_PER_CAR - particles.length);
+            for (let i = 0; i < particlesToAdd; i++) {
+              particles.push(
                 new Particle(
-                  centerX + (Math.random() - 0.5) * perspectiveCarSize,
-                  currentY + perspectiveCarSize * 0.6,
+                  centerX + (Math.random() - 0.5) * baseCarSize,
+                  currentY + baseCarSize * 0.6,
                   "mud",
                   particleScale
                 )
@@ -1558,8 +1540,7 @@ export default function Html5RaceGamePage() {
           }
         }
         
-        // Update and draw particles
-        const particles = particlesRef.current[carId];
+        // Update and draw particles (optimized cleanup)
         for (let i = particles.length - 1; i >= 0; i--) {
           if (particles[i].update()) {
             particles[i].draw(ctx);
@@ -1568,15 +1549,20 @@ export default function Html5RaceGamePage() {
           }
         }
         
-        // Car shadow (darker and more realistic) - offset scales with perspective-adjusted car size
-        const shadowOffset = Math.max(1, perspectiveCarSize * 0.06); // 6% of car size
+        // Cleanup old particles if too many (safety check)
+        if (particles.length > MAX_PARTICLES_PER_CAR * 1.5) {
+          particles.splice(0, particles.length - MAX_PARTICLES_PER_CAR);
+        }
+        
+        // Car shadow (darker and more realistic) - offset scales with car size
+        const shadowOffset = Math.max(1, baseCarSize * 0.06); // 6% of car size
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
         ctx.beginPath();
         ctx.ellipse(
           centerX + shadowOffset,
-          currentY + perspectiveCarSize * 0.75,
-          perspectiveCarSize * 0.55,
-          perspectiveCarSize * 0.2,
+          currentY + baseCarSize * 0.75,
+          baseCarSize * 0.55,
+          baseCarSize * 0.2,
           0,
           0,
           Math.PI * 2
@@ -1584,16 +1570,15 @@ export default function Html5RaceGamePage() {
         ctx.fill();
         
         // Draw car using top view image (no rotation needed - images are already correct)
-        // Use perspective-adjusted size for realistic 3D effect
         const carImage = carImagesRef.current[carId];
         if (carImage && carImage.complete && carImage.naturalWidth > 0) {
-          // Image is loaded, draw it directly (no rotation) with perspective scaling
+          // Image is loaded, draw it directly (no rotation)
           ctx.drawImage(
             carImage,
-            centerX - perspectiveCarSize / 2,
-            currentY - perspectiveCarSize / 2,
-            perspectiveCarSize,
-            perspectiveCarSize
+            centerX - baseCarSize / 2,
+            currentY - baseCarSize / 2,
+            baseCarSize,
+            baseCarSize
           );
         } else {
           // Fallback: draw simple colored rectangle if image not loaded
@@ -1609,15 +1594,15 @@ export default function Html5RaceGamePage() {
           else if (trackIndex === 1) carColor = "#3b82f6";
           else if (trackIndex === 2) carColor = "#22c55e";
           
-          // Simple fallback rectangle (use perspective-adjusted size)
+          // Simple fallback rectangle
           ctx.fillStyle = carColor;
           drawRoundedRect(
             ctx,
-            centerX - perspectiveCarSize / 2,
-            currentY - perspectiveCarSize / 2,
-            perspectiveCarSize,
-            perspectiveCarSize * 0.7,
-            perspectiveCarSize * 0.15
+            centerX - baseCarSize / 2,
+            currentY - baseCarSize / 2,
+            baseCarSize,
+            baseCarSize * 0.7,
+            baseCarSize * 0.15
           );
           ctx.fill();
           
@@ -1652,6 +1637,10 @@ export default function Html5RaceGamePage() {
       if (retryTimeout) {
         clearTimeout(retryTimeout);
       }
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
+      }
       isDrawing = false;
       if (forceResizeHandler) {
         window.removeEventListener("resize", forceResizeHandler);
@@ -1662,24 +1651,30 @@ export default function Html5RaceGamePage() {
       if (animationId) {
         cancelAnimationFrame(animationId);
       }
+      // Clear particles and obstacles to prevent memory leaks
+      particlesRef.current = {};
+      obstaclesRef.current = {};
     };
   }, []);
 
-  // Derived values
-  const totalPot =
-    game?.totalPot ??
-    Object.values(predictionCounts).reduce((sum, count) => sum + count, 0) * 100;
-  const platformFee = totalPot * 0.05;
-  const winnerPool = totalPot - platformFee;
-  const myTotalSelections = myPredictions.length;
-  const totalSelections = Object.values(predictionCounts).reduce(
-    (sum, count) => sum + count,
-    0
-  );
-  const potentialPayout =
-    myTotalSelections > 0 && totalSelections > 0
+  // Derived values (memoized for performance)
+  const totalPot = useMemo(() => {
+    return game?.totalPot ??
+      Object.values(predictionCounts).reduce((sum, count) => sum + count, 0) * 100;
+  }, [game?.totalPot, predictionCounts]);
+  
+  const platformFee = useMemo(() => totalPot * 0.05, [totalPot]);
+  const winnerPool = useMemo(() => totalPot - platformFee, [totalPot, platformFee]);
+  const myTotalSelections = useMemo(() => myPredictions.length, [myPredictions.length]);
+  const totalSelections = useMemo(() => {
+    return Object.values(predictionCounts).reduce((sum, count) => sum + count, 0);
+  }, [predictionCounts]);
+  
+  const potentialPayout = useMemo(() => {
+    return myTotalSelections > 0 && totalSelections > 0
       ? Math.floor(winnerPool / totalSelections) * myTotalSelections
       : 0;
+  }, [myTotalSelections, totalSelections, winnerPool]);
 
   const getCarById = (carId) => {
     if (!carId || !game?.cars) return null;
@@ -1834,12 +1829,14 @@ export default function Html5RaceGamePage() {
             flex: "1 1 auto", // Grow and shrink as needed
           }}
         >
-          <Game3D
-            game={game}
-            raceProgress={raceProgress}
-            gameStatus={gameStatus}
-            tracks={game?.tracks || []}
-            cars={game?.cars || []}
+          <canvas
+            ref={raceCanvasRef}
+            style={{
+              display: "block",
+              width: "100%",
+              height: "100%",
+              background: "#1f9d55",
+            }}
           />
 
           {raceStartCountdown > 0 && gameStatus !== "racing" && (

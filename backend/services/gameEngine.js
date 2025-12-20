@@ -580,34 +580,27 @@ class GameEngine {
         let segmentProgress = 0;
         let currentSegment = 0;
 
-        // If elapsed time >= total time, car has finished
-        if (elapsedTime >= result.totalTime) {
-          distance = 300; // Finished - at finish line
-          currentSegment = result.segmentTimes.length;
-        } else {
-          // Calculate distance based on actual segment speeds
-          for (let i = 0; i < result.segmentTimes.length; i++) {
-            const segmentTime = result.segmentTimes[i]; // Actual time for this segment
-            
-            if (elapsedTime >= segmentProgress + segmentTime) {
-              // Completed this segment
-              distance += 100; // 100m per segment
-              segmentProgress += segmentTime;
-              currentSegment = i + 1;
-            } else {
-              // Currently in this segment - calculate partial distance
-              const timeInSegment = elapsedTime - segmentProgress;
-              // Speed for this segment = 100m / segmentTime (actual speed for this terrain)
-              const speed = 100 / segmentTime; // meters per second
-              distance += speed * timeInSegment;
-              break;
-            }
+        // Calculate distance based on actual segment speeds (no additional scaling)
+        for (let i = 0; i < result.segmentTimes.length; i++) {
+          const segmentTime = result.segmentTimes[i]; // Actual time for this segment
+          
+          if (elapsedTime >= segmentProgress + segmentTime) {
+            // Completed this segment
+            distance += 100; // 100m per segment
+            segmentProgress += segmentTime;
+            currentSegment = i + 1;
+          } else {
+            // Currently in this segment - calculate partial distance
+            const timeInSegment = elapsedTime - segmentProgress;
+            // Speed for this segment = 100m / segmentTime (actual speed for this terrain)
+            const speed = 100 / segmentTime; // meters per second
+            distance += speed * timeInSegment;
+            break;
           }
         }
 
         const carIdStr = result.carId.toString();
-        // Ensure distance doesn't exceed 300m
-        const finalDistance = Math.min(distance, 300);
+        const finalDistance = Math.min(distance, 300); // Cap at 300m (finish line)
         const finalProgress = Math.min((finalDistance / 300) * 100, 100);
         
         carPositions[carIdStr] = {
@@ -619,12 +612,7 @@ class GameEngine {
         // Check if any car reached finish line (100% progress) - declare winner immediately
         if (finalProgress >= 100 && !winnerReached) {
           winnerReached = true;
-          console.log(`[Game Engine] Winner reached finish line! Car: ${carIdStr}, Progress: ${finalProgress.toFixed(1)}%, Distance: ${finalDistance.toFixed(1)}m, ElapsedTime: ${elapsedTime.toFixed(2)}s`);
-        }
-        
-        // Debug logging when near end
-        if (currentUpdate >= totalUpdates - 10 && finalProgress < 100) {
-          console.log(`[Game Engine] Car ${carIdStr} at ${finalProgress.toFixed(1)}% (${finalDistance.toFixed(1)}m) - ElapsedTime: ${elapsedTime.toFixed(2)}s, TotalTime: ${result.totalTime.toFixed(2)}s`);
+          console.log(`[Game Engine] Winner reached finish line! Car: ${carIdStr}, Progress: ${finalProgress.toFixed(1)}%`);
         }
       }
 
@@ -644,7 +632,6 @@ class GameEngine {
       if (winnerReached && !raceFinished && currentUpdate >= 10) {
         raceFinished = true;
         clearInterval(this.raceAnimationInterval);
-        this.raceAnimationInterval = null;
         // Send final progress update with actual car positions (not all at 100%)
         this.io.emit('game:race_progress', {
           gameId: game._id.toString(),
@@ -656,36 +643,28 @@ class GameEngine {
         return; // Exit interval callback
       }
 
-      // Finish race when animation completes
-      // At this point, scaledAnimationTime should equal fastestTime, so fastest car should be at 100%
+      // Finish race if animation completed AND at least one car reached finish
+      // This is a fallback in case winner detection didn't trigger
       if (currentUpdate >= totalUpdates && !raceFinished) {
-        raceFinished = true;
-        clearInterval(this.raceAnimationInterval);
-        this.raceAnimationInterval = null;
+        // Check if any car actually reached 100%
+        const anyCarFinished = Object.values(carPositions).some((pos) => pos.progress >= 100);
         
-        // Ensure fastest car is at 100% (should already be, but guarantee it)
-        const fastestCarResult = results.find(r => r.totalTime === fastestTime);
-        if (fastestCarResult) {
-          const fastestCarId = fastestCarResult.carId.toString();
-          if (carPositions[fastestCarId] && carPositions[fastestCarId].progress < 100) {
-            carPositions[fastestCarId] = {
-              distance: 300,
-              progress: 100,
-              segment: fastestCarResult.segmentTimes.length,
-            };
-            console.log(`[Game Engine] Ensuring fastest car ${fastestCarId} reaches 100% at animation completion`);
-          }
+        if (anyCarFinished) {
+          raceFinished = true;
+          clearInterval(this.raceAnimationInterval);
+          // Send final progress update with actual positions
+          this.io.emit('game:race_progress', {
+            gameId: game._id.toString(),
+            carPositions,
+            progress: 100,
+          });
+          console.log(`[Game Engine] Race animation completed - at least one car finished for game ${game.gameNumber}`);
+          this.finishRace(game._id);
+        } else {
+          // No car reached finish - log warning but don't finish yet
+          console.log(`[Game Engine] WARNING: Animation completed but no car reached finish line for game ${game.gameNumber}`);
+          // Extend animation by continuing (will check again next update)
         }
-        
-        // Send final progress update
-        this.io.emit('game:race_progress', {
-          gameId: game._id.toString(),
-          carPositions,
-          progress: 100,
-        });
-        
-        console.log(`[Game Engine] Race animation completed for game ${game.gameNumber} - fastest car should be at finish line`);
-        this.finishRace(game._id);
         return;
       }
     }, updateInterval);
