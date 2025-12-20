@@ -2302,9 +2302,9 @@ export default function Html5RaceGamePage() {
                 <Button
                   variant="outline-light"
                   size="sm"
-                  disabled={!hasSelections || disabled}
+                  disabled={myPredictions.length === 0 || disabled}
                   onClick={() => {
-                    if (!hasSelections || disabled) return;
+                    if (myPredictions.length === 0 || disabled) return;
                     const selectedCarId = myPredictions[0]?.predictedCarId;
                     if (selectedCarId) {
                       makePrediction(normalizeCarId(selectedCarId), "remove");
@@ -2326,9 +2326,9 @@ export default function Html5RaceGamePage() {
                 <Button
                   variant="outline-light"
                   size="sm"
-                  disabled={disabled || hasOtherSelections || (myPredictions.length * 100 + 100) > userBalance}
+                  disabled={disabled || myPredictions.length === 0 || (myPredictions.length * 100 + 100) > userBalance}
                   onClick={() => {
-                    if (disabled || hasOtherSelections) return;
+                    if (disabled || myPredictions.length === 0) return;
                     const selectedCarId = myPredictions[0]?.predictedCarId;
                     if (selectedCarId) {
                       makePrediction(normalizeCarId(selectedCarId), "add");
