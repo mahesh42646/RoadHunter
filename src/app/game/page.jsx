@@ -2100,20 +2100,24 @@ export default function Html5RaceGamePage() {
           style={{ background: "transparent", padding: "1rem" }}
           onClick={() => setShowCarInfo(null)}
         >
-          <div className="row g-2">
-            {game.cars.map((assignment) => {
-                const car = assignment.carId;
-                const carId = normalizeCarId(car?._id || car);
-                const count = predictionCounts[carId] || 0;
+          {/* Define disabled at this scope so it's available in footer */}
+          {(() => {
+            const disabled = predicting || timeRemaining <= 0;
+            return (
+              <>
+                <div className="row g-2">
+                  {game.cars.map((assignment) => {
+                      const car = assignment.carId;
+                      const carId = normalizeCarId(car?._id || car);
+                      const count = predictionCounts[carId] || 0;
 
-                const myCarSelections = myPredictions.filter(
-                  (p) => normalizeCarId(p.predictedCarId) === carId
-                );
-                const mySelectionCount = myCarSelections.length;
-                const hasSelections = mySelectionCount > 0;
-                const hasOtherSelections =
-                  myPredictions.length > 0 && !hasSelections;
-                const disabled = predicting || timeRemaining <= 0;
+                      const myCarSelections = myPredictions.filter(
+                        (p) => normalizeCarId(p.predictedCarId) === carId
+                      );
+                      const mySelectionCount = myCarSelections.length;
+                      const hasSelections = mySelectionCount > 0;
+                      const hasOtherSelections =
+                        myPredictions.length > 0 && !hasSelections;
 
                 // Calculate potential payout ratio (multiplier)
                 // If this car wins: payout = winnerPool / totalSelections per selection
@@ -2359,6 +2363,9 @@ export default function Html5RaceGamePage() {
                 Play
               </Button>
             </div>
+              </>
+            );
+          })()}
         </Modal.Body>
       </Modal>
 
