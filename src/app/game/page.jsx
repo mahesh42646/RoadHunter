@@ -647,45 +647,27 @@ export default function Html5RaceGamePage() {
         setMyPredictions([]);
       }
 
-      // Use fixed timing from backend: 3s phase 1 + 5s phase 2 = 8s total
-      const phase1Duration = data.game?.phaseTiming?.resultsPhase1Duration || 3000; // 3 seconds
-      const phase2Duration = data.game?.phaseTiming?.resultsPhase2Duration || 5000; // 5 seconds
-
-      setResultPhase(0); // Start with phase 0: user selections
-      setResultCountdown(Math.ceil(phase1Duration / 1000)); // 3 seconds
+      // Show both user selections and winner simultaneously for 8 seconds total
+      const totalDuration = 8000; // 8 seconds total
+      setResultPhase(1); // Show both sections (phase 1 means show winner, but we show both)
+      setResultCountdown(Math.ceil(totalDuration / 1000)); // 8 seconds
 
       if (resultPhaseTimeoutRef.current) clearTimeout(resultPhaseTimeoutRef.current);
       if (resultCountdownIntervalRef.current)
         clearInterval(resultCountdownIntervalRef.current);
 
-      // Phase 0: User selections (3 seconds)
-      let countdown1 = Math.ceil(phase1Duration / 1000);
+      // Countdown for 8 seconds, then load next game
+      let countdown = Math.ceil(totalDuration / 1000);
       resultCountdownIntervalRef.current = setInterval(() => {
-        countdown1 -= 1;
-        setResultCountdown(countdown1);
-        if (countdown1 <= 0) {
+        countdown -= 1;
+        setResultCountdown(countdown);
+        if (countdown <= 0) {
           clearInterval(resultCountdownIntervalRef.current);
           resultCountdownIntervalRef.current = null;
+          // Backend starts new game after 8s, so load it
+          loadActiveGame();
         }
       }, 1000);
-
-      resultPhaseTimeoutRef.current = setTimeout(() => {
-        setResultPhase(1); // Switch to phase 1: winner announcement
-        setResultCountdown(Math.ceil(phase2Duration / 1000)); // 5 seconds
-
-        // Phase 1: Winner announcement (5 seconds)
-        let countdown2 = Math.ceil(phase2Duration / 1000);
-        resultCountdownIntervalRef.current = setInterval(() => {
-          countdown2 -= 1;
-          setResultCountdown(countdown2);
-          if (countdown2 <= 0) {
-            clearInterval(resultCountdownIntervalRef.current);
-            resultCountdownIntervalRef.current = null;
-            // Backend starts new game after 8s, so load it
-            loadActiveGame();
-          }
-        }, 1000);
-      }, phase1Duration);
     };
 
     const handlePredictionCounts = (data) => {
@@ -2388,226 +2370,171 @@ export default function Html5RaceGamePage() {
         </Modal.Body>
       </Modal>
 
-      {/* Results Modal - Celebratory Winner Display */}
+      {/* Results Modal - Show Both User Selections and Winner Simultaneously */}
       <Modal
-        show={gameStatus === "finished" && raceResults && raceResults.length > 0 && resultPhase === 1}
+        show={gameStatus === "finished" && raceResults && raceResults.length > 0}
         onHide={() => {}}
         backdrop="static"
         keyboard={false}
         centered
         size="lg"
         contentClassName="glass-card"
-        style={{ 
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          background: "radial-gradient(ellipse at center, rgba(138, 43, 226, 0.3) 0%, rgba(75, 0, 130, 0.5) 100%)",
-        }}
+        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
         <Modal.Body 
-          className="text-center position-relative p-0"
+          className="p-4"
           style={{ 
-            background: "linear-gradient(180deg, rgba(75, 0, 130, 0.8) 0%, rgba(138, 43, 226, 0.6) 50%, rgba(75, 0, 130, 0.8) 100%)",
+            background: "var(--bg-card, #141b2d)",
             minHeight: "400px",
-            overflow: "hidden",
           }}
         >
-          {/* Carbon fiber pattern background */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundImage: `
-                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255, 255, 255, 0.03) 10px, rgba(255, 255, 255, 0.03) 20px),
-                repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(255, 255, 255, 0.03) 10px, rgba(255, 255, 255, 0.03) 20px)
-              `,
-              pointerEvents: "none",
-            }}
-          />
-
-          {/* Sparkles/Stars */}
-          {[...Array(15)].map((_, i) => (
-            <div
-              key={i}
-              style={{
-                position: "absolute",
-                top: `${Math.random() * 60}%`,
-                left: `${Math.random() * 100}%`,
-                width: "3px",
-                height: "3px",
-                background: "white",
-                borderRadius: "50%",
-                boxShadow: "0 0 6px white",
-                animation: `sparkle ${2 + Math.random() * 2}s infinite`,
-                animationDelay: `${Math.random() * 2}s`,
-              }}
-            />
-          ))}
-
-          {/* Radial light beams */}
-          <div
-            style={{
-              position: "absolute",
-              top: "20%",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: "200%",
-              height: "200%",
-              background: "radial-gradient(circle, rgba(138, 43, 226, 0.4) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-
-          {/* Winner Car on Glowing Pedestal */}
-          <div className="position-relative" style={{ paddingTop: "2rem", zIndex: 2 }}>
-            {/* Glowing Pedestal */}
-            <div className="position-relative d-flex justify-content-center align-items-end" style={{ height: "200px" }}>
-              {/* Pedestal base with gradient */}
+          <div className="row g-4">
+            {/* Left Side - User Selections */}
+            <div className="col-12 col-md-6">
               <div
-                className="position-absolute"
+                className="h-100 p-4 rounded"
                 style={{
-                  bottom: "20px",
-                  width: "180px",
-                  height: "180px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(180deg, rgba(0, 245, 255, 0.6) 0%, rgba(138, 43, 226, 0.8) 50%, rgba(255, 20, 147, 0.6) 100%)",
-                  boxShadow: `
-                    0 0 40px rgba(0, 245, 255, 0.6),
-                    0 0 80px rgba(138, 43, 226, 0.8),
-                    0 0 120px rgba(255, 20, 147, 0.4),
-                    inset 0 0 60px rgba(255, 255, 255, 0.2)
-                  `,
-                  animation: "pulse 2s ease-in-out infinite",
+                  background: "rgba(20, 27, 45, 0.6)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  minHeight: "300px",
                 }}
-              />
-              
-              {/* Concentric rings */}
-              {[1, 2, 3].map((ring) => (
-                <div
-                  key={ring}
-                  className="position-absolute"
-                  style={{
-                    bottom: `${20 + ring * 5}px`,
-                    width: `${180 - ring * 20}px`,
-                    height: `${180 - ring * 20}px`,
-                    borderRadius: "50%",
-                    border: `2px solid rgba(255, 255, 255, ${0.3 / ring})`,
-                    boxShadow: `0 0 ${20 * ring}px rgba(138, 43, 226, 0.5)`,
-                    animation: `pulse ${2 + ring * 0.5}s ease-in-out infinite`,
-                    animationDelay: `${ring * 0.3}s`,
-                  }}
-                />
-              ))}
-
-              {/* Car Image */}
-              {winnerCar?.sideViewImage && (
-                <div
-                  className="position-relative"
-                  style={{
-                    zIndex: 10,
-                    transform: "translateY(-40px)",
-                    filter: "drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5))",
-                  }}
-                >
-                  <img
-                    src={winnerCar.sideViewImage}
-                    alt="Winner Car"
-                    style={{
-                      width: "200px",
-                      height: "120px",
-                      objectFit: "contain",
-                      transform: "scale(1.1)",
-                    }}
-                  />
+              >
+                <div className="d-flex align-items-center gap-2 mb-3">
+                  <span style={{ fontSize: "1.5rem" }}>🎯</span>
+                  <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
+                    Your Selections
+                  </h5>
                 </div>
-              )}
+                
+                {myPredictions.length > 0 ? (
+                  <>
+                    <div className="d-flex flex-column align-items-center justify-content-center mb-3">
+                      {myPredictions[0]?.predictedCarId && (
+                        <>
+                          {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
+                            <img
+                              src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
+                              alt="Car"
+                              style={{ 
+                                width: "150px", 
+                                height: "100px", 
+                                objectFit: "contain",
+                                marginBottom: "1rem",
+                              }}
+                            />
+                          )}
+                          <div className="fs-4 fw-bold mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                            {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                        {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
+                      </div>
+                      <div className="d-flex align-items-center justify-content-center gap-2">
+                        <BsCoin style={{ color: "#ffd700" }} />
+                        <span style={{ color: "var(--text-primary, #ffffff)", fontSize: "1.1rem" }}>
+                          {myPredictions.length * 100} coins
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-5">
+                    <div className="fs-5 fw-bold mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                      No selections made
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Winner Banner */}
-            <div
-              className="position-absolute bottom-0 start-0 end-0 p-3"
-              style={{
-                background: "rgba(138, 43, 226, 0.7)",
-                backdropFilter: "blur(10px)",
-                borderTop: "1px solid rgba(255, 255, 255, 0.2)",
-                borderRadius: "0 0 0.5rem 0.5rem",
-              }}
-            >
-              <div className="fs-4 fw-bold mb-2" style={{ color: "var(--text-primary, #ffffff)" }}>
-                {winnerCar?.name || game.winnerName || "Unknown"} won
+            {/* Right Side - Winner Car */}
+            <div className="col-12 col-md-6">
+              <div
+                className="h-100 p-4 rounded position-relative d-flex flex-column align-items-center justify-content-center"
+                style={{
+                  background: "rgba(20, 27, 45, 0.6)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  minHeight: "300px",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Subtle glow effect */}
+                <div
+                  className="position-absolute"
+                  style={{
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    width: "200px",
+                    height: "200px",
+                    background: "radial-gradient(circle, var(--glow-cyan, rgba(0, 245, 255, 0.2)) 0%, transparent 70%)",
+                    pointerEvents: "none",
+                    zIndex: 1,
+                  }}
+                />
+
+                <div className="position-relative" style={{ zIndex: 2 }}>
+                  <div className="d-flex align-items-center gap-2 mb-3">
+                    <span style={{ fontSize: "1.5rem" }}>🏆</span>
+                    <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
+                      Winner
+                    </h5>
+                  </div>
+
+                  {/* Winner Car Image */}
+                  {winnerCar?.sideViewImage && (
+                    <div className="mb-3">
+                      <img
+                        src={winnerCar.sideViewImage}
+                        alt="Winner Car"
+                        style={{
+                          width: "200px",
+                          height: "120px",
+                          objectFit: "contain",
+                          filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="fs-3 fw-bold mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                    {winnerCar?.name || game.winnerName || "Unknown"}
+                  </div>
+
+                  {/* Win/Loss Message */}
+                  {isWinner && winningSelections.length > 0 && (
+                    <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                      🎉 You won {formatNumber(totalPayout)} coins!
+                    </div>
+                  )}
+                  {!isWinner && myPredictions.length > 0 && (
+                    <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
+                      You lost {formatNumber(totalInvested)} coins
+                    </div>
+                  )}
+                </div>
               </div>
-              {resultCountdown > 0 && (
-                <div className="small" style={{ color: "var(--text-secondary, #e0e6ff)" }}>
-                  Next {resultCountdown}s
-                </div>
-              )}
-              {isWinner && winningSelections.length > 0 && (
-                <div className="mt-2 fw-semibold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                  🎉 You won {formatNumber(totalPayout)} coins!
-                </div>
-              )}
-              {!isWinner && myPredictions.length > 0 && (
-                <div className="mt-2 fw-semibold" style={{ color: "var(--accent, #ca0000)" }}>
-                  You lost {formatNumber(totalInvested)} coins
-                </div>
-              )}
             </div>
           </div>
 
-        </Modal.Body>
-      </Modal>
-
-      {/* User Selections Phase Modal */}
-      <Modal
-        show={gameStatus === "finished" && raceResults && raceResults.length > 0 && resultPhase === 0}
-        onHide={() => {}}
-        backdrop="static"
-        keyboard={false}
-        centered
-        size="md"
-        contentClassName="glass-card"
-        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-      >
-        <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
-          <Modal.Title style={{ color: "var(--text-primary, #ffffff)" }}>
-            <div className="d-flex align-items-center gap-2">
-              <span>🏆</span>
-              <span>Your Selections</span>
-            </div>
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="text-center" style={{ background: "transparent" }}>
-          {myPredictions.length > 0 ? (
-            <>
-              <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
-                {myPredictions[0]?.predictedCarId && (
-                  <>
-                    {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
-                      <img
-                        src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
-                        alt="Car"
-                        style={{ width: "120px", height: "80px", objectFit: "contain" }}
-                      />
-                    )}
-                    <div className="fs-3 fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                      {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
-                    </div>
-                  </>
-                )}
+          {/* Footer with countdown */}
+          <div
+            className="mt-4 p-3 rounded text-center"
+            style={{
+              background: "rgba(10, 14, 26, 0.8)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            {resultCountdown > 0 && (
+              <div className="fw-semibold" style={{ color: "var(--text-primary, #ffffff)" }}>
+                Next race in {resultCountdown}s
               </div>
-              <div style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
-              </div>
-              {resultCountdown > 0 && (
-                <div className="small mt-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                  Winner announcement in {resultCountdown}s
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="fs-5 fw-bold mb-1" style={{ color: "var(--text-primary, #ffffff)" }}>No selections made</div>
-          )}
+            )}
+          </div>
         </Modal.Body>
       </Modal>
     </div>
