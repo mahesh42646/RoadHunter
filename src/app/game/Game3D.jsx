@@ -5,13 +5,46 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 
+// Finish Line Component
+function FinishLine({ position, width }) {
+  const finishTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 20;
+    const ctx = canvas.getContext("2d");
+    
+    // Checkered pattern
+    const cellSize = 10;
+    for (let x = 0; x < canvas.width; x += cellSize) {
+      for (let y = 0; y < canvas.height; y += cellSize) {
+        const isBlack = ((x / cellSize) + (y / cellSize)) % 2 === 0;
+        ctx.fillStyle = isBlack ? "#000000" : "#ffffff";
+        ctx.fillRect(x, y, cellSize, cellSize);
+      }
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(width / 10, 1);
+    return texture;
+  }, [width]);
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={position}>
+      <planeGeometry args={[width, 3]} />
+      <meshStandardMaterial map={finishTexture} emissive={0xffffff} emissiveIntensity={0.2} />
+    </mesh>
+  );
+}
+
 // 3D Road Component with proper perspective
 function Road({ segments, position, laneIndex }) {
   const roadRef = useRef();
   const segmentLength = 100;
   const roadWidth = 20; // Increased road width for visibility
   const laneWidth = roadWidth / 3;
-  const perspectiveFactor = 0.002; // How much road narrows per unit distance
+  const perspectiveFactor = 0.001; // Reduced for less dramatic perspective
 
   // Create road geometry with proper 3D perspective
   const roadGeometry = useMemo(() => {
@@ -105,14 +138,14 @@ function Car3D({ car, progress, position, trackIndex, carImageUrl }) {
   const [texture, setTexture] = useState(null);
   const totalDistance = 300; // 300m track
   const distance = (progress / 100) * totalDistance;
-  const perspectiveFactor = 0.002;
+  const perspectiveFactor = 0.001; // Reduced for less dramatic perspective
   
   // Calculate Z position (car moves forward along Z axis)
   const z = distance;
   
-  // Calculate scale based on distance (realistic perspective)
+  // Calculate scale based on distance (less dramatic perspective)
   const perspectiveScale = 1 / (1 + z * perspectiveFactor);
-  const carScale = Math.max(0.3, perspectiveScale) * 2; // Scale for visibility
+  const carScale = Math.max(0.5, perspectiveScale) * 2.5; // Less scaling, more visible
 
   // Calculate X position with perspective (lanes converge)
   const baseLaneX = (trackIndex - 1) * (20 / 3); // Base lane spacing (matches road width)
@@ -126,6 +159,9 @@ function Car3D({ car, progress, position, trackIndex, carImageUrl }) {
         carImageUrl,
         (loadedTexture) => {
           loadedTexture.flipY = false; // Don't flip Y for top view
+          loadedTexture.generateMipmaps = true;
+          loadedTexture.minFilter = THREE.LinearMipmapLinearFilter;
+          loadedTexture.magFilter = THREE.LinearFilter;
           setTexture(loadedTexture);
         },
         undefined,
@@ -154,14 +190,21 @@ function Car3D({ car, progress, position, trackIndex, carImageUrl }) {
   return (
     <mesh
       ref={carRef}
-      position={[perspectiveLaneX, 0.3, z]}
+      position={[perspectiveLaneX, 0.5, z]}
       rotation={[-Math.PI / 2, 0, 0]} // Rotate to lay flat (top view)
     >
-      <planeGeometry args={[2, 2]} />
+      <planeGeometry args={[2.5, 2.5]} />
       {texture ? (
-        <meshStandardMaterial map={texture} transparent alphaTest={0.1} />
+        <meshStandardMaterial 
+          map={texture} 
+          transparent 
+          alphaTest={0.01}
+          emissive={0xffffff}
+          emissiveIntensity={0.2}
+          side={THREE.DoubleSide}
+        />
       ) : (
-        <meshStandardMaterial color={carColor} />
+        <meshStandardMaterial color={carColor} side={THREE.DoubleSide} />
       )}
     </mesh>
   );
@@ -175,10 +218,11 @@ function Scene3D({ game, raceProgress, gameStatus, tracks, cars }) {
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-      <pointLight position={[-10, 10, -10]} intensity={0.5} />
+      {/* Lighting - brighter for better car image visibility */}
+      <ambientLight intensity={1.0} />
+      <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
+      <pointLight position={[-10, 10, -10]} intensity={0.8} />
+      <directionalLight position={[-10, 10, 5]} intensity={0.5} />
 
       {/* Ground/grass with proper perspective */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 150]} receiveShadow>
@@ -192,17 +236,17 @@ function Scene3D({ game, raceProgress, gameStatus, tracks, cars }) {
         <meshStandardMaterial color="#2a2d35" roughness={0.8} />
       </mesh>
 
-      {/* Individual lane roads with terrain */}
+      {/* Individual lane roads with terrain - properly aligned */}
       {tracks?.map((track, index) => (
         <Road
           key={index}
           segments={track.segments || ["regular", "regular", "regular"]}
-          position={[(index - 1) * (20 / 3), 0.01, 0]} // Slightly above ground
+          position={[(index - 1) * (20 / 3), 0.01, 0]} // Slightly above ground, aligned
           laneIndex={index + 1}
         />
       ))}
 
-      {/* Lane dividers */}
+      {/* Lane dividers with perspective */}
       {[1, 2].map((dividerIndex) => {
         const xPos = (dividerIndex - 1.5) * (20 / 3);
         return (
@@ -212,10 +256,13 @@ function Scene3D({ game, raceProgress, gameStatus, tracks, cars }) {
             position={[xPos, 0.02, 150]}
           >
             <planeGeometry args={[0.2, 300]} />
-            <meshStandardMaterial color="#ffffff" />
+            <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} />
           </mesh>
         );
       })}
+
+      {/* Finish line - checkered pattern at the end */}
+      <FinishLine position={[0, 0.03, 300]} width={30} />
 
       {/* Cars */}
       {cars?.map((assignment, index) => {
@@ -238,22 +285,22 @@ function Scene3D({ game, raceProgress, gameStatus, tracks, cars }) {
         );
       })}
 
-      {/* Camera controls - fixed perspective from start line */}
+      {/* Camera controls - fixed perspective from start line, less flat */}
       <PerspectiveCamera
         makeDefault
-        position={[0, 15, 30]}
-        fov={70}
+        position={[0, 18, 20]}
+        fov={75}
         near={0.1}
         far={500}
       />
       <OrbitControls
         enablePan={false}
         enableZoom={true}
-        minDistance={25}
-        maxDistance={100}
-        minPolarAngle={Math.PI / 3.5}
-        maxPolarAngle={Math.PI / 2}
-        target={[0, 0, 100]}
+        minDistance={20}
+        maxDistance={80}
+        minPolarAngle={Math.PI / 3}
+        maxPolarAngle={Math.PI / 2.1}
+        target={[0, 0, 150]}
         enableRotate={false}
       />
     </>
