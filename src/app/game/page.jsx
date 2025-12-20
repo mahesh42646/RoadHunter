@@ -370,6 +370,89 @@ export default function Html5RaceGamePage() {
     setFooterHeight(0);
   }, []);
 
+  // Hide bottom nav when game component is active
+  useEffect(() => {
+    const hideBottomNav = () => {
+      // Find and hide bottom nav elements
+      const selectors = [
+        'nav.position-fixed.bottom-0',
+        'nav.d-md-none.position-fixed.bottom-0',
+        '[class*="MobileBottomNav"]',
+        '[class*="bottom-nav"]',
+      ];
+      
+      let bottomNav = null;
+      for (const selector of selectors) {
+        bottomNav = document.querySelector(selector);
+        if (bottomNav) break;
+      }
+      
+      // Also try finding by position
+      if (!bottomNav) {
+        const navs = document.querySelectorAll('nav');
+        for (const nav of navs) {
+          const rect = nav.getBoundingClientRect();
+          if (rect.bottom >= window.innerHeight - 10 && rect.top < window.innerHeight) {
+            bottomNav = nav;
+            break;
+          }
+        }
+      }
+      
+      if (bottomNav) {
+        bottomNav.style.display = 'none';
+      }
+    };
+
+    // Hide on mount
+    hideBottomNav();
+    
+    // Also hide after a short delay to catch dynamically added navs
+    const timeout1 = setTimeout(hideBottomNav, 100);
+    const timeout2 = setTimeout(hideBottomNav, 500);
+    
+    // Use MutationObserver to hide nav if it's added later
+    const observer = new MutationObserver(() => {
+      hideBottomNav();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      // Show nav again when component unmounts
+      const selectors = [
+        'nav.position-fixed.bottom-0',
+        'nav.d-md-none.position-fixed.bottom-0',
+        '[class*="MobileBottomNav"]',
+        '[class*="bottom-nav"]',
+      ];
+      
+      let bottomNav = null;
+      for (const selector of selectors) {
+        bottomNav = document.querySelector(selector);
+        if (bottomNav) break;
+      }
+      
+      if (!bottomNav) {
+        const navs = document.querySelectorAll('nav');
+        for (const nav of navs) {
+          const rect = nav.getBoundingClientRect();
+          if (rect.bottom >= window.innerHeight - 10 && rect.top < window.innerHeight) {
+            bottomNav = nav;
+            break;
+          }
+        }
+      }
+      
+      if (bottomNav) {
+        bottomNav.style.display = '';
+      }
+      
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+      observer.disconnect();
+    };
+  }, []);
+
   // Preload car top view images
   useEffect(() => {
     if (!game?.cars) return;
