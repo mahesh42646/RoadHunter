@@ -82,18 +82,7 @@ export default function GameManagement({ adminToken }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file");
-      return;
-    }
-
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image size must be less than 5MB");
-      return;
-    }
-
+    // No validations - accept any file type and size
     // Create preview
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -427,13 +416,13 @@ export default function GameManagement({ adminToken }) {
 
       {/* Car Modal */}
       <Modal show={showCarModal} onHide={() => !saving && setShowCarModal(false)} size="lg" backdrop={!saving}>
-        <Modal.Header closeButton={!saving}>
+        <Modal.Header closeButton={!saving} className="bg-black">
           <Modal.Title>{editingCar ? "Edit Car" : "Add New Car"}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="bg-black">
           {error && <Alert variant="danger">{error}</Alert>}
           
-          <Form>
+          <Form className="bg-black">
             <Form.Group className="mb-3">
               <Form.Label>
                 Car Name <span className="text-danger">*</span>
@@ -613,7 +602,7 @@ export default function GameManagement({ adminToken }) {
             />
           </Form>
         </Modal.Body>
-        <Modal.Footer>
+        <Modal.Footer className="d-flex justify-content-between bg-black">
           <Button variant="secondary" onClick={() => setShowCarModal(false)} disabled={saving}>
             Cancel
           </Button>

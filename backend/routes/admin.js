@@ -347,51 +347,21 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
   }
 });
 
-// Image upload endpoint for cars
-router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
-  uploadCar.single('image')(req, res, (err) => {
-    if (err) {
-      console.error('[Admin Routes] Multer error:', err);
-      // Handle multer errors
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File size too large. Maximum size is 5MB.' });
-      }
-      if (err.message === 'Only image files are allowed') {
-        return res.status(400).json({ error: 'Only image files are allowed' });
-      }
-      return res.status(400).json({ error: err.message || 'File upload error' });
-    }
-    next();
-  });
-}, async (req, res, next) => {
+// Image upload endpoint for cars - no validations, accept any file
+router.post('/cars/upload', authenticateAdmin, uploadCar.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
+      return res.status(400).json({ error: 'No file provided' });
     }
 
-    try {
-      // Optimize the uploaded image
-      const optimizedPath = getOptimizedPath(req.file.path);
-      await optimizeImage(req.file.path, optimizedPath);
-      
-      // Get relative path for URL
-      const relativePath = path.relative(path.join(__dirname, '../uploads'), optimizedPath);
-      const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
-      
-      res.json({ imageUrl });
-    } catch (imageError) {
-      console.error('[Admin Routes] Error processing car image:', imageError);
-      // If image processing fails, use original file
-      if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-        const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
-        const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
-        res.json({ imageUrl });
-      } else {
-        res.status(500).json({ error: 'Failed to process image: ' + imageError.message });
-      }
-    }
+    // Use original file directly - no optimization
+    const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+    const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+    
+    console.log('[Admin Routes] File uploaded successfully:', imageUrl);
+    res.json({ imageUrl });
   } catch (error) {
-    console.error('[Admin Routes] Error uploading car image:', error);
+    console.error('[Admin Routes] Error uploading file:', error);
     // Clean up uploaded file on error
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try {
@@ -400,7 +370,7 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
         console.error('Error deleting uploaded file:', unlinkError);
       }
     }
-    res.status(500).json({ error: error.message || 'Failed to upload image' });
+    res.status(500).json({ error: error.message || 'Failed to upload file' });
   }
 });
 
