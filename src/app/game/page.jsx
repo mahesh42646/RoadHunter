@@ -1834,34 +1834,38 @@ export default function Html5RaceGamePage() {
         </div>
       )}
 
-      {/* Countdown overlay */}
-      {raceStartCountdown > 0 && gameStatus !== "racing" && (
-        <div
-          className="position-absolute top-50 start-50 translate-middle text-center"
-          style={{
-            zIndex: 20,
-            borderRadius: "clamp(0.5rem, 1vw, 1rem)",
-            background: "#0f172a",
-            border: "2px solid #38bdf8",
-            boxShadow: "0 0 35px rgba(56,189,248,0.65)",
-            padding: "clamp(0.75rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)",
-          }}
-        >
-          <div className="fw-semibold mb-1" style={{ fontSize: "clamp(0.875rem, 2vw, 1rem)" }}>
-            Race starting in
-          </div>
+      {/* Countdown Modal - Consistent with selection and results */}
+      <Modal
+        show={raceStartCountdown > 0 && gameStatus !== "racing"}
+        onHide={() => {}}
+        backdrop="static"
+        keyboard={false}
+        centered
+        size="md"
+        contentClassName="bg-black border border-secondary"
+      >
+        <Modal.Header className="bg-black border-secondary">
+          <Modal.Title className="text-white w-100 text-center">
+            <div className="fw-semibold mb-2" style={{ fontSize: "clamp(1rem, 2vw, 1.25rem)" }}>
+              Race Starting In
+            </div>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-black text-center">
           <div
             style={{
-              fontSize: "clamp(2rem, 8vw, 4rem)",
+              fontSize: "clamp(3rem, 12vw, 6rem)",
               fontWeight: 800,
               color: "#38bdf8",
-              textShadow: "0 0 18px rgba(56,189,248,0.9)",
+              textShadow: "0 0 20px rgba(56,189,248,0.9)",
+              lineHeight: 1,
+              padding: "clamp(1rem, 3vw, 2rem) 0",
             }}
           >
             {raceStartCountdown}
           </div>
-        </div>
-      )}
+        </Modal.Body>
+      </Modal>
 
       {/* Live indicator */}
       {gameStatus === "racing" && (
@@ -1880,24 +1884,25 @@ export default function Html5RaceGamePage() {
         </div>
       )}
 
-      {/* Selection Modal */}
+      {/* Selection Modal - Hide during countdown */}
       <Modal
-        show={gameStatus === "predictions"}
+        show={gameStatus === "predictions" && raceStartCountdown === 0}
         onHide={() => {}}
         backdrop="static"
         keyboard={false}
         centered
-        size="lg"
-        contentClassName="bg-dark border border-secondary"
+        size="md"
+        contentClassName="bg-black border border-secondary"
       >
-        <Modal.Header className="bg-dark border-secondary">
-          <Modal.Title className="text-white">
+        <Modal.Header className="bg-black border-secondary">
+          <Modal.Title className="text-white w-100">
             <div className="d-flex align-items-center justify-content-between w-100">
-              <div>
-                <h5 className="mb-0">🏁 Select Your Car</h5>
-                <small className="text-white-50">Game #{game.gameNumber}</small>
+              <div className="d-flex align-items-center gap-2">
+                <span>🏁</span>
+                <span>Select Your Car</span>
               </div>
               <div className="d-flex align-items-center gap-2">
+                <small className="text-white-50">Game #{game.gameNumber}</small>
                 {timeRemaining > 0 && (
                   <Badge
                     bg={
@@ -1908,7 +1913,7 @@ export default function Html5RaceGamePage() {
                         : "danger"
                     }
                   >
-                    <BsClock className="me-2" />
+                    <BsClock className="me-1" />
                     {timeRemaining}s
                   </Badge>
                 )}
@@ -1916,10 +1921,10 @@ export default function Html5RaceGamePage() {
             </div>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-dark">
+        <Modal.Body className="bg-black">
           <div
             className="d-flex overflow-auto px-2 py-2"
-            style={{ gap: "0.75rem", maxHeight: "60vh" }}
+            style={{ gap: "0.75rem", maxHeight: "50vh" }}
           >
             {game.cars.map((assignment) => {
                 const car = assignment.carId;
@@ -2070,9 +2075,9 @@ export default function Html5RaceGamePage() {
         keyboard={false}
         centered
         size="md"
-        contentClassName="bg-dark border border-secondary"
+        contentClassName="bg-black border border-secondary"
       >
-        <Modal.Header className="bg-dark border-secondary">
+        <Modal.Header className="bg-black border-secondary">
           <Modal.Title className="text-white">
             <div className="d-flex align-items-center gap-2">
               <span>🏆</span>
@@ -2080,7 +2085,7 @@ export default function Html5RaceGamePage() {
             </div>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-dark text-center">
+        <Modal.Body className="bg-black text-center">
           {resultPhase === 1 && (
             <>
               <div className="fs-5 fw-bold mb-3">Winner</div>
