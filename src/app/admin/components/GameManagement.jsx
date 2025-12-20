@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, Table, Button, Badge, Modal, Form, Alert } from "react-bootstrap";
-import { BsPlusCircle, BsPencil, BsTrash, BsImage, BsTrophy } from "react-icons/bs";
+import { useEffect, useState, useRef } from "react";
+import { Card, Button, Badge, Modal, Form, Alert, Row, Col } from "react-bootstrap";
+import { BsPlusCircle, BsPencil, BsTrash, BsImage, BsTrophy, BsPeople, BsCoin, BsX } from "react-icons/bs";
 import Image from "next/image";
 import adminApiClient from "@/lib/adminApiClient";
+import { getImageUrl } from "@/lib/imageUtils";
 
 export default function GameManagement({ adminToken }) {
   const [cars, setCars] = useState([]);
@@ -19,10 +20,17 @@ export default function GameManagement({ adminToken }) {
     speedMuddy: "",
     isActive: true,
   });
+  const [topViewFile, setTopViewFile] = useState(null);
+  const [sideViewFile, setSideViewFile] = useState(null);
+  const [topViewPreview, setTopViewPreview] = useState(null);
+  const [sideViewPreview, setSideViewPreview] = useState(null);
+  const topViewInputRef = useRef(null);
+  const sideViewInputRef = useRef(null);
   const [formErrors, setFormErrors] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState({ top: false, side: false });
 
   useEffect(() => {
     loadCars();
@@ -43,6 +51,71 @@ export default function GameManagement({ adminToken }) {
     }
   };
 
+  const uploadImage = async (file, type) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    
+    setUploading(prev => ({ ...prev, [type]: true }));
+    try {
+      const response = await adminApiClient.post("/admin/cars/upload", formData, {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data.imageUrl;
+    } catch (error) {
+      console.error(`Error uploading ${type} image:`, error);
+      throw new Error(error.response?.data?.error || `Failed to upload ${type} image`);
+    } finally {
+      setUploading(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleImageChange = async (e, type) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image file");
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size must be less than 5MB");
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (type === "top") {
+        setTopViewPreview(reader.result);
+        setTopViewFile(file);
+      } else {
+        setSideViewPreview(reader.result);
+        setSideViewFile(file);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = (type) => {
+    if (type === "top") {
+      setTopViewFile(null);
+      setTopViewPreview(null);
+      setCarForm(prev => ({ ...prev, topViewImage: "" }));
+      if (topViewInputRef.current) topViewInputRef.current.value = "";
+    } else {
+      setSideViewFile(null);
+      setSideViewPreview(null);
+      setCarForm(prev => ({ ...prev, sideViewImage: "" }));
+      if (sideViewInputRef.current) sideViewInputRef.current.value = "";
+    }
+  };
+
   const validateForm = () => {
     const errors = {};
     
@@ -50,12 +123,12 @@ export default function GameManagement({ adminToken }) {
       errors.name = "Car name must be between 3 and 30 characters";
     }
     
-    if (!carForm.topViewImage || !isValidUrl(carForm.topViewImage)) {
-      errors.topViewImage = "Valid top view image URL is required";
+    if (!carForm.topViewImage && !topViewFile) {
+      errors.topViewImage = "Top view image is required";
     }
     
-    if (!carForm.sideViewImage || !isValidUrl(carForm.sideViewImage)) {
-      errors.sideViewImage = "Valid side view image URL is required";
+    if (!carForm.sideViewImage && !sideViewFile) {
+      errors.sideViewImage = "Side view image is required";
     }
     
     const speedRegular = parseInt(carForm.speedRegular);
@@ -77,18 +150,16 @@ export default function GameManagement({ adminToken }) {
     return Object.keys(errors).length === 0;
   };
 
-  const isValidUrl = (string) => {
-    try {
-      new URL(string);
-      return true;
-    } catch (_) {
-      return false;
-    }
-  };
-
   const handleOpenCarModal = (car = null) => {
     setError("");
     setFormErrors({});
+    setTopViewFile(null);
+    setSideViewFile(null);
+    setTopViewPreview(null);
+    setSideViewPreview(null);
+    if (topViewInputRef.current) topViewInputRef.current.value = "";
+    if (sideViewInputRef.current) sideViewInputRef.current.value = "";
+    
     if (car) {
       setEditingCar(car);
       setCarForm({
@@ -125,10 +196,21 @@ export default function GameManagement({ adminToken }) {
 
     setSaving(true);
     try {
+      // Upload images if new files are selected
+      let topViewImageUrl = carForm.topViewImage;
+      let sideViewImageUrl = carForm.sideViewImage;
+
+      if (topViewFile) {
+        topViewImageUrl = await uploadImage(topViewFile, "top");
+      }
+      if (sideViewFile) {
+        sideViewImageUrl = await uploadImage(sideViewFile, "side");
+      }
+
       const payload = {
         name: carForm.name.trim(),
-        topViewImage: carForm.topViewImage.trim(),
-        sideViewImage: carForm.sideViewImage.trim(),
+        topViewImage: topViewImageUrl,
+        sideViewImage: sideViewImageUrl,
         speedRegular: parseInt(carForm.speedRegular),
         speedDesert: parseInt(carForm.speedDesert),
         speedMuddy: parseInt(carForm.speedMuddy),
@@ -148,7 +230,7 @@ export default function GameManagement({ adminToken }) {
       await loadCars();
     } catch (error) {
       console.error("Error saving car:", error);
-      setError(error.response?.data?.error || "Failed to save car. Please check all fields.");
+      setError(error.response?.data?.error || error.message || "Failed to save car. Please check all fields.");
     } finally {
       setSaving(false);
     }
@@ -166,6 +248,12 @@ export default function GameManagement({ adminToken }) {
       console.error("Error deleting car:", error);
       alert(error.response?.data?.error || "Failed to delete car");
     }
+  };
+
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toString();
   };
 
   if (loading && cars.length === 0) {
@@ -196,75 +284,130 @@ export default function GameManagement({ adminToken }) {
         </Alert>
       )}
 
-      <Card className="glass-card">
-        <Card.Header>
-          <h5 className="mb-0">Cars ({cars.length})</h5>
-        </Card.Header>
-        <Card.Body>
-          {cars.length === 0 ? (
-            <div className="text-center text-muted py-5">
-              <BsTrophy size={48} className="mb-3 opacity-50" />
-              <p className="mb-0">No cars found. Add your first car to start the game!</p>
-            </div>
-          ) : (
-            <Table responsive hover>
-              <thead>
-                <tr>
-                  <th>Car Name</th>
-                  <th>Regular Speed</th>
-                  <th>Desert Speed</th>
-                  <th>Muddy Speed</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th style={{ width: "120px" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cars.map((car) => (
-                  <tr key={car._id}>
-                    <td>
-                      <strong>{car.name}</strong>
-                    </td>
-                    <td>{car.speedRegular} km/h</td>
-                    <td>{car.speedDesert} km/h</td>
-                    <td>{car.speedMuddy} km/h</td>
-                    <td>
-                      {car.isActive ? (
-                        <Badge bg="success">Active</Badge>
-                      ) : (
-                        <Badge bg="secondary">Inactive</Badge>
-                      )}
-                    </td>
-                    <td>
-                      {car.createdAt ? new Date(car.createdAt).toLocaleDateString() : "N/A"}
-                    </td>
-                    <td>
-                      <div className="d-flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          onClick={() => handleOpenCarModal(car)}
-                          title="Edit"
-                        >
-                          <BsPencil />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline-danger"
-                          onClick={() => handleDeleteCar(car._id)}
-                          title="Delete"
-                        >
-                          <BsTrash />
-                        </Button>
+      {cars.length === 0 ? (
+        <Card className="glass-card">
+          <Card.Body className="text-center text-muted py-5">
+            <BsTrophy size={48} className="mb-3 opacity-50" />
+            <p className="mb-0">No cars found. Add your first car to start the game!</p>
+          </Card.Body>
+        </Card>
+      ) : (
+        <Row className="g-4">
+          {cars.map((car) => {
+            const stats = car.stats || {};
+            const topViewUrl = getImageUrl(car.topViewImage);
+            const sideViewUrl = getImageUrl(car.sideViewImage);
+            
+            return (
+              <Col key={car._id} xs={12} md={6} lg={4}>
+                <Card className="glass-card h-100" style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                  <div className="position-relative" style={{ height: "200px", background: "var(--bg-darker, #050810)", overflow: "hidden" }}>
+                    {sideViewUrl ? (
+                      <Image
+                        src={sideViewUrl}
+                        alt={car.name}
+                        fill
+                        style={{ objectFit: "contain", padding: "1rem" }}
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="d-flex align-items-center justify-content-center h-100">
+                        <BsImage size={48} className="text-muted" />
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </Card.Body>
-      </Card>
+                    )}
+                    <Badge
+                      bg={car.isActive ? "success" : "secondary"}
+                      className="position-absolute top-0 end-0 m-2"
+                    >
+                      {car.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <Card.Body>
+                    <Card.Title className="mb-3">
+                      <h5 className="mb-0">{car.name}</h5>
+                    </Card.Title>
+                    
+                    {/* Statistics */}
+                    <div className="mb-3">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div className="d-flex align-items-center gap-2 small text-muted">
+                          <BsTrophy />
+                          <span>Games Played</span>
+                        </div>
+                        <span className="fw-bold">{stats.gamesPlayed || 0}</span>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div className="d-flex align-items-center gap-2 small text-muted">
+                          <BsTrophy style={{ color: "#ffd700" }} />
+                          <span>Wins</span>
+                        </div>
+                        <span className="fw-bold text-warning">{stats.wins || 0}</span>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div className="d-flex align-items-center gap-2 small text-muted">
+                          <BsPeople />
+                          <span>People Selected</span>
+                        </div>
+                        <span className="fw-bold">{formatNumber(stats.totalUsers || 0)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div className="d-flex align-items-center gap-2 small text-muted">
+                          <BsCoin style={{ color: "#ffd700" }} />
+                          <span>Total Selections</span>
+                        </div>
+                        <span className="fw-bold">{formatNumber(stats.totalSelections || 0)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <div className="d-flex align-items-center gap-2 small text-muted">
+                          <BsCoin style={{ color: "#00f5ff" }} />
+                          <span>Coins Spent</span>
+                        </div>
+                        <span className="fw-bold">{formatNumber(stats.totalCoins || 0)}</span>
+                      </div>
+                      {stats.gamesPlayed > 0 && (
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="small text-muted">Win Rate</span>
+                          <Badge bg="info">{stats.winRate || "0.0"}%</Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Speeds */}
+                    <div className="mb-3 p-2 rounded" style={{ background: "rgba(255, 255, 255, 0.05)" }}>
+                      <div className="small text-muted mb-1">Speeds</div>
+                      <div className="d-flex justify-content-between small">
+                        <span>Regular: <strong>{car.speedRegular} km/h</strong></span>
+                        <span>Desert: <strong>{car.speedDesert} km/h</strong></span>
+                        <span>Muddy: <strong>{car.speedMuddy} km/h</strong></span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="flex-fill"
+                        onClick={() => handleOpenCarModal(car)}
+                      >
+                        <BsPencil className="me-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => handleDeleteCar(car._id)}
+                      >
+                        <BsTrash />
+                      </Button>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+      )}
 
       {/* Car Modal */}
       <Modal show={showCarModal} onHide={() => !saving && setShowCarModal(false)} size="lg" backdrop={!saving}>
@@ -297,60 +440,88 @@ export default function GameManagement({ adminToken }) {
               <Form.Group className="mb-3 col-md-6">
                 <Form.Label>
                   <BsImage className="me-1" />
-                  Top View Image URL <span className="text-danger">*</span>
+                  Top View Image <span className="text-danger">*</span>
                 </Form.Label>
-                <Form.Control
-                  type="url"
-                  value={carForm.topViewImage}
-                  onChange={(e) => setCarForm({ ...carForm, topViewImage: e.target.value })}
-                  placeholder="https://example.com/car-top.png"
-                  isInvalid={!!formErrors.topViewImage}
-                  disabled={saving}
-                />
+                <div className="d-flex gap-2 mb-2">
+                  <Form.Control
+                    ref={topViewInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageChange(e, "top")}
+                    disabled={saving || uploading.top}
+                  />
+                  {(topViewPreview || carForm.topViewImage) && (
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => handleRemoveImage("top")}
+                      disabled={saving || uploading.top}
+                    >
+                      <BsX />
+                    </Button>
+                  )}
+                </div>
                 {formErrors.topViewImage && (
-                  <Form.Control.Feedback type="invalid">{formErrors.topViewImage}</Form.Control.Feedback>
+                  <div className="text-danger small mb-2">{formErrors.topViewImage}</div>
                 )}
-                {carForm.topViewImage && isValidUrl(carForm.topViewImage) && (
-                  <div className="mt-2">
+                {(topViewPreview || carForm.topViewImage) && (
+                  <div className="mt-2 border rounded p-2" style={{ background: "rgba(255, 255, 255, 0.05)" }}>
                     <Image
-                      src={carForm.topViewImage}
+                      src={topViewPreview || getImageUrl(carForm.topViewImage) || ""}
                       alt="Top view preview"
                       width={400}
                       height={100}
-                      style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "0.25rem", objectFit: "contain" }}
+                      style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "0.25rem", objectFit: "contain" }}
                       unoptimized
                     />
                   </div>
+                )}
+                {uploading.top && (
+                  <div className="small text-muted mt-1">Uploading...</div>
                 )}
               </Form.Group>
 
               <Form.Group className="mb-3 col-md-6">
                 <Form.Label>
                   <BsImage className="me-1" />
-                  Side View Image URL <span className="text-danger">*</span>
+                  Side View Image <span className="text-danger">*</span>
                 </Form.Label>
-                <Form.Control
-                  type="url"
-                  value={carForm.sideViewImage}
-                  onChange={(e) => setCarForm({ ...carForm, sideViewImage: e.target.value })}
-                  placeholder="https://example.com/car-side.png"
-                  isInvalid={!!formErrors.sideViewImage}
-                  disabled={saving}
-                />
+                <div className="d-flex gap-2 mb-2">
+                  <Form.Control
+                    ref={sideViewInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageChange(e, "side")}
+                    disabled={saving || uploading.side}
+                  />
+                  {(sideViewPreview || carForm.sideViewImage) && (
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => handleRemoveImage("side")}
+                      disabled={saving || uploading.side}
+                    >
+                      <BsX />
+                    </Button>
+                  )}
+                </div>
                 {formErrors.sideViewImage && (
-                  <Form.Control.Feedback type="invalid">{formErrors.sideViewImage}</Form.Control.Feedback>
+                  <div className="text-danger small mb-2">{formErrors.sideViewImage}</div>
                 )}
-                {carForm.sideViewImage && isValidUrl(carForm.sideViewImage) && (
-                  <div className="mt-2">
+                {(sideViewPreview || carForm.sideViewImage) && (
+                  <div className="mt-2 border rounded p-2" style={{ background: "rgba(255, 255, 255, 0.05)" }}>
                     <Image
-                      src={carForm.sideViewImage}
+                      src={sideViewPreview || getImageUrl(carForm.sideViewImage) || ""}
                       alt="Side view preview"
                       width={400}
                       height={100}
-                      style={{ maxWidth: "100%", maxHeight: "100px", borderRadius: "0.25rem", objectFit: "contain" }}
+                      style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "0.25rem", objectFit: "contain" }}
                       unoptimized
                     />
                   </div>
+                )}
+                {uploading.side && (
+                  <div className="small text-muted mt-1">Uploading...</div>
                 )}
               </Form.Group>
             </div>
@@ -430,7 +601,7 @@ export default function GameManagement({ adminToken }) {
           <Button variant="secondary" onClick={() => setShowCarModal(false)} disabled={saving}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSaveCar} disabled={saving}>
+          <Button variant="primary" onClick={handleSaveCar} disabled={saving || uploading.top || uploading.side}>
             {saving ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" />

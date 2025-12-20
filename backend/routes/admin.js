@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const path = require('path');
 const Admin = require('../schemas/admin');
 const Car = require('../schemas/car');
 const Game = require('../schemas/game');
 const Prediction = require('../schemas/prediction');
 const User = require('../schemas/users');
+const uploadCar = require('../middleware/uploadCar');
+const { optimizeImage, getOptimizedPath } = require('../utils/imageOptimizer');
 
 const { JWT_SECRET = 'change-me' } = process.env;
 
@@ -343,13 +346,103 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
   }
 });
 
+// Image upload endpoint for cars
+router.post('/cars/upload', authenticateAdmin, uploadCar.single('image'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    try {
+      // Optimize the uploaded image
+      const optimizedPath = getOptimizedPath(req.file.path);
+      await optimizeImage(req.file.path, optimizedPath);
+      
+      // Get relative path for URL
+      const relativePath = path.relative(path.join(__dirname, '../uploads'), optimizedPath);
+      const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+      
+      res.json({ imageUrl });
+    } catch (imageError) {
+      console.error('[Admin Routes] Error processing car image:', imageError);
+      // If image processing fails, use original file
+      if (req.file && req.file.path) {
+        const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+        const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+        res.json({ imageUrl });
+      } else {
+        res.status(500).json({ error: 'Failed to process image' });
+      }
+    }
+  } catch (error) {
+    console.error('[Admin Routes] Error uploading car image:', error);
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        const fs = require('fs');
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting uploaded file:', unlinkError);
+      }
+    }
+    next(error);
+  }
+});
+
 // Car management routes (already exist in games.js, but adding here for admin dashboard)
 router.get('/cars', authenticateAdmin, async (req, res, next) => {
   try {
     const cars = await Car.find()
       .populate('createdBy', 'account.displayName')
       .sort({ createdAt: -1 });
-    res.json({ cars });
+    
+    // Get statistics for each car
+    const carsWithStats = await Promise.all(cars.map(async (car) => {
+      const carId = car._id;
+      
+      // Games where this car participated
+      const gamesPlayed = await Game.countDocuments({
+        'cars.carId': carId,
+        status: 'finished',
+      });
+      
+      // Games where this car won
+      const wins = await Game.countDocuments({
+        winnerCarId: carId,
+        status: 'finished',
+      });
+      
+      // Total predictions (selections) for this car
+      const predictions = await Prediction.find({ predictedCarId: carId });
+      const totalSelections = predictions.length;
+      
+      // Unique users who selected this car
+      const uniqueUsers = new Set(predictions.map(p => p.userId.toString()));
+      const totalUsers = uniqueUsers.size;
+      
+      // Total coins spent on this car
+      const totalCoins = predictions.reduce((sum, p) => sum + (p.betAmount || 100), 0);
+      
+      // Games where this car was assigned (participated in any status)
+      const totalGamesAssigned = await Game.countDocuments({
+        'cars.carId': carId,
+      });
+      
+      return {
+        ...car.toObject(),
+        stats: {
+          gamesPlayed,
+          wins,
+          totalSelections,
+          totalUsers,
+          totalCoins,
+          totalGamesAssigned,
+          winRate: gamesPlayed > 0 ? ((wins / gamesPlayed) * 100).toFixed(1) : '0.0',
+        },
+      };
+    }));
+    
+    res.json({ cars: carsWithStats });
   } catch (error) {
     next(error);
   }
@@ -377,6 +470,14 @@ router.post('/cars', authenticateAdmin, async (req, res, next) => {
         speedDesertNum < 20 || speedDesertNum > 150 || 
         speedMuddyNum < 20 || speedMuddyNum > 150) {
       return res.status(400).json({ error: 'All speeds must be between 20 and 150 km/h' });
+    }
+
+    // Validate image URLs (must be /uploads/ paths or valid URLs)
+    if (!topViewImage.startsWith('/uploads/') && !topViewImage.startsWith('http')) {
+      return res.status(400).json({ error: 'Top view image must be a valid uploaded image URL' });
+    }
+    if (!sideViewImage.startsWith('/uploads/') && !sideViewImage.startsWith('http')) {
+      return res.status(400).json({ error: 'Side view image must be a valid uploaded image URL' });
     }
 
     // Admin-created cars don't have a User creator, so we use null
@@ -407,12 +508,42 @@ router.put('/cars/:id', authenticateAdmin, async (req, res, next) => {
     const { name, topViewImage, sideViewImage, speedRegular, speedDesert, speedMuddy, isActive } = req.body;
 
     const updateData = {};
-    if (name) updateData.name = name;
-    if (topViewImage) updateData.topViewImage = topViewImage;
-    if (sideViewImage) updateData.sideViewImage = sideViewImage;
-    if (speedRegular) updateData.speedRegular = parseInt(speedRegular);
-    if (speedDesert) updateData.speedDesert = parseInt(speedDesert);
-    if (speedMuddy) updateData.speedMuddy = parseInt(speedMuddy);
+    if (name) updateData.name = name.trim();
+    if (topViewImage) {
+      // Validate image URL (must be /uploads/ paths or valid URLs)
+      if (!topViewImage.startsWith('/uploads/') && !topViewImage.startsWith('http')) {
+        return res.status(400).json({ error: 'Top view image must be a valid uploaded image URL' });
+      }
+      updateData.topViewImage = topViewImage.trim();
+    }
+    if (sideViewImage) {
+      // Validate image URL (must be /uploads/ paths or valid URLs)
+      if (!sideViewImage.startsWith('/uploads/') && !sideViewImage.startsWith('http')) {
+        return res.status(400).json({ error: 'Side view image must be a valid uploaded image URL' });
+      }
+      updateData.sideViewImage = sideViewImage.trim();
+    }
+    if (speedRegular) {
+      const speedRegularNum = parseInt(speedRegular);
+      if (isNaN(speedRegularNum) || speedRegularNum < 20 || speedRegularNum > 150) {
+        return res.status(400).json({ error: 'Regular speed must be between 20 and 150 km/h' });
+      }
+      updateData.speedRegular = speedRegularNum;
+    }
+    if (speedDesert) {
+      const speedDesertNum = parseInt(speedDesert);
+      if (isNaN(speedDesertNum) || speedDesertNum < 20 || speedDesertNum > 150) {
+        return res.status(400).json({ error: 'Desert speed must be between 20 and 150 km/h' });
+      }
+      updateData.speedDesert = speedDesertNum;
+    }
+    if (speedMuddy) {
+      const speedMuddyNum = parseInt(speedMuddy);
+      if (isNaN(speedMuddyNum) || speedMuddyNum < 20 || speedMuddyNum > 150) {
+        return res.status(400).json({ error: 'Muddy speed must be between 20 and 150 km/h' });
+      }
+      updateData.speedMuddy = speedMuddyNum;
+    }
     if (isActive !== undefined) updateData.isActive = isActive;
 
     const car = await Car.findByIdAndUpdate(req.params.id, updateData, {
