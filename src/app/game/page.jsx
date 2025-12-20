@@ -271,6 +271,25 @@ export default function Html5RaceGamePage() {
     setFooterHeight(0);
   }, []);
 
+  // Add winner animation styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes sparkle {
+        0%, 100% { opacity: 0; transform: scale(0); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.1); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   // Hide bottom nav when game component is active
   useEffect(() => {
     const hideBottomNav = () => {
@@ -2369,9 +2388,179 @@ export default function Html5RaceGamePage() {
         </Modal.Body>
       </Modal>
 
-      {/* Results Modal */}
+      {/* Results Modal - Celebratory Winner Display */}
       <Modal
-        show={gameStatus === "finished" && raceResults && raceResults.length > 0}
+        show={gameStatus === "finished" && raceResults && raceResults.length > 0 && resultPhase === 1}
+        onHide={() => {}}
+        backdrop="static"
+        keyboard={false}
+        centered
+        size="lg"
+        contentClassName="glass-card"
+        style={{ 
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          background: "radial-gradient(ellipse at center, rgba(138, 43, 226, 0.3) 0%, rgba(75, 0, 130, 0.5) 100%)",
+        }}
+      >
+        <Modal.Body 
+          className="text-center position-relative p-0"
+          style={{ 
+            background: "linear-gradient(180deg, rgba(75, 0, 130, 0.8) 0%, rgba(138, 43, 226, 0.6) 50%, rgba(75, 0, 130, 0.8) 100%)",
+            minHeight: "400px",
+            overflow: "hidden",
+          }}
+        >
+          {/* Carbon fiber pattern background */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `
+                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255, 255, 255, 0.03) 10px, rgba(255, 255, 255, 0.03) 20px),
+                repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(255, 255, 255, 0.03) 10px, rgba(255, 255, 255, 0.03) 20px)
+              `,
+              pointerEvents: "none",
+            }}
+          />
+
+          {/* Sparkles/Stars */}
+          {[...Array(15)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                top: `${Math.random() * 60}%`,
+                left: `${Math.random() * 100}%`,
+                width: "3px",
+                height: "3px",
+                background: "white",
+                borderRadius: "50%",
+                boxShadow: "0 0 6px white",
+                animation: `sparkle ${2 + Math.random() * 2}s infinite`,
+                animationDelay: `${Math.random() * 2}s`,
+              }}
+            />
+          ))}
+
+          {/* Radial light beams */}
+          <div
+            style={{
+              position: "absolute",
+              top: "20%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "200%",
+              height: "200%",
+              background: "radial-gradient(circle, rgba(138, 43, 226, 0.4) 0%, transparent 70%)",
+              pointerEvents: "none",
+            }}
+          />
+
+          {/* Winner Car on Glowing Pedestal */}
+          <div className="position-relative" style={{ paddingTop: "2rem", zIndex: 2 }}>
+            {/* Glowing Pedestal */}
+            <div className="position-relative d-flex justify-content-center align-items-end" style={{ height: "200px" }}>
+              {/* Pedestal base with gradient */}
+              <div
+                className="position-absolute"
+                style={{
+                  bottom: "20px",
+                  width: "180px",
+                  height: "180px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(180deg, rgba(0, 245, 255, 0.6) 0%, rgba(138, 43, 226, 0.8) 50%, rgba(255, 20, 147, 0.6) 100%)",
+                  boxShadow: `
+                    0 0 40px rgba(0, 245, 255, 0.6),
+                    0 0 80px rgba(138, 43, 226, 0.8),
+                    0 0 120px rgba(255, 20, 147, 0.4),
+                    inset 0 0 60px rgba(255, 255, 255, 0.2)
+                  `,
+                  animation: "pulse 2s ease-in-out infinite",
+                }}
+              />
+              
+              {/* Concentric rings */}
+              {[1, 2, 3].map((ring) => (
+                <div
+                  key={ring}
+                  className="position-absolute"
+                  style={{
+                    bottom: `${20 + ring * 5}px`,
+                    width: `${180 - ring * 20}px`,
+                    height: `${180 - ring * 20}px`,
+                    borderRadius: "50%",
+                    border: `2px solid rgba(255, 255, 255, ${0.3 / ring})`,
+                    boxShadow: `0 0 ${20 * ring}px rgba(138, 43, 226, 0.5)`,
+                    animation: `pulse ${2 + ring * 0.5}s ease-in-out infinite`,
+                    animationDelay: `${ring * 0.3}s`,
+                  }}
+                />
+              ))}
+
+              {/* Car Image */}
+              {winnerCar?.sideViewImage && (
+                <div
+                  className="position-relative"
+                  style={{
+                    zIndex: 10,
+                    transform: "translateY(-40px)",
+                    filter: "drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5))",
+                  }}
+                >
+                  <img
+                    src={winnerCar.sideViewImage}
+                    alt="Winner Car"
+                    style={{
+                      width: "200px",
+                      height: "120px",
+                      objectFit: "contain",
+                      transform: "scale(1.1)",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Winner Banner */}
+            <div
+              className="position-absolute bottom-0 start-0 end-0 p-3"
+              style={{
+                background: "rgba(138, 43, 226, 0.7)",
+                backdropFilter: "blur(10px)",
+                borderTop: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "0 0 0.5rem 0.5rem",
+              }}
+            >
+              <div className="fs-4 fw-bold mb-2" style={{ color: "var(--text-primary, #ffffff)" }}>
+                {winnerCar?.name || game.winnerName || "Unknown"} won
+              </div>
+              {resultCountdown > 0 && (
+                <div className="small" style={{ color: "var(--text-secondary, #e0e6ff)" }}>
+                  Next {resultCountdown}s
+                </div>
+              )}
+              {isWinner && winningSelections.length > 0 && (
+                <div className="mt-2 fw-semibold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                  🎉 You won {formatNumber(totalPayout)} coins!
+                </div>
+              )}
+              {!isWinner && myPredictions.length > 0 && (
+                <div className="mt-2 fw-semibold" style={{ color: "var(--accent, #ca0000)" }}>
+                  You lost {formatNumber(totalInvested)} coins
+                </div>
+              )}
+            </div>
+          </div>
+
+        </Modal.Body>
+      </Modal>
+
+      {/* User Selections Phase Modal */}
+      <Modal
+        show={gameStatus === "finished" && raceResults && raceResults.length > 0 && resultPhase === 0}
         onHide={() => {}}
         backdrop="static"
         keyboard={false}
@@ -2384,75 +2573,40 @@ export default function Html5RaceGamePage() {
           <Modal.Title style={{ color: "var(--text-primary, #ffffff)" }}>
             <div className="d-flex align-items-center gap-2">
               <span>🏆</span>
-              <span>Race Results</span>
+              <span>Your Selections</span>
             </div>
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center" style={{ background: "transparent" }}>
-          {resultPhase === 1 && (
+          {myPredictions.length > 0 ? (
             <>
-              <div className="fs-5 fw-bold mb-3" style={{ color: "var(--text-primary, #ffffff)" }}>Winner</div>
               <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
-                {winnerCar?.sideViewImage && (
-                  <img
-                    src={winnerCar.sideViewImage}
-                    alt="Winner Car"
-                    style={{ width: "100px", height: "60px", objectFit: "contain" }}
-                  />
+                {myPredictions[0]?.predictedCarId && (
+                  <>
+                    {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
+                      <img
+                        src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
+                        alt="Car"
+                        style={{ width: "120px", height: "80px", objectFit: "contain" }}
+                      />
+                    )}
+                    <div className="fs-3 fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                      {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
+                    </div>
+                  </>
                 )}
-                <div className="fs-3 fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                  {winnerCar?.name || game.winnerName || "Unknown"}
-                </div>
               </div>
-              {isWinner && winningSelections.length > 0 && (
-                <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                  🎉 You won {formatNumber(totalPayout)} coins!
-                </div>
-              )}
-              {!isWinner && myPredictions.length > 0 && (
-                <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
-                  You lost {formatNumber(totalInvested)} coins
-                </div>
-              )}
+              <div style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
+              </div>
               {resultCountdown > 0 && (
                 <div className="small mt-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                  Next race in {resultCountdown}s
+                  Winner announcement in {resultCountdown}s
                 </div>
               )}
             </>
-          )}
-
-          {resultPhase === 0 && (
-            <>
-              {myPredictions.length > 0 ? (
-                <>
-                  <div className="fs-5 fw-bold mb-3" style={{ color: "var(--text-primary, #ffffff)" }}>
-                    Your Selections
-                  </div>
-                  <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
-                    {myPredictions[0]?.predictedCarId && (
-                      <>
-                        {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
-                          <img
-                            src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
-                            alt="Car"
-                            style={{ width: "80px", height: "50px", objectFit: "contain" }}
-                          />
-                        )}
-                        <div className="fs-4 fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                          {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                    {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
-                  </div>
-                </>
-              ) : (
-                <div className="fs-5 fw-bold mb-1" style={{ color: "var(--text-primary, #ffffff)" }}>No selections made</div>
-              )}
-            </>
+          ) : (
+            <div className="fs-5 fw-bold mb-1" style={{ color: "var(--text-primary, #ffffff)" }}>No selections made</div>
           )}
         </Modal.Body>
       </Modal>
