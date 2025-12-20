@@ -183,22 +183,11 @@ function Car3D({ car, progress, position, trackIndex, carImageUrl, currentTerrai
   const meshRef = useRef();
   const particlesRef = useRef([]);
   const [texture, setTexture] = useState(null);
+  const [carPosition, setCarPosition] = useState({ x: 0, z: 0, scale: 1 });
   const totalDistance = 300; // 300m track
-  const distance = (progress / 100) * totalDistance;
   const perspectiveFactor = 0.001;
   const roadWidth = 20;
   
-  // Calculate Z position (car moves forward along Z axis)
-  const z = distance;
-  
-  // Calculate scale based on distance (consistent with road perspective)
-  const perspectiveScale = 1 / (1 + z * perspectiveFactor);
-  const carScale = Math.max(0.4, perspectiveScale) * 3; // Larger scale for visibility
-
-  // Calculate X position with perspective (lanes converge) - match road calculation
-  const baseLaneX = (trackIndex - 1) * (roadWidth / 3); // Base lane spacing
-  const perspectiveLaneX = baseLaneX * perspectiveScale;
-
   // Load car image texture
   useEffect(() => {
     if (carImageUrl) {
@@ -206,25 +195,89 @@ function Car3D({ car, progress, position, trackIndex, carImageUrl, currentTerrai
       loader.load(
         carImageUrl,
         (loadedTexture) => {
-          loadedTexture.flipY = false; // Don't flip Y for top view
+          loadedTexture.flipY = false;
           loadedTexture.generateMipmaps = true;
           loadedTexture.minFilter = THREE.LinearMipmapLinearFilter;
           loadedTexture.magFilter = THREE.LinearFilter;
           setTexture(loadedTexture);
+          console.log(`[Car3D] Loaded texture for car: ${car?.name}`);
         },
         undefined,
         (error) => {
-          console.error("Error loading car image:", error);
+          console.error(`[Car3D] Error loading car image for ${car?.name}:`, error);
         }
       );
     }
-  }, [carImageUrl]);
+  }, [carImageUrl, car]);
 
+  // Update car position and scale in useFrame
   useFrame(() => {
-    if (carRef.current && meshRef.current) {
-      carRef.current.position.z = z;
-      carRef.current.position.x = perspectiveLaneX;
-      meshRef.current.scale.set(carScale, carScale, 1);
+    if (!carRef.current || !meshRef.current) return;
+    
+    // Calculate Z position (car moves forward along Z axis)
+    const distance = (progress / 100) * totalDistance;
+    const z = Math.max(0, Math.min(distance, 300)); // Clamp to track bounds
+    
+    // Calculate scale based on distance (consistent with road perspective)
+    const perspectiveScale = 1 / (1 + z * perspectiveFactor);
+    const carScale = Math.max(0.6, perspectiveScale) * 5; // Even larger for visibility
+
+    // Calculate X position with perspective (lanes converge) - match road calculation
+    // trackIndex: 1, 2, 3 -> baseLaneX: 0, 6.67, 13.33
+    const baseLaneX = (trackIndex - 1) * (roadWidth / 3);
+    const perspectiveLaneX = baseLaneX * perspectiveScale;
+    
+    // Update position - ensure car is always visible
+    carRef.current.position.set(perspectiveLaneX, 0.8, z);
+    meshRef.current.scale.set(carScale, carScale, 1);
+    
+    // Ensure mesh is visible
+    if (meshRef.current.material) {
+      meshRef.current.material.visible = true;
+    }
+    
+    // Update particles position relative to car
+    particlesRef.current.forEach(particle => {
+      if (particle.meshRef?.current) {
+        particle.meshRef.current.position.set(
+          perspectiveLaneX + particle.offsetX,
+          particle.y,
+          z + particle.offsetZ
+        );
+      }
+    });
+    
+    // Generate particles dynamically (behind car)
+    if (isRacing && progress > 0 && progress < 100 && (currentTerrain === "desert" || currentTerrain === "muddy")) {
+      if (Math.random() < 0.2) {
+        const particleCount = currentTerrain === "desert" ? 2 : 3;
+        for (let i = 0; i < particleCount; i++) {
+          const offsetX = (Math.random() - 0.5) * 1.2;
+          const offsetZ = -0.8 - Math.random() * 0.4; // Behind car (negative Z, further back)
+          particlesRef.current.push({
+            id: `${Date.now()}-${i}-${Math.random()}`,
+            offsetX,
+            offsetZ,
+            y: 0.1,
+            type: currentTerrain === "desert" ? "dust" : "mud",
+            scale: carScale * 0.25,
+            opacity: 0.85,
+            meshRef: { current: null },
+          });
+        }
+      }
+      
+      // Update and remove old particles
+      particlesRef.current = particlesRef.current
+        .map(p => ({ 
+          ...p, 
+          y: p.y + 0.02 * p.scale, 
+          opacity: p.opacity - 0.03,
+          offsetZ: p.offsetZ - 0.05 // Move further back
+        }))
+        .filter(p => p.opacity > 0 && p.y < 1.5 && p.offsetZ > -3);
+    } else {
+      particlesRef.current = [];
     }
   });
 
@@ -235,63 +288,57 @@ function Car3D({ car, progress, position, trackIndex, carImageUrl, currentTerrai
   else if (name.includes("blue") || name.includes("police")) carColor = "#3b82f6";
   else if (name.includes("green") || name.includes("monster")) carColor = "#22c55e";
 
-  // Generate particles dynamically
-  useFrame(() => {
-    if (isRacing && progress > 0 && progress < 100 && (currentTerrain === "desert" || currentTerrain === "muddy")) {
-      // Add particles occasionally
-      if (Math.random() < 0.1) {
-        const particleCount = currentTerrain === "desert" ? 2 : 3;
-        for (let i = 0; i < particleCount; i++) {
-          const offsetX = (Math.random() - 0.5) * 1.5;
-          const offsetZ = (Math.random() - 0.5) * 1.5;
-          particlesRef.current.push({
-            id: Date.now() + i,
-            x: perspectiveLaneX + offsetX,
-            y: 0.2,
-            z: z + offsetZ,
-            type: currentTerrain === "desert" ? "dust" : "mud",
-            scale: carScale * 0.3,
-            opacity: 0.8,
-          });
-        }
-      }
-      
-      // Update and remove old particles
-      particlesRef.current = particlesRef.current
-        .map(p => ({ ...p, y: p.y + 0.01 * p.scale, opacity: p.opacity - 0.02 }))
-        .filter(p => p.opacity > 0 && p.y < 2);
-    } else {
-      particlesRef.current = [];
-    }
-  });
+  // Initial position calculation (for first render)
+  const distance = (progress / 100) * totalDistance;
+  const z = Math.max(0, Math.min(distance, 300));
+  const perspectiveScale = 1 / (1 + z * perspectiveFactor);
+  const baseLaneX = (trackIndex - 1) * (roadWidth / 3);
+  const perspectiveLaneX = baseLaneX * perspectiveScale;
+  const carScale = Math.max(0.6, perspectiveScale) * 5;
 
   return (
-    <group ref={carRef} position={[perspectiveLaneX, 0.5, z]}>
+    <group ref={carRef} position={[perspectiveLaneX, 0.8, z]}>
+      {/* Car sprite - always visible with proper image */}
       <mesh
         ref={meshRef}
-        rotation={[-Math.PI / 2, 0, 0]} // Rotate to lay flat (top view)
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[carScale, carScale, 1]}
+        renderOrder={10}
       >
-        <planeGeometry args={[3, 3]} />
-        {texture ? (
+        <planeGeometry args={[3.5, 3.5]} />
+        {texture && texture.image ? (
           <meshBasicMaterial 
             map={texture} 
-            transparent 
+            transparent={true}
             alphaTest={0.05}
             side={THREE.DoubleSide}
+            depthWrite={false}
+            fog={false}
           />
         ) : (
-          <meshBasicMaterial color={carColor} side={THREE.DoubleSide} />
+          <meshBasicMaterial 
+            color={carColor} 
+            side={THREE.DoubleSide}
+            depthWrite={false}
+            fog={false}
+          />
         )}
       </mesh>
       
-      {/* Particles aligned with car position */}
+      
+      {/* Particles - behind car */}
       {particlesRef.current.map((particle) => (
-        <mesh key={particle.id} position={[particle.x, particle.y, particle.z]}>
+        <mesh 
+          key={particle.id}
+          ref={el => particle.meshRef.current = el}
+          position={[perspectiveLaneX + particle.offsetX, particle.y, z + particle.offsetZ]}
+        >
           <sphereGeometry args={[particle.scale, 8, 8]} />
           <meshBasicMaterial 
             color={particle.type === "dust" ? "#fbbf24" : "#78350f"} 
             transparent 
-            opacity={particle.opacity} 
+            opacity={particle.opacity}
+            depthWrite={false}
           />
         </mesh>
       ))}
@@ -354,14 +401,21 @@ function Scene3D({ game, raceProgress, gameStatus, tracks, cars }) {
       {/* Finish line - checkered pattern at the end with perspective */}
       <FinishLine position={[0, 0.03, 300]} width={20} />
 
-      {/* Cars */}
+      {/* Cars - always render, even at 0% */}
       {cars?.map((assignment, index) => {
         const car = assignment?.carId || assignment;
         if (!car) return null;
         const carId = car?._id?.toString() || car?.toString() || car?._id || car;
+        // Always show progress, even if not racing (for visibility at start)
         const progress = isRacing ? (progressMap[carId]?.progress || 0) : 0;
-        const trackNumber = assignment?.trackNumber || index + 1;
+        // Ensure trackNumber is 1, 2, or 3 (for 3 lanes)
+        const trackNumber = Math.min(Math.max(assignment?.trackNumber || index + 1, 1), 3);
         const carImageUrl = car?.topViewImage || null;
+        
+        // Debug logging
+        if (index === 0) {
+          console.log(`[Game3D] Car ${carId} - trackNumber: ${trackNumber}, progress: ${progress}, imageUrl: ${carImageUrl ? 'yes' : 'no'}`);
+        }
         
         // Calculate current terrain based on progress
         const track = tracks?.[index] || tracks?.[trackNumber - 1];
@@ -387,6 +441,7 @@ function Scene3D({ game, raceProgress, gameStatus, tracks, cars }) {
           />
         );
       })}
+      
 
       {/* Camera controls - view full track from start (0%) to finish (100%) */}
       <PerspectiveCamera
