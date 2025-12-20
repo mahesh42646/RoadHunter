@@ -1780,11 +1780,10 @@ export default function Html5RaceGamePage() {
           top: "clamp(0.5rem, 1vw, 1rem)",
           right: "clamp(0.5rem, 1vw, 1rem)",
           zIndex: 10,
-          background: "rgba(15,23,42,0.85)",
+          background: "#0f172a",
           borderRadius: "0.75rem",
           padding: "clamp(0.5rem, 1vw, 0.75rem)",
-          border: "1px solid rgba(148,163,184,0.3)",
-          backdropFilter: "blur(10px)",
+          border: "1px solid #475569",
         }}
       >
         <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -1842,7 +1841,7 @@ export default function Html5RaceGamePage() {
           style={{
             zIndex: 20,
             borderRadius: "clamp(0.5rem, 1vw, 1rem)",
-            background: "rgba(15,23,42,0.92)",
+            background: "#0f172a",
             border: "2px solid #38bdf8",
             boxShadow: "0 0 35px rgba(56,189,248,0.65)",
             padding: "clamp(0.75rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)",
@@ -1870,11 +1869,10 @@ export default function Html5RaceGamePage() {
           className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1"
           style={{
             zIndex: 10,
-            background: "rgba(15,23,42,0.9)",
-            border: "1px solid rgba(96,165,250,0.7)",
+            background: "#0f172a",
+            border: "1px solid #60a5fa",
             padding: "clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem)",
             fontSize: "clamp(0.7rem, 1.5vw, 0.875rem)",
-            backdropFilter: "blur(10px)",
           }}
         >
           <span className="text-primary fw-bold">LIVE</span>
