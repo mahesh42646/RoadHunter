@@ -364,62 +364,10 @@ export default function Html5RaceGamePage() {
     latestStateRef.current = { game, raceProgress, gameStatus };
   }, [game, raceProgress, gameStatus]);
 
-  // Measure footer height dynamically
+  // Footer height is 0 since this component will be used in a parent page
+  // The parent page will handle navigation, so we use full height
   useEffect(() => {
-    const measureFooter = () => {
-      // Find the bottom nav element - try multiple selectors
-      let bottomNav = document.querySelector('nav.position-fixed.bottom-0');
-      if (!bottomNav) {
-        bottomNav = document.querySelector('nav.d-md-none.position-fixed.bottom-0');
-      }
-      if (!bottomNav) {
-        // Try finding by data attribute or class name containing MobileBottomNav
-        const navs = document.querySelectorAll('nav');
-        for (const nav of navs) {
-          const rect = nav.getBoundingClientRect();
-          if (rect.bottom >= window.innerHeight - 10 && rect.top < window.innerHeight) {
-            bottomNav = nav;
-            break;
-          }
-        }
-      }
-      
-      if (bottomNav) {
-        const rect = bottomNav.getBoundingClientRect();
-        const height = rect.height || bottomNav.offsetHeight;
-        if (height > 0) {
-          setFooterHeight(height);
-          return;
-        }
-      }
-      
-      // Fallback: use default height based on screen size
-      const isMobile = window.innerWidth < 768;
-      setFooterHeight(isMobile ? 70 : 0); // Only show on mobile
-    };
-
-    // Measure on mount
-    measureFooter();
-    
-    // Measure on resize
-    window.addEventListener('resize', measureFooter);
-    
-    // Measure after DOM updates
-    const timeout1 = setTimeout(measureFooter, 100);
-    const timeout2 = setTimeout(measureFooter, 500);
-    const timeout3 = setTimeout(measureFooter, 1000);
-
-    // Use MutationObserver to detect when footer is added/removed
-    const observer = new MutationObserver(measureFooter);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      window.removeEventListener('resize', measureFooter);
-      clearTimeout(timeout1);
-      clearTimeout(timeout2);
-      clearTimeout(timeout3);
-      observer.disconnect();
-    };
+    setFooterHeight(0);
   }, []);
 
   // Preload car top view images
@@ -1428,12 +1376,13 @@ export default function Html5RaceGamePage() {
 
       // Draw cars - always show cars even if no game data
       // Car size scales proportionally with lane width and segment height
+      // Increased by 30% for better visibility
       const cars = g?.cars || [];
       const baseCarSize = Math.min(
         laneWidth * 0.7, // 70% of lane width
         segmentHeight * 0.35, // 35% of segment height
         height * 0.08 // Max 8% of canvas height to prevent oversized cars
-      );
+      ) * 1.3; // Increase by 30%
 
       // If no cars from game, create placeholder cars for each lane
       const carsToDraw = cars.length > 0 ? cars : [
@@ -1740,10 +1689,10 @@ export default function Html5RaceGamePage() {
     <div
       className="position-relative"
       style={{
-        // Calculate height: 100dvh minus footer height
-        height: `calc(100dvh - ${footerHeight}px)`,
-        width: "100dvw",
-        maxWidth: "100vw",
+        // Full height since this component will be used in a parent page
+        height: "100vh",
+        width: "100%",
+        maxWidth: "100%",
         overflow: "hidden", // Prevent any scrolling
         margin: 0,
         padding: 0,
