@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const fs = require('fs');
 const Admin = require('../schemas/admin');
 const Car = require('../schemas/car');
 const Game = require('../schemas/game');
@@ -347,7 +348,22 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
 });
 
 // Image upload endpoint for cars
-router.post('/cars/upload', authenticateAdmin, uploadCar.single('image'), async (req, res, next) => {
+router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
+  uploadCar.single('image')(req, res, (err) => {
+    if (err) {
+      console.error('[Admin Routes] Multer error:', err);
+      // Handle multer errors
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File size too large. Maximum size is 5MB.' });
+      }
+      if (err.message === 'Only image files are allowed') {
+        return res.status(400).json({ error: 'Only image files are allowed' });
+      }
+      return res.status(400).json({ error: err.message || 'File upload error' });
+    }
+    next();
+  });
+}, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
@@ -366,26 +382,25 @@ router.post('/cars/upload', authenticateAdmin, uploadCar.single('image'), async 
     } catch (imageError) {
       console.error('[Admin Routes] Error processing car image:', imageError);
       // If image processing fails, use original file
-      if (req.file && req.file.path) {
+      if (req.file && req.file.path && fs.existsSync(req.file.path)) {
         const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
         const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
         res.json({ imageUrl });
       } else {
-        res.status(500).json({ error: 'Failed to process image' });
+        res.status(500).json({ error: 'Failed to process image: ' + imageError.message });
       }
     }
   } catch (error) {
     console.error('[Admin Routes] Error uploading car image:', error);
     // Clean up uploaded file on error
-    if (req.file && req.file.path) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try {
-        const fs = require('fs');
         fs.unlinkSync(req.file.path);
       } catch (unlinkError) {
         console.error('Error deleting uploaded file:', unlinkError);
       }
     }
-    next(error);
+    res.status(500).json({ error: error.message || 'Failed to upload image' });
   }
 });
 

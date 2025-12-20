@@ -60,13 +60,19 @@ export default function GameManagement({ adminToken }) {
       const response = await adminApiClient.post("/admin/cars/upload", formData, {
         headers: {
           Authorization: `Bearer ${adminToken}`,
-          "Content-Type": "multipart/form-data",
+          // Don't set Content-Type - let axios set it automatically with boundary
         },
       });
+      if (!response.data || !response.data.imageUrl) {
+        throw new Error("Invalid response from server");
+      }
       return response.data.imageUrl;
     } catch (error) {
       console.error(`Error uploading ${type} image:`, error);
-      throw new Error(error.response?.data?.error || `Failed to upload ${type} image`);
+      const errorMessage = error.response?.data?.error || 
+                          error.message || 
+                          `Failed to upload ${type} image. Please try again.`;
+      throw new Error(errorMessage);
     } finally {
       setUploading(prev => ({ ...prev, [type]: false }));
     }
@@ -200,11 +206,18 @@ export default function GameManagement({ adminToken }) {
       let topViewImageUrl = carForm.topViewImage;
       let sideViewImageUrl = carForm.sideViewImage;
 
-      if (topViewFile) {
-        topViewImageUrl = await uploadImage(topViewFile, "top");
-      }
-      if (sideViewFile) {
-        sideViewImageUrl = await uploadImage(sideViewFile, "side");
+      try {
+        if (topViewFile) {
+          topViewImageUrl = await uploadImage(topViewFile, "top");
+        }
+        if (sideViewFile) {
+          sideViewImageUrl = await uploadImage(sideViewFile, "side");
+        }
+      } catch (uploadError) {
+        console.error("Error uploading images:", uploadError);
+        setError(uploadError.message || "Failed to upload images. Please try again.");
+        setSaving(false);
+        return;
       }
 
       const payload = {
@@ -230,7 +243,10 @@ export default function GameManagement({ adminToken }) {
       await loadCars();
     } catch (error) {
       console.error("Error saving car:", error);
-      setError(error.response?.data?.error || error.message || "Failed to save car. Please check all fields.");
+      const errorMessage = error.response?.data?.error || 
+                          error.message || 
+                          "Failed to save car. Please check all fields.";
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
