@@ -612,7 +612,12 @@ class GameEngine {
         // Check if any car reached finish line (100% progress) - declare winner immediately
         if (finalProgress >= 100 && !winnerReached) {
           winnerReached = true;
-          console.log(`[Game Engine] Winner reached finish line! Car: ${carIdStr}, Progress: ${finalProgress.toFixed(1)}%`);
+          console.log(`[Game Engine] Winner reached finish line! Car: ${carIdStr}, Progress: ${finalProgress.toFixed(1)}%, Distance: ${finalDistance.toFixed(1)}m, ElapsedTime: ${elapsedTime.toFixed(2)}s`);
+        }
+        
+        // Debug logging when near end
+        if (currentUpdate >= totalUpdates - 10 && finalProgress < 100) {
+          console.log(`[Game Engine] Car ${carIdStr} at ${finalProgress.toFixed(1)}% (${finalDistance.toFixed(1)}m) - ElapsedTime: ${elapsedTime.toFixed(2)}s, TotalTime: ${result.totalTime.toFixed(2)}s`);
         }
       }
 
@@ -632,6 +637,7 @@ class GameEngine {
       if (winnerReached && !raceFinished && currentUpdate >= 10) {
         raceFinished = true;
         clearInterval(this.raceAnimationInterval);
+        this.raceAnimationInterval = null;
         // Send final progress update with actual car positions (not all at 100%)
         this.io.emit('game:race_progress', {
           gameId: game._id.toString(),
@@ -652,6 +658,7 @@ class GameEngine {
         if (anyCarFinished) {
           raceFinished = true;
           clearInterval(this.raceAnimationInterval);
+          this.raceAnimationInterval = null;
           // Send final progress update with actual positions
           this.io.emit('game:race_progress', {
             gameId: game._id.toString(),
@@ -661,10 +668,68 @@ class GameEngine {
           console.log(`[Game Engine] Race animation completed - at least one car finished for game ${game.gameNumber}`);
           this.finishRace(game._id);
         } else {
-          // No car reached finish - log warning but don't finish yet
-          console.log(`[Game Engine] WARNING: Animation completed but no car reached finish line for game ${game.gameNumber}`);
-          // Extend animation by continuing (will check again next update)
+          // No car reached finish - force finish after animation completes
+          // This prevents infinite loops when cars are too slow
+          console.log(`[Game Engine] WARNING: Animation completed but no car reached finish line for game ${game.gameNumber}. Forcing finish...`);
+          raceFinished = true;
+          clearInterval(this.raceAnimationInterval);
+          this.raceAnimationInterval = null;
+          
+          // Find the car with highest progress as winner
+          let maxProgress = 0;
+          let winnerCarId = null;
+          Object.entries(carPositions).forEach(([carId, pos]) => {
+            if (pos.progress > maxProgress) {
+              maxProgress = pos.progress;
+              winnerCarId = carId;
+            }
+          });
+          
+          // Set all cars to their final positions
+          const finalPositions = {};
+          Object.entries(carPositions).forEach(([carId, pos]) => {
+            finalPositions[carId] = {
+              distance: pos.distance,
+              progress: pos.progress,
+              segment: pos.segment,
+            };
+          });
+          
+          // Send final progress update
+          this.io.emit('game:race_progress', {
+            gameId: game._id.toString(),
+            carPositions: finalPositions,
+            progress: 100,
+          });
+          
+          console.log(`[Game Engine] Race forced to finish - winner: ${winnerCarId} with ${maxProgress.toFixed(1)}% progress`);
+          this.finishRace(game._id);
         }
+        return;
+      }
+      
+      // Safety check: prevent infinite loops - force finish if way past totalUpdates
+      if (currentUpdate > totalUpdates * 2 && !raceFinished) {
+        console.log(`[Game Engine] SAFETY: Animation exceeded 2x duration for game ${game.gameNumber}. Forcing finish...`);
+        raceFinished = true;
+        clearInterval(this.raceAnimationInterval);
+        this.raceAnimationInterval = null;
+        
+        // Find winner by highest progress
+        let maxProgress = 0;
+        Object.entries(carPositions).forEach(([carId, pos]) => {
+          if (pos.progress > maxProgress) {
+            maxProgress = pos.progress;
+          }
+        });
+        
+        this.io.emit('game:race_progress', {
+          gameId: game._id.toString(),
+          carPositions,
+          progress: 100,
+        });
+        
+        this.finishRace(game._id);
         return;
       }
     }, updateInterval);
