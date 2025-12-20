@@ -214,108 +214,7 @@ class Particle {
   }
 }
 
-// Draw realistic 2D arcade-style car
-function drawArcadeCar(ctx, x, y, width, height, color, carName = "") {
-  const carTop = y - height / 2;
-  const carLeft = x - width / 2;
-  
-  // Car body (main shape)
-  ctx.fillStyle = color;
-  drawRoundedRect(ctx, carLeft, carTop, width, height, width * 0.15);
-  ctx.fill();
-  
-  // Car body highlight
-  ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-  drawRoundedRect(
-    ctx,
-    carLeft + width * 0.1,
-    carTop + height * 0.1,
-    width * 0.8,
-    height * 0.3,
-    width * 0.1
-  );
-  ctx.fill();
-  
-  // Windshield (front)
-  ctx.fillStyle = "rgba(135, 206, 250, 0.6)";
-  drawRoundedRect(
-    ctx,
-    carLeft + width * 0.15,
-    carTop + height * 0.15,
-    width * 0.7,
-    height * 0.25,
-    width * 0.1
-  );
-  ctx.fill();
-  
-  // Windshield frame
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
-  ctx.lineWidth = 1;
-  drawRoundedRect(
-    ctx,
-    carLeft + width * 0.15,
-    carTop + height * 0.15,
-    width * 0.7,
-    height * 0.25,
-    width * 0.1
-  );
-  ctx.stroke();
-  
-  // Side windows
-  ctx.fillStyle = "rgba(30, 30, 50, 0.7)";
-  ctx.fillRect(carLeft + width * 0.2, carTop + height * 0.45, width * 0.25, height * 0.2);
-  ctx.fillRect(carLeft + width * 0.55, carTop + height * 0.45, width * 0.25, height * 0.2);
-  
-  // Roof stripe/racing stripe
-  ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.fillRect(carLeft + width * 0.4, carTop + height * 0.35, width * 0.2, height * 0.15);
-  
-  // Wheels (4 wheels)
-  const wheelSize = width * 0.15;
-  const wheelY1 = carTop + height * 0.25;
-  const wheelY2 = carTop + height * 0.75;
-  const wheelX1 = carLeft + width * 0.2;
-  const wheelX2 = carLeft + width * 0.8;
-  
-  // Wheel shadows
-  ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-  ctx.beginPath();
-  ctx.arc(wheelX1, wheelY1, wheelSize, 0, Math.PI * 2);
-  ctx.arc(wheelX2, wheelY1, wheelSize, 0, Math.PI * 2);
-  ctx.arc(wheelX1, wheelY2, wheelSize, 0, Math.PI * 2);
-  ctx.arc(wheelX2, wheelY2, wheelSize, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Wheels
-  ctx.fillStyle = "#1a1a1a";
-  ctx.beginPath();
-  ctx.arc(wheelX1, wheelY1, wheelSize * 0.9, 0, Math.PI * 2);
-  ctx.arc(wheelX2, wheelY1, wheelSize * 0.9, 0, Math.PI * 2);
-  ctx.arc(wheelX1, wheelY2, wheelSize * 0.9, 0, Math.PI * 2);
-  ctx.arc(wheelX2, wheelY2, wheelSize * 0.9, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Wheel rims
-  ctx.fillStyle = "#666";
-  ctx.beginPath();
-  ctx.arc(wheelX1, wheelY1, wheelSize * 0.6, 0, Math.PI * 2);
-  ctx.arc(wheelX2, wheelY1, wheelSize * 0.6, 0, Math.PI * 2);
-  ctx.arc(wheelX1, wheelY2, wheelSize * 0.6, 0, Math.PI * 2);
-  ctx.arc(wheelX2, wheelY2, wheelSize * 0.6, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Car number/name
-  if (carName) {
-    ctx.fillStyle = "#ffffff";
-    ctx.strokeStyle = "#000000";
-    ctx.lineWidth = 2;
-    ctx.font = `bold ${Math.max(8, width * 0.2)}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.strokeText(carName, x, carTop + height * 0.5);
-    ctx.fillText(carName, x, carTop + height * 0.5);
-  }
-}
+
 
 export default function Html5RaceGamePage() {
   const token = useAuthStore((state) => state.token);
@@ -334,6 +233,8 @@ export default function Html5RaceGamePage() {
   const [raceStartCountdown, setRaceStartCountdown] = useState(0);
   const [resultPhase, setResultPhase] = useState(0); // 0: your result, 1: winner, 2: next game countdown
   const [resultCountdown, setResultCountdown] = useState(0);
+  const [userBalance, setUserBalance] = useState(0);
+  const [showCarInfo, setShowCarInfo] = useState(null); // Track which car's info modal is open
 
   const timerIntervalRef = useRef(null);
   const predictionCountIntervalRef = useRef(null);
@@ -572,6 +473,22 @@ export default function Html5RaceGamePage() {
   useEffect(() => {
     loadActiveGame();
   }, [loadActiveGame]);
+
+  // Load user balance
+  useEffect(() => {
+    const loadBalance = async () => {
+      try {
+        const response = await apiClient.get("/wallet/balance");
+        setUserBalance(response.data.partyCoins || 0);
+      } catch (err) {
+        console.error("[Html5RaceGame] Failed to load balance", err);
+      }
+    };
+    loadBalance();
+    // Refresh balance periodically
+    const interval = setInterval(loadBalance, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Prediction countdown timer
   useEffect(() => {
@@ -1996,52 +1913,194 @@ export default function Html5RaceGamePage() {
         backdrop="static"
         keyboard={false}
         centered
-        size="md"
+        size="lg"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
       >
-        <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
-          <Modal.Title className="w-100" style={{ color: "var(--text-primary, #ffffff)" }}>
-            <div className="d-flex align-items-center justify-content-between w-100">
-              <div className="d-flex align-items-center gap-2">
-                <span>🏁</span>
-                <span>Select Your Car</span>
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <small style={{ color: "var(--text-muted, #a8b3d0)" }}>Game #{game.gameNumber}</small>
-                {timeRemaining > 0 && (
-                  <Badge
+        {/* Header Stats Bar */}
+        <div
+          className="d-flex align-items-center justify-content-between px-3 py-2"
+          style={{
+            background: "rgba(10, 14, 26, 0.8)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            fontSize: "0.875rem",
+          }}
+        >
+          <div className="d-flex align-items-center gap-3">
+            <div className="d-flex align-items-center gap-1">
+              <BsPeople style={{ color: "var(--text-muted, #a8b3d0)" }} />
+              <span style={{ color: "var(--text-primary, #ffffff)" }}>{totalSelections}</span>
+            </div>
+            <div className="d-flex align-items-center gap-1">
+              <BsCoin style={{ color: "#ffd700" }} />
+              <span style={{ color: "var(--text-primary, #ffffff)" }}>{formatNumber(totalPot)}</span>
+            </div>
+            <div style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+              {timeRemaining}s
+            </div>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-1">
+              <BsCoin style={{ color: "#ffd700" }} />
+              <span style={{ color: "var(--text-primary, #ffffff)" }}>{formatNumber(userBalance)}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline-light"
+              style={{
+                minWidth: "30px",
+                padding: "0.25rem 0.5rem",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+              }}
+            >
+              +
+            </Button>
+          </div>
+        </div>
+
+        {/* Road Preview Section */}
+        <div className="px-3 py-2" style={{ background: "rgba(15, 23, 42, 0.5)" }}>
+          <div className="d-flex gap-2 align-items-center">
+            {(game.tracks || [
+              { segments: ["regular", "regular", "regular"] },
+              { segments: ["desert", "desert", "desert"] },
+              { segments: ["muddy", "muddy", "muddy"] },
+            ]).map((track, idx) => {
+              const segments = track.segments || ["regular", "regular", "regular"];
+              const terrainNames = {
+                regular: "Highway",
+                desert: "Desert",
+                muddy: "Potholes",
+              };
+              // Show middle segment (index 1) terrain
+              const middleTerrain = segments[1] || segments[Math.floor(segments.length / 2)] || "regular";
+              const isActive = idx === 1; // Middle track is active
+              
+              return (
+                <div key={idx} className="flex-grow-1 position-relative">
+                  <div
+                    className="text-center mb-1 small fw-bold"
                     style={{
-                      background: timeRemaining > 10
-                        ? "rgba(0, 245, 255, 0.2)"
-                        : timeRemaining > 5
-                        ? "rgba(255, 193, 7, 0.2)"
-                        : "rgba(202, 0, 0, 0.2)",
-                      color: timeRemaining > 10
-                        ? "var(--accent-secondary, #00f5ff)"
-                        : timeRemaining > 5
-                        ? "#ffc107"
-                        : "var(--accent, #ca0000)",
-                      border: `1px solid ${timeRemaining > 10
-                        ? "var(--accent-secondary, #00f5ff)"
-                        : timeRemaining > 5
-                        ? "#ffc107"
-                        : "var(--accent, #ca0000)"}`,
+                      color: isActive ? "#ffd700" : "var(--text-muted, #a8b3d0)",
+                      fontSize: "0.75rem",
                     }}
                   >
-                    <BsClock className="me-1" />
-                    {timeRemaining}s
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: "transparent" }}>
-          <div
-            className="d-flex overflow-auto px-2 py-2"
-            style={{ gap: "0.75rem", maxHeight: "50vh" }}
-          >
+                    {isActive ? (
+                      <>
+                        <span className="me-1">⛰️</span>
+                        {terrainNames[middleTerrain] || "???"}
+                        <span className="ms-1">→</span>
+                      </>
+                    ) : (
+                      "???"
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      height: "40px",
+                      background: middleTerrain === "regular" 
+                        ? "#2a2d35" 
+                        : middleTerrain === "desert"
+                        ? "#d4a574"
+                        : "#6b4423",
+                      borderRadius: "0.25rem",
+                      border: isActive ? "2px solid #ffd700" : "1px solid rgba(255, 255, 255, 0.1)",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {middleTerrain === "muddy" && (
+                      <>
+                        {/* Potholes */}
+                        <div
+                          style={{
+                            position: "absolute",
+                            width: "8px",
+                            height: "8px",
+                            background: "#3a2410",
+                            borderRadius: "50%",
+                            top: "50%",
+                            left: "30%",
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            width: "6px",
+                            height: "6px",
+                            background: "#3a2410",
+                            borderRadius: "50%",
+                            top: "50%",
+                            left: "70%",
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                        {isActive && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              height: "2px",
+                              background: "var(--accent, #ca0000)",
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+                    {middleTerrain === "regular" && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          left: 0,
+                          right: 0,
+                          height: "1px",
+                          background: "repeating-linear-gradient(to right, #fff 0, #fff 10px, transparent 10px, transparent 20px)",
+                          transform: "translateY(-50%)",
+                        }}
+                      />
+                    )}
+                    {middleTerrain === "desert" && (
+                      <>
+                        <div
+                          style={{
+                            position: "absolute",
+                            width: "4px",
+                            height: "4px",
+                            background: "#c49a5f",
+                            borderRadius: "50%",
+                            top: "20%",
+                            left: "25%",
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            width: "3px",
+                            height: "3px",
+                            background: "#c49a5f",
+                            borderRadius: "50%",
+                            top: "60%",
+                            left: "60%",
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <Modal.Body 
+          style={{ background: "transparent", padding: "1rem" }}
+          onClick={() => setShowCarInfo(null)}
+        >
+          <div className="row g-2">
             {game.cars.map((assignment) => {
                 const car = assignment.carId;
                 const carId = normalizeCarId(car?._id || car);
@@ -2056,46 +2115,73 @@ export default function Html5RaceGamePage() {
                   myPredictions.length > 0 && !hasSelections;
                 const disabled = predicting || timeRemaining <= 0;
 
+                // Calculate potential payout ratio (multiplier)
+                // If this car wins: payout = winnerPool / totalSelections per selection
+                // Ratio = payout per selection / cost per selection (100 coins)
+                const carTotalSelections = count;
+                const payoutPerSelection = totalSelections > 0
+                  ? winnerPool / totalSelections
+                  : 0;
+                const currentRatio = payoutPerSelection > 0
+                  ? (payoutPerSelection / 100).toFixed(1)
+                  : "0.0";
+                // Max ratio if only this car had selections (theoretical max)
+                const maxRatio = carTotalSelections > 0 && totalSelections > 0
+                  ? (winnerPool / (carTotalSelections * 100)).toFixed(1)
+                  : currentRatio;
+
                 return (
-                  <div key={carId} className="flex-shrink-0" style={{ 
-                    width: "clamp(140px, 20vw, 200px)", // Responsive width: min 140px, preferred 20vw, max 200px
-                    minWidth: "140px",
-                    maxWidth: "200px"
-                  }}>
+                  <div key={carId} className="col-4">
                     <div
-                      className="h-100 p-2"
+                      className="h-100 p-2 position-relative"
                       style={{
                         borderRadius: "0.75rem",
-                        cursor: disabled ? "default" : "pointer",
-                        background: hasSelections
-                          ? "linear-gradient(135deg, var(--glow-pink, rgba(200, 0, 100, 0.3)), var(--glow-cyan, rgba(0, 245, 255, 0.3)))"
-                          : "rgba(20, 27, 45, 0.6)",
+                        background: "rgba(20, 27, 45, 0.6)",
                         border: hasSelections
-                          ? "1px solid var(--accent-secondary, #00f5ff)"
+                          ? "2px solid var(--accent-secondary, #00f5ff)"
                           : "1px solid rgba(255, 255, 255, 0.1)",
                         boxShadow: hasSelections
-                          ? "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))"
+                          ? "0 0 15px var(--glow-cyan, rgba(0, 245, 255, 0.4))"
                           : "none",
-                        backdropFilter: "blur(10px)",
-                      }}
-                      onClick={() => {
-                        if (disabled) return;
-                        if (hasOtherSelections) {
-                          setError("You can select only one car per race.");
-                          return;
-                        }
-                        makePrediction(carId, "add");
                       }}
                     >
+                      {/* Rating and Info Button */}
+                      <div className="d-flex justify-content-between align-items-start mb-1">
+                        <span
+                          className="small fw-bold"
+                          style={{ color: "#ffd700", fontSize: "0.7rem" }}
+                        >
+                          {currentRatio}/{maxRatio}
+                        </span>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="p-0"
+                          style={{
+                            minWidth: "20px",
+                            height: "20px",
+                            color: "var(--text-muted, #a8b3d0)",
+                            textDecoration: "none",
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCarInfo(showCarInfo === carId ? null : carId);
+                          }}
+                        >
+                          ?
+                        </Button>
+                      </div>
+
+                      {/* Car Image */}
                       <div
-                        className="mb-2 position-relative d-flex align-items-center justify-content-center"
+                        className="mb-2 position-relative d-flex align-items-center justify-content-center rounded-2"
                         style={{
-                          height: 80,
-                          borderRadius: "0.6rem",
+                          height: "80px",
+                          borderRadius: "0.5rem",
                           background: car.sideViewImage
                             ? `url(${car.sideViewImage}) center/contain no-repeat`
                             : "linear-gradient(135deg,#4b5563,#1f2937)",
-                          border: "1px solid rgba(148,163,184,0.4)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
                         }}
                       >
                         {!car.sideViewImage && (
@@ -2105,8 +2191,8 @@ export default function Html5RaceGamePage() {
                           <BsCheckCircle
                             className="position-absolute"
                             style={{
-                              top: 6,
-                              right: 6,
+                              top: 4,
+                              right: 4,
                               color: "#22c55e",
                               background: "rgba(15,23,42,0.95)",
                               borderRadius: "50%",
@@ -2114,73 +2200,165 @@ export default function Html5RaceGamePage() {
                           />
                         )}
                       </div>
-                      <div className="fw-semibold small mb-1 text-truncate" style={{ color: "var(--text-primary, #ffffff)" }}>
+
+                      {/* Car Name */}
+                      <div
+                        className="fw-semibold small mb-1 text-truncate text-center"
+                        style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}
+                      >
                         {car.name}
                       </div>
-                      <div style={{ color: "var(--text-muted, #a8b3d0)", fontSize: 11 }}>
-                        Speed: {car.speedRegular}/{car.speedDesert}/
-                        {car.speedMuddy}
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center mt-1 small">
-                        <div className="d-flex align-items-center gap-1" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                          <BsPeople />
-                          <span>{count}</span>
-                        </div>
-                        <div className="d-flex align-items-center gap-1" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                          <BsCoin />
-                          <span>{count * 100}</span>
-                        </div>
+
+                      {/* Cost */}
+                      <div className="d-flex align-items-center justify-content-center gap-1 mb-2">
+                        <BsCoin style={{ color: "#ffd700", fontSize: "0.75rem" }} />
+                        <span style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}>
+                          {formatNumber(count * 100)}
+                        </span>
                       </div>
 
-                      <div className="d-flex justify-content-between align-items-center mt-2">
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          disabled={!hasSelections || disabled}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!hasSelections || disabled) return;
+                      {/* Select Button */}
+                      <Button
+                        variant={hasSelections ? "primary" : "outline-light"}
+                        size="sm"
+                        className="w-100"
+                        disabled={disabled || hasOtherSelections}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (disabled || hasOtherSelections) return;
+                          if (hasSelections) {
                             makePrediction(carId, "remove");
-                          }}
-                        >
-                          −
-                        </Button>
-                        <span className="fw-semibold">{mySelectionCount}</span>
-                        <Button
-                          variant="outline-success"
-                          size="sm"
-                          disabled={disabled || hasOtherSelections}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (disabled || hasOtherSelections) return;
+                          } else {
                             makePrediction(carId, "add");
+                          }
+                        }}
+                        style={{
+                          fontSize: "0.75rem",
+                          padding: "0.25rem",
+                          background: hasSelections
+                            ? "linear-gradient(135deg, var(--accent, #ca0000) 0%, var(--accent-tertiary, #ce0000) 100%)"
+                            : "transparent",
+                          border: hasSelections
+                            ? "none"
+                            : "1px solid rgba(255, 255, 255, 0.2)",
+                        }}
+                      >
+                        <BsCoin style={{ color: "#ffd700", fontSize: "0.7rem" }} className="me-1" />
+                        {hasSelections ? mySelectionCount : 0}
+                      </Button>
+
+                      {/* Car Info Modal */}
+                      {showCarInfo === carId && (
+                        <div
+                          className="position-absolute top-0 start-0 end-0 p-2 rounded"
+                          style={{
+                            background: "rgba(10, 14, 26, 0.95)",
+                            border: "1px solid var(--accent-secondary, #00f5ff)",
+                            zIndex: 10,
+                            backdropFilter: "blur(10px)",
+                            boxShadow: "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
                           }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          +
-                        </Button>
-                      </div>
+                          <div className="small mb-2 fw-bold" style={{ color: "var(--text-primary, #ffffff)" }}>
+                            Car Speeds:
+                          </div>
+                          <div className="small mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                            <div>Highway: {car.speedRegular} km/h</div>
+                            <div>Desert: {car.speedDesert} km/h</div>
+                            <div>Muddy: {car.speedMuddy} km/h</div>
+                          </div>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="p-0"
+                            style={{ color: "var(--accent-secondary, #00f5ff)", fontSize: "0.7rem" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowCarInfo(null);
+                            }}
+                          >
+                            Close
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {myPredictions.length > 0 && (
-              <div className="px-3 pb-2 small text-center mt-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                <span className="fw-semibold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                  {myPredictions.length} selection
-                  {myPredictions.length > 1 ? "s" : ""} placed
-                </span>
-                <span className="ms-2">
-                  ({myPredictions.length * 100} coins used)
-                </span>
-                {potentialPayout > 0 && (
-                  <span className="ms-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                    Potential payout: {formatNumber(potentialPayout)} coins
+            {/* Footer with Counter and Play Button */}
+            <div
+              className="d-flex align-items-center justify-content-between px-3 py-2 mt-3"
+              style={{
+                background: "rgba(10, 14, 26, 0.8)",
+                borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "0 0 0.5rem 0.5rem",
+              }}
+            >
+              {/* Counter */}
+              <div className="d-flex align-items-center gap-2">
+                <Button
+                  variant="outline-light"
+                  size="sm"
+                  disabled={!hasSelections || disabled}
+                  onClick={() => {
+                    if (!hasSelections || disabled) return;
+                    const selectedCarId = myPredictions[0]?.predictedCarId;
+                    if (selectedCarId) {
+                      makePrediction(normalizeCarId(selectedCarId), "remove");
+                    }
+                  }}
+                  style={{
+                    minWidth: "35px",
+                    padding: "0.25rem 0.5rem",
+                  }}
+                >
+                  −
+                </Button>
+                <div className="d-flex align-items-center gap-1 px-2">
+                  <BsCoin style={{ color: "#ffd700" }} />
+                  <span style={{ color: "var(--text-primary, #ffffff)" }}>
+                    {myPredictions.length * 100}
                   </span>
-                )}
+                </div>
+                <Button
+                  variant="outline-light"
+                  size="sm"
+                  disabled={disabled || hasOtherSelections || (myPredictions.length * 100 + 100) > userBalance}
+                  onClick={() => {
+                    if (disabled || hasOtherSelections) return;
+                    const selectedCarId = myPredictions[0]?.predictedCarId;
+                    if (selectedCarId) {
+                      makePrediction(normalizeCarId(selectedCarId), "add");
+                    }
+                  }}
+                  style={{
+                    minWidth: "35px",
+                    padding: "0.25rem 0.5rem",
+                  }}
+                >
+                  +
+                </Button>
               </div>
-            )}
+
+              {/* Play Button (disabled - just visual) */}
+              <Button
+                variant="primary"
+                size="lg"
+                disabled
+                style={{
+                  background: "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)",
+                  border: "none",
+                  padding: "0.5rem 2rem",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                }}
+              >
+                Play
+              </Button>
+            </div>
         </Modal.Body>
       </Modal>
 
