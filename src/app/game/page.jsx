@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { Badge, Button } from "react-bootstrap";
+import { Badge, Button, Modal } from "react-bootstrap";
 import {
   BsClock,
   BsCoin,
@@ -1738,7 +1738,7 @@ export default function Html5RaceGamePage() {
 
   return (
     <div
-      className="d-flex flex-column"
+      className="position-relative"
       style={{
         // Calculate height: 100dvh minus footer height
         height: `calc(100dvh - ${footerHeight}px)`,
@@ -1748,160 +1748,182 @@ export default function Html5RaceGamePage() {
         margin: 0,
         padding: 0,
         boxSizing: "border-box",
-        position: "relative",
+        background: "#020617",
       }}
     >
+      {/* Full screen canvas */}
       <div
-        className="d-flex flex-column flex-grow-1 mx-auto w-100"
+        className="position-absolute w-100 h-100"
         style={{
-          maxWidth: "100%",
-          height: "100%", // Fill parent container
-          padding: "clamp(0.5rem, 2vw, 1rem)",
-          borderRadius: "1rem",
-          background:
-            "radial-gradient(circle at top, #1e3a8a 0%, #020617 55%, #111827 100%)",
-          boxShadow: "0 20px 45px rgba(15,23,42,0.75)",
-          color: "#e5e7eb",
-          overflow: "hidden", // Prevent content overflow
-          minHeight: 0, // Allow flex shrinking
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1,
         }}
       >
-        {/* Header - Fixed height, no shrink */}
-        <div className="d-flex justify-content-between align-items-center flex-shrink-0" style={{ marginBottom: "clamp(0.5rem, 1.5vw, 1rem)" }}>
-          <div>
-            <div className="d-flex align-items-center gap-2">
-              <h5 className="mb-0 fw-bold">🏁 Street Velocity</h5>
-              <span className="badge bg-primary bg-gradient">
-                Game&nbsp;#{game.gameNumber}
-              </span>
-            </div>
-            <small className="text-white-50">
-              Pick your champion car, watch the vertical street race live.
-            </small>
+        <canvas
+          ref={raceCanvasRef}
+          style={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            background: "#1f9d55",
+          }}
+        />
+      </div>
+
+      {/* Minimal header overlay - top right */}
+      <div
+        className="position-absolute"
+        style={{
+          top: "clamp(0.5rem, 1vw, 1rem)",
+          right: "clamp(0.5rem, 1vw, 1rem)",
+          zIndex: 10,
+          background: "rgba(15,23,42,0.85)",
+          borderRadius: "0.75rem",
+          padding: "clamp(0.5rem, 1vw, 0.75rem)",
+          border: "1px solid rgba(148,163,184,0.3)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="d-flex align-items-center gap-1">
+            <span className="badge bg-primary bg-gradient small">
+              Game&nbsp;#{game.gameNumber}
+            </span>
           </div>
-          <div className="text-end">
-            {gameStatus === "predictions" && (
-              <div>
-                <Badge
-                  bg={
-                    timeRemaining > 10
-                      ? "success"
-                      : timeRemaining > 5
-                      ? "warning"
-                      : "danger"
-                  }
-                  className="mb-1"
-                >
-                  <BsClock className="me-2" />
-                  {timeRemaining}s
-                </Badge>
-              </div>
-            )}
-            <div className="d-flex align-items-center justify-content-end gap-1 small">
-              <BsCoin className="text-warning" />
-              <span className="fw-semibold text-warning">
-                {formatNumber(totalPot)} pot
-              </span>
-            </div>
+          {gameStatus === "predictions" && (
+            <Badge
+              bg={
+                timeRemaining > 10
+                  ? "success"
+                  : timeRemaining > 5
+                  ? "warning"
+                  : "danger"
+              }
+              className="small"
+            >
+              <BsClock className="me-1" />
+              {timeRemaining}s
+            </Badge>
+          )}
+          <div className="d-flex align-items-center gap-1 small">
+            <BsCoin className="text-warning" />
+            <span className="fw-semibold text-warning">
+              {formatNumber(totalPot)}
+            </span>
           </div>
         </div>
+      </div>
 
-        {error && (
-          <div className="alert alert-danger py-2 small flex-shrink-0" role="alert" style={{ marginBottom: "clamp(0.5rem, 1.5vw, 1rem)" }}>
-            {error}
-          </div>
-        )}
-
-        {/* Race canvas - Takes remaining space, no overflow */}
+      {/* Error toast - top center */}
+      {error && (
         <div
-          className="position-relative flex-grow-1 w-100"
+          className="position-absolute"
           style={{
-            borderRadius: "0.9rem",
-            overflow: "hidden",
-            border: "2px solid rgba(148,163,184,0.35)",
-            background: "#020617",
-            // Use flex-grow to take remaining space
-            minHeight: "200px", // Minimum height to ensure canvas can render
-            height: "100%", // Fill available space
-            maxHeight: "100%", // Never exceed container
-            width: "100%",
-            maxWidth: "100%",
-            flex: "1 1 auto", // Grow and shrink as needed
+            top: "clamp(0.5rem, 1vw, 1rem)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 10,
+            maxWidth: "90%",
           }}
         >
-          <canvas
-            ref={raceCanvasRef}
-            style={{
-              display: "block",
-              width: "100%",
-              height: "100%",
-              background: "#1f9d55",
-            }}
-          />
-
-          {raceStartCountdown > 0 && gameStatus !== "racing" && (
-            <div
-              className="position-absolute top-50 start-50 translate-middle text-center"
-              style={{
-                borderRadius: "clamp(0.5rem, 1vw, 1rem)",
-                background: "rgba(15,23,42,0.92)",
-                border: "2px solid #38bdf8",
-                boxShadow: "0 0 35px rgba(56,189,248,0.65)",
-                padding: "clamp(0.75rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)",
-              }}
-            >
-              <div className="fw-semibold mb-1" style={{ fontSize: "clamp(0.875rem, 2vw, 1rem)" }}>
-                Race starting in
-              </div>
-              <div
-                style={{
-                  fontSize: "clamp(2rem, 8vw, 4rem)",
-                  fontWeight: 800,
-                  color: "#38bdf8",
-                  textShadow: "0 0 18px rgba(56,189,248,0.9)",
-                }}
-              >
-                {raceStartCountdown}
-              </div>
-            </div>
-          )}
-
-          {gameStatus === "racing" && (
-            <div
-              className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1"
-              style={{
-                background: "rgba(15,23,42,0.9)",
-                border: "1px solid rgba(96,165,250,0.7)",
-                padding: "clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem)",
-                fontSize: "clamp(0.7rem, 1.5vw, 0.875rem)",
-              }}
-            >
-              <span className="text-primary">LIVE</span>
-              <span className="text-white-50">Vertical street race</span>
-            </div>
-          )}
+          <div className="alert alert-danger py-2 small mb-0" role="alert">
+            {error}
+          </div>
         </div>
+      )}
 
-        {/* Car selection strip - Fixed height, no shrink, above footer */}
-        {gameStatus === "predictions" && (
+      {/* Countdown overlay */}
+      {raceStartCountdown > 0 && gameStatus !== "racing" && (
+        <div
+          className="position-absolute top-50 start-50 translate-middle text-center"
+          style={{
+            zIndex: 20,
+            borderRadius: "clamp(0.5rem, 1vw, 1rem)",
+            background: "rgba(15,23,42,0.92)",
+            border: "2px solid #38bdf8",
+            boxShadow: "0 0 35px rgba(56,189,248,0.65)",
+            padding: "clamp(0.75rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem)",
+          }}
+        >
+          <div className="fw-semibold mb-1" style={{ fontSize: "clamp(0.875rem, 2vw, 1rem)" }}>
+            Race starting in
+          </div>
           <div
-            className="flex-shrink-0"
             style={{
-              marginTop: "clamp(0.5rem, 1.5vw, 1rem)",
-              background: "rgba(15,23,42,0.85)",
-              borderRadius: "0.9rem",
-              border: "1px solid rgba(148,163,184,0.35)",
-              maxHeight: "clamp(150px, 25vh, 200px)", // Limit height to prevent overflow
-              overflow: "hidden", // Prevent overflow
-              position: "relative",
-              zIndex: 10, // Ensure it's above footer (footer is usually z-1000, but this is within our container)
+              fontSize: "clamp(2rem, 8vw, 4rem)",
+              fontWeight: 800,
+              color: "#38bdf8",
+              textShadow: "0 0 18px rgba(56,189,248,0.9)",
             }}
           >
-            <div
-              className="d-flex overflow-auto px-2 py-2"
-              style={{ gap: "0.75rem" }}
-            >
-              {game.cars.map((assignment) => {
+            {raceStartCountdown}
+          </div>
+        </div>
+      )}
+
+      {/* Live indicator */}
+      {gameStatus === "racing" && (
+        <div
+          className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1"
+          style={{
+            zIndex: 10,
+            background: "rgba(15,23,42,0.9)",
+            border: "1px solid rgba(96,165,250,0.7)",
+            padding: "clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem)",
+            fontSize: "clamp(0.7rem, 1.5vw, 0.875rem)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <span className="text-primary fw-bold">LIVE</span>
+          <span className="text-white-50">Vertical street race</span>
+        </div>
+      )}
+
+      {/* Selection Modal */}
+      <Modal
+        show={gameStatus === "predictions"}
+        onHide={() => {}}
+        backdrop="static"
+        keyboard={false}
+        centered
+        size="lg"
+        contentClassName="bg-dark border border-secondary"
+      >
+        <Modal.Header className="bg-dark border-secondary">
+          <Modal.Title className="text-white">
+            <div className="d-flex align-items-center justify-content-between w-100">
+              <div>
+                <h5 className="mb-0">🏁 Select Your Car</h5>
+                <small className="text-white-50">Game #{game.gameNumber}</small>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                {timeRemaining > 0 && (
+                  <Badge
+                    bg={
+                      timeRemaining > 10
+                        ? "success"
+                        : timeRemaining > 5
+                        ? "warning"
+                        : "danger"
+                    }
+                  >
+                    <BsClock className="me-2" />
+                    {timeRemaining}s
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark">
+          <div
+            className="d-flex overflow-auto px-2 py-2"
+            style={{ gap: "0.75rem", maxHeight: "60vh" }}
+          >
+            {game.cars.map((assignment) => {
                 const car = assignment.carId;
                 const carId = normalizeCarId(car?._id || car);
                 const count = predictionCounts[carId] || 0;
@@ -2024,7 +2046,7 @@ export default function Html5RaceGamePage() {
             </div>
 
             {myPredictions.length > 0 && (
-              <div className="px-3 pb-2 small text-center text-white-50">
+              <div className="px-3 pb-2 small text-center text-white-50 mt-3">
                 <span className="text-success fw-semibold">
                   {myPredictions.length} selection
                   {myPredictions.length > 1 ? "s" : ""} placed
@@ -2039,83 +2061,95 @@ export default function Html5RaceGamePage() {
                 )}
               </div>
             )}
-          </div>
-        )}
+        </Modal.Body>
+      </Modal>
 
-        {/* Results section - Fixed height, no shrink */}
-        {gameStatus === "finished" && raceResults && raceResults.length > 0 && (
-          <div
-            className="flex-shrink-0 p-3 rounded-3"
-            style={{
-              marginTop: "clamp(0.5rem, 1.5vw, 1rem)",
-              background:
-                "linear-gradient(135deg,rgba(15,23,42,0.95),rgba(15,23,42,0.9))",
-              border: "1px solid rgba(148,163,184,0.6)",
-              maxHeight: "clamp(150px, 25vh, 200px)", // Limit height to prevent overflow
-              overflow: "auto", // Allow scrolling within results if needed
-            }}
-          >
-            {resultPhase === 1 && (
-              <div className="text-center">
-                <div className="fs-5 fw-bold mb-2">🏆 Winner</div>
-                <div className="d-flex align-items-center justify-content-center gap-2 mb-2">
-                  {winnerCar?.sideViewImage && (
-                    <img
-                      src={winnerCar.sideViewImage}
-                      alt="Winner Car"
-                      style={{ width: "80px", height: "50px", objectFit: "contain" }}
-                    />
-                  )}
-                  <div className="fs-4 text-warning fw-bold">
-                    {winnerCar?.name || game.winnerName || "Unknown"}
-                  </div>
+      {/* Results Modal */}
+      <Modal
+        show={gameStatus === "finished" && raceResults && raceResults.length > 0}
+        onHide={() => {}}
+        backdrop="static"
+        keyboard={false}
+        centered
+        size="md"
+        contentClassName="bg-dark border border-secondary"
+      >
+        <Modal.Header className="bg-dark border-secondary">
+          <Modal.Title className="text-white">
+            <div className="d-flex align-items-center gap-2">
+              <span>🏆</span>
+              <span>Race Results</span>
+            </div>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-center">
+          {resultPhase === 1 && (
+            <>
+              <div className="fs-5 fw-bold mb-3">Winner</div>
+              <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                {winnerCar?.sideViewImage && (
+                  <img
+                    src={winnerCar.sideViewImage}
+                    alt="Winner Car"
+                    style={{ width: "100px", height: "60px", objectFit: "contain" }}
+                  />
+                )}
+                <div className="fs-3 text-warning fw-bold">
+                  {winnerCar?.name || game.winnerName || "Unknown"}
                 </div>
-                {isWinner && winningSelections.length > 0 && (
-                  <div className="text-success fw-semibold">
-                    You have won {formatNumber(totalPayout)} coins for {winningSelections.length} selection{winningSelections.length > 1 ? "s" : ""} on winner car
-                  </div>
-                )}
-                {!isWinner && myPredictions.length > 0 && (
-                  <div className="text-danger fw-semibold">
-                    You lost {formatNumber(totalInvested)} coins
-                  </div>
-                )}
               </div>
-            )}
+              {isWinner && winningSelections.length > 0 && (
+                <div className="text-success fw-semibold fs-5 mb-2">
+                  🎉 You won {formatNumber(totalPayout)} coins!
+                </div>
+              )}
+              {!isWinner && myPredictions.length > 0 && (
+                <div className="text-danger fw-semibold fs-5 mb-2">
+                  You lost {formatNumber(totalInvested)} coins
+                </div>
+              )}
+              {resultCountdown > 0 && (
+                <div className="text-white-50 small mt-3">
+                  Next race in {resultCountdown}s
+                </div>
+              )}
+            </>
+          )}
 
-            {resultPhase === 0 && (
-              <div className="text-center">
-                {myPredictions.length > 0 ? (
-                  <>
-                    <div className="fs-5 fw-bold mb-2">
-                      You made {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} on car
-                    </div>
-                    <div className="d-flex align-items-center justify-content-center gap-2 mb-2">
-                      {myPredictions[0]?.predictedCarId && (
-                        <>
-                          {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
-                            <img
-                              src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
-                              alt="Car"
-                              style={{ width: "60px", height: "40px", objectFit: "contain" }}
-                            />
-                          )}
-                          <div className="fs-4 text-warning fw-bold">
-                            {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="fs-5 fw-bold mb-1">No selections made</div>
-                )}
-              </div>
-            )}
-
-          </div>
-        )}
-      </div>
+          {resultPhase === 0 && (
+            <>
+              {myPredictions.length > 0 ? (
+                <>
+                  <div className="fs-5 fw-bold mb-3">
+                    Your Selections
+                  </div>
+                  <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                    {myPredictions[0]?.predictedCarId && (
+                      <>
+                        {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
+                          <img
+                            src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
+                            alt="Car"
+                            style={{ width: "80px", height: "50px", objectFit: "contain" }}
+                          />
+                        )}
+                        <div className="fs-4 text-warning fw-bold">
+                          {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-white-50">
+                    {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
+                  </div>
+                </>
+              ) : (
+                <div className="fs-5 fw-bold mb-1">No selections made</div>
+              )}
+            </>
+          )}
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
