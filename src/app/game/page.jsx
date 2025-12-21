@@ -13,6 +13,7 @@ import {
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
+import { getImageUrl } from "@/lib/imageUtils";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
@@ -380,7 +381,7 @@ export default function Html5RaceGamePage() {
       const car = assignment.carId;
       if (!car) return;
       const carId = normalizeCarId(car._id || car);
-      const imageUrl = car.topViewImage;
+      const imageUrl = getImageUrl(car.topViewImage);
       if (imageUrl && !carImagesRef.current[carId]) {
         const img = new Image();
         img.crossOrigin = "anonymous";
@@ -2183,13 +2184,13 @@ export default function Html5RaceGamePage() {
                         style={{
                           height: "80px",
                           borderRadius: "0.5rem",
-                          background: car.sideViewImage
-                            ? `url(${car.sideViewImage}) center/contain no-repeat`
+                          background: getImageUrl(car.sideViewImage)
+                            ? `url(${getImageUrl(car.sideViewImage)}) center/contain no-repeat`
                             : "linear-gradient(135deg,#4b5563,#1f2937)",
                           border: "1px solid rgba(255, 255, 255, 0.1)",
                         }}
                       >
-                        {!car.sideViewImage && (
+                        {!getImageUrl(car.sideViewImage) && (
                           <span style={{ fontSize: "2rem" }}>🚗</span>
                         )}
                         {hasSelections && (
@@ -2411,9 +2412,9 @@ export default function Html5RaceGamePage() {
                     <div className="d-flex flex-column align-items-center justify-content-center mb-3">
                       {myPredictions[0]?.predictedCarId && (
                         <>
-                          {getCarById(myPredictions[0].predictedCarId)?.sideViewImage && (
+                          {getImageUrl(getCarById(myPredictions[0].predictedCarId)?.sideViewImage) && (
                             <img
-                              src={getCarById(myPredictions[0].predictedCarId).sideViewImage}
+                              src={getImageUrl(getCarById(myPredictions[0].predictedCarId).sideViewImage)}
                               alt="Car"
                               style={{ 
                                 width: "150px", 
@@ -2486,10 +2487,10 @@ export default function Html5RaceGamePage() {
                   </div>
 
                   {/* Winner Car Image */}
-                  {winnerCar?.sideViewImage && (
+                  {getImageUrl(winnerCar?.sideViewImage) && (
                     <div className="mb-3">
                       <img
-                        src={winnerCar.sideViewImage}
+                        src={getImageUrl(winnerCar.sideViewImage)}
                         alt="Winner Car"
                         style={{
                           width: "200px",

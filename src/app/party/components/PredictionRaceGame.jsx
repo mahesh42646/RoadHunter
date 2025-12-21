@@ -6,6 +6,7 @@ import { Text, useTexture } from "@react-three/drei";
 import { Button, Badge } from "react-bootstrap";
 import { BsCoin, BsTrophy, BsClock, BsPeople, BsCheckCircle } from "react-icons/bs";
 import apiClient from "@/lib/apiClient";
+import { getImageUrl } from "@/lib/imageUtils";
 
 // Track terrain textures and colors - Bright and vibrant
 const TERRAIN_STYLES = {
@@ -159,7 +160,7 @@ function Car({ position, car, progress = 0, isRacing, trackIndex, trackY }) {
   const currentX = startX + (progress / 100) * (endX - startX);
 
   // Load car image texture - always use topViewImage
-  const textureUrl = car?.topViewImage || "";
+  const textureUrl = getImageUrl(car?.topViewImage) || "";
   const carTexture = textureUrl ? useTexture(textureUrl) : null;
 
   // Animate car movement - smooth interpolation for 30fps+
@@ -1138,8 +1139,8 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
                    height: "5rem",
                    
                    
-                    background: car.sideViewImage
-                      ? `url(${car.sideViewImage}) center/cover no-repeat`
+                    background: getImageUrl(car.sideViewImage)
+                      ? `url(${getImageUrl(car.sideViewImage)}) center/cover no-repeat`
                       : "linear-gradient(135deg, #6b7280 0%, #4b5563 100%)",
                     backgroundSize: "contain",
                     backgroundPosition: "center",
@@ -1151,7 +1152,7 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
                     borderRadius: "0.5rem",
                     border: "1px solid rgba(255, 255, 255, 0.1)",
                   }}>
-                    {!car.sideViewImage && (
+                    {!getImageUrl(car.sideViewImage) && (
                       <div style={{
                         fontSize: "2rem",
                         color: "rgba(255, 255, 255, 0.5)",
