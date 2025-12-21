@@ -15,6 +15,7 @@ import {
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
 import { getImageUrl } from "@/lib/imageUtils";
+import { loadImageWithCache } from "@/lib/imageCache";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL || "https://api.darkunde.in";
@@ -410,27 +411,22 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         document.head.appendChild(link);
         preloadLinks.push(link);
         
-        const loadPromise = new Promise((resolve, reject) => {
-          const img = new window.Image(); // Use window.Image to avoid conflict with Next.js Image component
-          img.crossOrigin = "anonymous";
-          img.loading = "eager"; // Eager loading for game images
-          img.fetchPriority = "high"; // High priority for game-critical images
-          img.onload = () => {
+        // Load image with caching
+        const loadPromise = loadImageWithCache(topViewUrl, carId)
+          .then((img) => {
             carImagesRef.current[carId] = img;
             setCarImagesLoaded(prev => ({ ...prev, [carId]: true }));
-            resolve(img);
-          };
-          img.onerror = () => {
-            console.warn(`Failed to load car top view image: ${topViewUrl}`);
+            return img;
+          })
+          .catch((error) => {
+            console.warn(`Failed to load car top view image: ${topViewUrl}`, error);
             setCarImagesLoaded(prev => ({ ...prev, [carId]: false }));
             // Clean up preload link on error
             if (link.parentNode) {
               link.parentNode.removeChild(link);
             }
-            reject(new Error(`Failed to load image: ${topViewUrl}`));
-          };
-          img.src = topViewUrl;
-        });
+            throw error;
+          });
         loadPromises.push(loadPromise);
       }
       
@@ -446,24 +442,19 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         document.head.appendChild(link);
         preloadLinks.push(link);
         
-        const loadPromise = new Promise((resolve, reject) => {
-          const img = new window.Image(); // Use window.Image to avoid conflict with Next.js Image component
-          img.crossOrigin = "anonymous";
-          img.loading = "lazy"; // Lazy loading for UI images
-          img.fetchPriority = "low"; // Lower priority for UI images
-          img.onload = () => {
-            resolve(img);
-          };
-          img.onerror = () => {
-            console.warn(`Failed to load car side view image: ${sideViewUrl}`);
+        // Load image with caching (lower priority for UI images)
+        const loadPromise = loadImageWithCache(sideViewUrl, carId)
+          .then((img) => {
+            return img;
+          })
+          .catch((error) => {
+            console.warn(`Failed to load car side view image: ${sideViewUrl}`, error);
             // Clean up preload link on error
             if (link.parentNode) {
               link.parentNode.removeChild(link);
             }
-            reject(new Error(`Failed to load image: ${sideViewUrl}`));
-          };
-          img.src = sideViewUrl;
-        });
+            throw error;
+          });
         loadPromises.push(loadPromise);
       }
     });
@@ -1097,12 +1088,23 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       }
 
       const draw = () => {
-        if (!canvas || !ctx) return;
+        if (!canvas || !ctx) {
+          // Canvas not ready, but keep trying
+          if (isDrawing) {
+            animationId = requestAnimationFrame(draw);
+          }
+          return;
+        }
+
+        // Always continue drawing loop - never stop it
+        if (!isDrawing) {
+          isDrawing = true;
+        }
 
         // Throttle drawing to ~60fps for better performance
         const now = performance.now();
         const timeSinceLastDraw = now - lastDrawTimeRef.current;
-        if (timeSinceLastDraw < DRAW_THROTTLE_MS && isDrawing) {
+        if (timeSinceLastDraw < DRAW_THROTTLE_MS) {
           animationId = requestAnimationFrame(draw);
           return;
         }
@@ -1121,9 +1123,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           width = canvas.clientWidth || 400;
           height = canvas.clientHeight || 600;
           if (width <= 0 || height <= 0) {
-            if (isDrawing) {
-              animationId = requestAnimationFrame(draw);
-            }
+            // Keep drawing loop running even if dimensions are invalid
+            animationId = requestAnimationFrame(draw);
             return;
           }
         }
