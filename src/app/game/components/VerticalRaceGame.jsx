@@ -259,6 +259,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const [footerHeight, setFooterHeight] = useState(70); // Default footer height
   const containerRef = useRef(null); // Ref for modal container
   const carInterpolationRef = useRef({}); // Store previous positions and timestamps for interpolation
+  const [carImagesLoaded, setCarImagesLoaded] = useState({}); // Track which car images are loaded
+  const imageLoadPromisesRef = useRef({ promises: [], preloadLinks: [] }); // Track image loading promises and preload links
 
   // Performance constants
   const MAX_PARTICLES_PER_CAR = 15; // Limit particles for performance
