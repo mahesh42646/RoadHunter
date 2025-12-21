@@ -1794,7 +1794,9 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
           // Draw car using top view image (no rotation needed - images are already correct)
           const carImage = carImagesRef.current[carId];
-          if (carImage && carImage.complete && carImage.naturalWidth > 0) {
+          // Check if image is loaded and ready (with fallback for slow connections)
+          // Allow drawing even if image is still loading (will show when ready)
+          if (carImage && (carImage.complete || carImage.naturalWidth > 0) && carImage.naturalWidth > 0) {
             // Make cars 1.2x bigger
             const scaledCarSize = baseCarSize * 1.6;
 
