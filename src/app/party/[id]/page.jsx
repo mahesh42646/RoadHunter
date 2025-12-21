@@ -239,8 +239,15 @@ export default function PartyRoomPage() {
     };
 
     // Handle browser back/forward - ask confirmation for all users
+    let isHandlingPopState = false; // Prevent infinite loops
     const handlePopState = async (e) => {
+      // Prevent infinite loops from pushState triggering popstate
+      if (isHandlingPopState) {
+        return;
+      }
+      
       if (isParticipant) {
+        isHandlingPopState = true;
         const confirmed = confirm("Are you sure you want to exit the party room? You will leave the room.");
         if (confirmed) {
           try {
@@ -253,7 +260,12 @@ export default function PartyRoomPage() {
                 await handleEndPartyRef.current();
               } else {
                 setShowTransferModal(true);
-                window.history.pushState(null, "", window.location.pathname);
+                // Use setTimeout to prevent immediate re-trigger
+                setTimeout(() => {
+                  window.history.pushState(null, "", window.location.pathname);
+                  isHandlingPopState = false;
+                }, 100);
+                return;
               }
             } else {
               await apiClient.post(`/parties/${partyId}/leave`);
@@ -266,14 +278,26 @@ export default function PartyRoomPage() {
             router.push("/party");
           }
         } else {
-          window.history.pushState(null, "", window.location.pathname);
+          // User cancelled - prevent navigation by pushing state back
+          // Use setTimeout to prevent immediate re-trigger
+          setTimeout(() => {
+            window.history.pushState(null, "", window.location.pathname);
+            isHandlingPopState = false;
+          }, 100);
+          return;
         }
+        isHandlingPopState = false;
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
-    window.history.pushState(null, "", window.location.pathname);
+    
+    // Only push state once on mount, not repeatedly
+    if (window.history.state === null) {
+      window.history.pushState({ preventBack: true }, "", window.location.pathname);
+    }
+    
     window.addEventListener("popstate", handlePopState);
 
     return () => {
