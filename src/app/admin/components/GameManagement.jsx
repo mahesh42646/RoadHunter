@@ -54,6 +54,11 @@ export default function GameManagement({ adminToken }) {
   const uploadImage = async (file, type) => {
     const formData = new FormData();
     formData.append("image", file);
+    // Pass car name if available for proper file naming
+    if (carForm.name && carForm.name.trim()) {
+      formData.append("carName", carForm.name.trim());
+    }
+    formData.append("imageType", type); // "top" or "side"
     
     setUploading(prev => ({ ...prev, [type]: true }));
     try {
@@ -62,36 +67,63 @@ export default function GameManagement({ adminToken }) {
           Authorization: `Bearer ${adminToken}`,
           // Don't set Content-Type - let axios set it automatically with boundary
         },
-        timeout: 60000, // 60 seconds timeout for large files
+        timeout: 120000, // 120 seconds timeout for very large files
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log(`Upload progress (${type}): ${percentCompleted}%`);
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`Upload progress (${type}): ${percentCompleted}%`);
+          }
         },
       });
       if (!response.data || !response.data.imageUrl) {
-        throw new Error("Invalid response from server");
+        throw new Error("Invalid response from server: No imageUrl in response");
       }
       return response.data.imageUrl;
     } catch (error) {
       console.error(`Error uploading ${type} image:`, error);
+      console.error("Full error object:", error);
       console.error("Error details:", {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
+        statusText: error.response?.statusText,
         code: error.code,
         fileName: file?.name,
         fileSize: file?.size,
         fileType: file?.type,
+        stack: error.stack,
       });
       
+      // Show actual backend error if available
       let errorMessage = `Failed to upload ${type} image.`;
       
       if (error.response?.data?.error) {
+        // Backend sent a specific error message
         errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status) {
+        // HTTP error status
+        if (error.response.status === 413) {
+          errorMessage = `File too large (${(file?.size / 1024 / 1024).toFixed(2)}MB). Server rejected the upload.`;
+        } else if (error.response.status === 500) {
+          errorMessage = `Server error (500). Check server logs: ${error.response.statusText || 'Internal server error'}`;
+        } else if (error.response.status === 400) {
+          errorMessage = `Bad request (400): ${error.response.statusText || 'Invalid file or request'}`;
+        } else {
+          errorMessage = `Server error (${error.response.status}): ${error.response.statusText || 'Unknown error'}`;
+        }
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        errorMessage = `Upload timeout. The file may be too large. Please try a smaller file or check your connection.`;
+        errorMessage = `Upload timeout after 120 seconds. File size: ${(file?.size / 1024 / 1024).toFixed(2)}MB. The file may be too large or connection is slow.`;
       } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        errorMessage = `Network error. Please check your connection and try again.`;
+        // Network error - but check if it's actually a backend error
+        if (error.response) {
+          errorMessage = `Backend error: ${error.response.status} ${error.response.statusText || 'Unknown error'}`;
+        } else {
+          errorMessage = `Network error: ${error.message}. Check if server is running and accessible.`;
+        }
       } else if (error.message) {
         errorMessage = error.message;
       }

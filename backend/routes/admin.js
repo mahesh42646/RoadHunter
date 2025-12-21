@@ -352,42 +352,100 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
   // Handle multer errors first
   uploadCar.single('image')(req, res, (err) => {
     if (err) {
-      console.error('[Admin Routes] Multer error:', err);
+      console.error('[Admin Routes] Multer error:', {
+        code: err.code,
+        message: err.message,
+        field: err.field,
+        stack: err.stack
+      });
+      
       let errorMessage = 'File upload failed';
+      let statusCode = 400;
       
       if (err.code === 'LIMIT_FILE_SIZE') {
         errorMessage = 'File is too large. Please try a smaller file.';
       } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
         errorMessage = 'Unexpected file field. Please use "image" as the field name.';
+      } else if (err.code === 'ENOENT') {
+        errorMessage = 'Upload directory does not exist. Contact server administrator.';
+        statusCode = 500;
+      } else if (err.code === 'EACCES' || err.code === 'EPERM') {
+        errorMessage = 'Permission denied. Upload directory is not writable. Contact server administrator.';
+        statusCode = 500;
+      } else if (err.code === 'ENOSPC') {
+        errorMessage = 'No space left on server. Contact server administrator.';
+        statusCode = 500;
       } else if (err.message) {
         errorMessage = err.message;
       }
       
-      return res.status(400).json({ error: errorMessage });
+      return res.status(statusCode).json({ error: errorMessage });
     }
     next();
   });
 }, async (req, res) => {
+  let uploadedFilePath = null;
+  
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided. Please select an image file.' });
     }
 
-    // Verify file was actually saved
-    if (!fs.existsSync(req.file.path)) {
-      return res.status(500).json({ error: 'File was not saved properly. Please try again.' });
+    uploadedFilePath = req.file.path;
+
+    // Check file system health
+    try {
+      // Verify file was actually saved
+      if (!fs.existsSync(uploadedFilePath)) {
+        return res.status(500).json({ error: 'File was not saved properly. Check server disk space and permissions.' });
+      }
+
+      // Check file size matches what was uploaded
+      const stats = fs.statSync(uploadedFilePath);
+      if (stats.size === 0) {
+        fs.unlinkSync(uploadedFilePath);
+        return res.status(500).json({ error: 'File was saved but is empty (0 bytes). File may be corrupted or disk is full.' });
+      }
+
+      // Check available disk space (rough estimate)
+      try {
+        const uploadsDir = path.dirname(uploadedFilePath);
+        const testFile = path.join(uploadsDir, '.space-check');
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+      } catch (spaceError) {
+        console.error('[Admin Routes] Disk space check failed:', spaceError);
+        if (fs.existsSync(uploadedFilePath)) {
+          fs.unlinkSync(uploadedFilePath);
+        }
+        return res.status(500).json({ error: 'Server disk space issue. File could not be saved. Contact administrator.' });
+      }
+    } catch (fsError) {
+      console.error('[Admin Routes] File system error:', fsError);
+      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+        try {
+          fs.unlinkSync(uploadedFilePath);
+        } catch (unlinkError) {
+          console.error('[Admin Routes] Error cleaning up file:', unlinkError);
+        }
+      }
+      return res.status(500).json({ 
+        error: `File system error: ${fsError.message || 'Unable to save file. Check server disk space and permissions.'}` 
+      });
     }
 
     // Use original file directly - no optimization
-    const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+    const relativePath = path.relative(path.join(__dirname, '../uploads'), uploadedFilePath);
     const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
     
     console.log('[Admin Routes] File uploaded successfully:', {
       originalName: req.file.originalname,
-      savedPath: req.file.path,
+      savedPath: uploadedFilePath,
       imageUrl: imageUrl,
       size: req.file.size,
-      mimetype: req.file.mimetype
+      mimetype: req.file.mimetype,
+      carName: req.body?.carName || 'N/A',
+      imageType: req.body?.imageType || 'N/A'
     });
     
     res.json({ imageUrl });
@@ -395,24 +453,42 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     console.error('[Admin Routes] Error uploading file:', {
       message: error.message,
       stack: error.stack,
+      code: error.code,
+      errno: error.errno,
+      syscall: error.syscall,
       file: req.file ? {
         originalname: req.file.originalname,
         path: req.file.path,
-        size: req.file.size
+        size: req.file.size,
+        mimetype: req.file.mimetype
       } : null
     });
     
     // Clean up uploaded file on error
-    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
       try {
-        fs.unlinkSync(req.file.path);
-        console.log('[Admin Routes] Cleaned up uploaded file:', req.file.path);
+        fs.unlinkSync(uploadedFilePath);
+        console.log('[Admin Routes] Cleaned up uploaded file:', uploadedFilePath);
       } catch (unlinkError) {
         console.error('[Admin Routes] Error deleting uploaded file:', unlinkError);
       }
     }
     
-    const errorMessage = error.message || 'Failed to upload file. Please check the file and try again.';
+    // Provide specific error messages
+    let errorMessage = 'Failed to upload file.';
+    
+    if (error.code === 'ENOENT') {
+      errorMessage = 'Upload directory does not exist. Contact server administrator.';
+    } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+      errorMessage = 'Permission denied. Upload directory is not writable. Contact server administrator.';
+    } else if (error.code === 'ENOSPC') {
+      errorMessage = 'No space left on server. Contact server administrator.';
+    } else if (error.code === 'EMFILE' || error.code === 'ENFILE') {
+      errorMessage = 'Too many open files. Server resource limit reached. Contact server administrator.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     res.status(500).json({ error: errorMessage });
   }
 });
