@@ -1516,16 +1516,21 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
             if (interpolation && interpolation.currentTime !== interpolation.previousTime) {
               // Interpolate between previous and current position
               const now = performance.now();
-              const timeSinceUpdate = now - interpolation.currentTime;
+              const timeSinceLastUpdate = now - interpolation.currentTime;
               const timeBetweenUpdates = interpolation.currentTime - interpolation.previousTime;
               
               // If we have valid interpolation data and it's been less than 200ms since last update
-              if (timeBetweenUpdates > 0 && timeSinceUpdate < 200) {
+              // Interpolate from previousProgress (at previousTime) to currentProgress (at currentTime)
+              if (timeBetweenUpdates > 0 && timeSinceLastUpdate >= 0 && timeSinceLastUpdate < 200) {
+                // Calculate how far we are between previousTime and currentTime
+                const totalTime = interpolation.currentTime - interpolation.previousTime;
+                const elapsedTime = now - interpolation.previousTime;
+                const interpolationFactor = Math.min(1, Math.max(0, elapsedTime / totalTime));
+                
                 const progressDelta = interpolation.currentProgress - interpolation.previousProgress;
-                const interpolationFactor = Math.min(1, timeSinceUpdate / timeBetweenUpdates);
                 carProgress = interpolation.previousProgress + (progressDelta * interpolationFactor);
               } else {
-                // Use current progress if interpolation data is stale
+                // Use current progress if interpolation data is stale or invalid
                 carProgress = rawProgress;
               }
             } else {
