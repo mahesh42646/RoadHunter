@@ -296,7 +296,12 @@ function Speedometer({ speed = 0 }) {
   );
 }
 
+import VerticalRaceGame from "@/app/game/components/VerticalRaceGame";
+
 export default function PredictionRaceGame({ socket, wallet, onClose, partyId }) {
+  // Toggle between old 3D game and new vertical game
+  const [useVerticalGame, setUseVerticalGame] = useState(true); // Default to vertical game
+  
   // Use the socket passed as prop (from party room)
   const partySocket = socket;
   const [game, setGame] = useState(null);
@@ -852,6 +857,31 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
     return carAssignment?.carId;
   };
 
+  // If using vertical game, render it directly
+  if (useVerticalGame) {
+    return (
+      <div style={{ height: "100%", width: "100%" }}>
+        {/* Toggle button to switch between games */}
+        <div className="d-flex justify-content-end p-2" style={{ position: "relative", zIndex: 1000 }}>
+          <Button
+            variant="outline-light"
+            size="sm"
+            onClick={() => setUseVerticalGame(false)}
+            style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+          >
+            3D View
+          </Button>
+        </div>
+        <VerticalRaceGame 
+          socket={partySocket} 
+          wallet={wallet} 
+          onClose={onClose}
+          partyId={partyId}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="prediction-race-game" style={{
       height: "100%",
@@ -863,6 +893,17 @@ export default function PredictionRaceGame({ socket, wallet, onClose, partyId })
       position: "relative",
       minHeight: 0, // Allow flex shrinking
     }}>
+      {/* Toggle button to switch to vertical game */}
+      <div className="d-flex justify-content-end p-2" style={{ position: "relative", zIndex: 1000 }}>
+        <Button
+          variant="outline-light"
+          size="sm"
+          onClick={() => setUseVerticalGame(true)}
+          style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+        >
+          Vertical View
+        </Button>
+      </div>
     
       {/* Carbon fiber texture overlay */}
       <div style={{
