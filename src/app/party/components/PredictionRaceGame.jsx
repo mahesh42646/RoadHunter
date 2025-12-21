@@ -7,6 +7,7 @@ import { Button, Badge } from "react-bootstrap";
 import { BsCoin, BsTrophy, BsClock, BsPeople, BsCheckCircle } from "react-icons/bs";
 import apiClient from "@/lib/apiClient";
 import { getImageUrl } from "@/lib/imageUtils";
+import VerticalRaceGame from "@/app/game/components/VerticalRaceGame";
 
 // Track terrain textures and colors - Bright and vibrant
 const TERRAIN_STYLES = {
@@ -295,8 +296,6 @@ function Speedometer({ speed = 0 }) {
     </div>
   );
 }
-
-import VerticalRaceGame from "@/app/game/components/VerticalRaceGame";
 
 export default function PredictionRaceGame({ socket, wallet, onClose, partyId }) {
   // Toggle between old 3D game and new vertical game
