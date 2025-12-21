@@ -1869,6 +1869,34 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   );
   const totalInvested = myPredictions.length * 100;
 
+  // Error boundary - show error message if critical error
+  if (error && (error.includes("Failed to initialize") || error.includes("Failed to setup"))) {
+    return (
+      <div
+        className="d-flex align-items-center justify-content-center"
+        style={{ 
+          minHeight: "400px",
+          padding: "2rem",
+          background: "var(--bg-darker, #050810)",
+        }}
+      >
+        <div className="text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
+          <div className="mb-3" style={{ fontSize: "3rem" }}>⚠️</div>
+          <h5 className="mb-2">Game Error</h5>
+          <p className="small mb-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+            {error}
+          </p>
+          <Button
+            variant="primary"
+            onClick={() => window.location.reload()}
+          >
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
