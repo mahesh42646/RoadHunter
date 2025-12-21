@@ -32,40 +32,27 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     try {
-      // Get car name from form data if available
-      const carName = req.body?.carName || '';
-      const imageType = req.body?.imageType || 'image'; // "top", "side", or "image"
-      
-      // Sanitize car name for filename (remove special chars, keep alphanumeric and spaces, convert spaces to hyphens)
-      let sanitizedCarName = '';
-      if (carName && carName.trim()) {
-        sanitizedCarName = carName
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .replace(/-+/g, '-') // Replace multiple hyphens with single
-          .substring(0, 50); // Limit length
-      }
+      // Note: req.body may not be populated yet when filename is called during multer processing
+      // We'll use a simple timestamp-based name and rename later if needed
+      // This prevents hanging if req.body access fails
       
       // Get extension from original filename, sanitize it
       const originalExt = path.extname(file.originalname || '') || '';
       const sanitizedExt = originalExt.replace(/[^a-zA-Z0-9.]/g, '') || '.jpg';
       const ext = sanitizedExt.startsWith('.') ? sanitizedExt : '.' + sanitizedExt;
       
-      // Build filename: carname-imagetype-timestamp.ext or car-timestamp.ext
-      let filename;
-      if (sanitizedCarName) {
-        filename = `${sanitizedCarName}-${imageType}-${Date.now()}${ext}`;
-      } else {
-        filename = `car-${imageType}-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
-      }
+      // Use simple timestamp-based filename to avoid any req.body dependencies
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1E9);
+      const filename = `car-${timestamp}-${random}${ext}`;
       
       cb(null, filename);
     } catch (error) {
       console.error('[Upload Car] Error generating filename:', error);
-      // Fallback filename
-      cb(null, `car-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`);
+      // Fallback filename - always succeeds
+      const timestamp = Date.now();
+      const random = Math.round(Math.random() * 1E9);
+      cb(null, `car-${timestamp}-${random}.jpg`);
     }
   },
 });

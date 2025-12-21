@@ -349,6 +349,21 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
 
 // Image upload endpoint for cars - no validations, accept any file
 router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
+  // Set a timeout for the entire request
+  const requestTimeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[Admin Routes] Request timeout - no response sent after 60 seconds');
+      res.status(504).json({ error: 'Request timeout. File processing took too long.' });
+    }
+  }, 60000); // 60 second timeout for processing
+
+  // Clear timeout when response is sent
+  const originalEnd = res.end;
+  res.end = function(...args) {
+    clearTimeout(requestTimeout);
+    originalEnd.apply(this, args);
+  };
+
   // Log incoming request info
   console.log('[Admin Routes] Upload request received:', {
     contentType: req.headers['content-type'],
@@ -359,6 +374,7 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
 
   // Handle multer errors first
   uploadCar.single('image')(req, res, (err) => {
+    clearTimeout(requestTimeout); // Clear timeout if multer error occurs
     if (err) {
       console.error('[Admin Routes] Multer error:', {
         code: err.code,
@@ -414,6 +430,7 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
   });
 }, async (req, res, next) => {
   let uploadedFilePath = null;
+  const startTime = Date.now();
   
   try {
     console.log('[Admin Routes] Processing uploaded file:', {
@@ -423,7 +440,8 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       filePath: req.file?.path,
       mimetype: req.file?.mimetype,
       carName: req.body?.carName,
-      imageType: req.body?.imageType
+      imageType: req.body?.imageType,
+      timestamp: new Date().toISOString()
     });
 
     if (!req.file) {
@@ -432,6 +450,9 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     }
 
     uploadedFilePath = req.file.path;
+    
+    // Log file received
+    console.log('[Admin Routes] File received successfully, starting processing...');
 
     // Check file system health
     try {
@@ -474,21 +495,60 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       });
     }
 
+    // Rename file with car name if provided (after multer processes req.body)
+    let finalFilePath = uploadedFilePath;
+    if (req.body?.carName && req.body?.carName.trim()) {
+      try {
+        const carName = req.body.carName.trim();
+        const imageType = req.body.imageType || 'image';
+        
+        // Sanitize car name for filename
+        const sanitizedCarName = carName
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .substring(0, 50);
+        
+        // Get extension from current file
+        const ext = path.extname(uploadedFilePath) || '.jpg';
+        const uploadsDir = path.dirname(uploadedFilePath);
+        const newFilename = `${sanitizedCarName}-${imageType}-${Date.now()}${ext}`;
+        const newFilePath = path.join(uploadsDir, newFilename);
+        
+        // Rename file
+        fs.renameSync(uploadedFilePath, newFilePath);
+        finalFilePath = newFilePath;
+        console.log('[Admin Routes] File renamed:', { from: uploadedFilePath, to: newFilePath });
+      } catch (renameError) {
+        console.error('[Admin Routes] Error renaming file (using original name):', renameError);
+        // Continue with original filename if rename fails
+      }
+    }
+    
     // Use original file directly - no optimization
-    const relativePath = path.relative(path.join(__dirname, '../uploads'), uploadedFilePath);
+    const relativePath = path.relative(path.join(__dirname, '../uploads'), finalFilePath);
     const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
     
+    const processingTime = Date.now() - startTime;
     console.log('[Admin Routes] File uploaded successfully:', {
       originalName: req.file.originalname,
-      savedPath: uploadedFilePath,
+      savedPath: finalFilePath,
       imageUrl: imageUrl,
       size: req.file.size,
       mimetype: req.file.mimetype,
       carName: req.body?.carName || 'N/A',
-      imageType: req.body?.imageType || 'N/A'
+      imageType: req.body?.imageType || 'N/A',
+      processingTimeMs: processingTime
     });
     
-    res.json({ imageUrl });
+    // Make sure response hasn't been sent
+    if (!res.headersSent) {
+      res.json({ imageUrl });
+      console.log('[Admin Routes] Response sent successfully');
+    } else {
+      console.error('[Admin Routes] WARNING: Response already sent, cannot send success response');
+    }
   } catch (error) {
     console.error('[Admin Routes] Error uploading file:', {
       message: error.message,
