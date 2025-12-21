@@ -349,16 +349,38 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
 
 // Image upload endpoint for cars - no validations, accept any file
 router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
-  // Log incoming request info
+  const requestStartTime = Date.now();
+  
+  // Log incoming request info immediately
+  console.log('[Admin Routes] ===== UPLOAD REQUEST START =====');
   console.log('[Admin Routes] Upload request received:', {
     contentType: req.headers['content-type'],
     contentLength: req.headers['content-length'],
     hasBody: !!req.body,
+    method: req.method,
+    url: req.url,
     timestamp: new Date().toISOString()
   });
 
+  // Set a timeout to catch if multer hangs
+  const multerTimeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[Admin Routes] MULTER TIMEOUT - No response after 60 seconds');
+      console.error('[Admin Routes] Request details:', {
+        elapsed: Date.now() - requestStartTime,
+        hasFile: !!req.file,
+        headersSent: res.headersSent,
+        finished: res.finished
+      });
+      if (!res.headersSent && !res.finished) {
+        res.status(504).json({ error: 'Upload processing timeout. Please try again with a smaller file.' });
+      }
+    }
+  }, 60000);
+
   // Handle multer errors first
   uploadCar.single('image')(req, res, (err) => {
+    clearTimeout(multerTimeout); // Clear timeout when multer completes
     if (err) {
       console.error('[Admin Routes] Multer error:', {
         code: err.code,
@@ -409,10 +431,12 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
         console.error('[Admin Routes] Response already sent, cannot send error response');
       }
     } else {
+      console.log('[Admin Routes] Multer processing completed, calling next()');
       next();
     }
   });
 }, async (req, res, next) => {
+  console.log('[Admin Routes] ===== UPLOAD HANDLER START =====');
   let uploadedFilePath = null;
   const startTime = Date.now();
   
@@ -452,6 +476,21 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       }
     }
   }, 30000); // 30 second timeout for response
+  
+  // Add request error handler
+  req.on('error', (error) => {
+    console.error('[Admin Routes] Request error:', error);
+    clearTimeout(responseTimeout);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Request error occurred' });
+    }
+  });
+  
+  // Add response error handler
+  res.on('error', (error) => {
+    console.error('[Admin Routes] Response error:', error);
+    clearTimeout(responseTimeout);
+  });
   
   try {
     console.log('[Admin Routes] Processing uploaded file:', {
