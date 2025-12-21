@@ -1027,7 +1027,7 @@ export default function PartyRoomPage() {
             return (
               <div
                 key={idx}
-                className=" rounded-3 border p-1"
+                className=" rounded-3  p-1"
                 style={{
                   position: "relative",
                   width: "100%",
@@ -1086,6 +1086,7 @@ export default function PartyRoomPage() {
                         alignItems: "center",
                         gap: "clamp(0.15rem, 0.5vw, 0.25rem)",
                         fontWeight: "bold",
+                        background: "var(--accent)",
                       }}
                     >
                       <BsStarFill style={{ fontSize: "clamp(0.5rem, 1.2vw, 0.65rem)" }} />
@@ -1096,7 +1097,7 @@ export default function PartyRoomPage() {
 
                 {/* Avatar/Video Container */}
                 <div 
-                  className="rounded "
+                  className="rounded-3 "
                   style={{
                     position: "relative",
                     width: "100%",
@@ -1195,7 +1196,7 @@ export default function PartyRoomPage() {
                   ) : (
                     // Regular participant avatar
                     <div
-                      className="rounded-3"
+                      className="-3"
                       style={{
                         width: "100%",
                         height: "100%",
@@ -1217,7 +1218,7 @@ export default function PartyRoomPage() {
 
                 {/* Participant Name */}
                 <p
-                  className="mb-1 fw-bold text-truncate participant-name"
+                  className=" fw-bold m-0 text-center p-1"
                   style={{ 
                     color: "var(--text-primary)", 
                     fontSize: "clamp(0.65rem, 2vw, 0.85rem)", 
