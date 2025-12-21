@@ -526,11 +526,15 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       }
     } catch (err) {
       console.error("[Html5RaceGame] Failed to load active game", err);
-      setError("Failed to load game. Please try again.");
-      // Retry after error
+      // Don't show error for 500 server errors, just retry
+      if (err?.response?.status !== 500) {
+        setError("Failed to load game. Please try again.");
+      }
+      // Retry after error with exponential backoff
+      const retryDelay = err?.response?.status === 500 ? 2000 : 3000;
       setTimeout(() => {
         loadActiveGame();
-      }, 3000);
+      }, retryDelay);
     } finally {
       setLoading(false);
     }
