@@ -1899,7 +1899,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         size="md"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-        container={containerRef.current}
+        container={() => containerRef.current}
       >
         <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <Modal.Title className="w-100 text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
@@ -1951,7 +1951,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         size="lg"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-        container={containerRef.current}
+        container={() => containerRef.current}
       >
         {/* Header Stats Bar */}
         <div
@@ -2279,7 +2279,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         size="lg"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-        container={containerRef.current}
+        container={() => containerRef.current}
       >
         <Modal.Body 
           className="p-4"
