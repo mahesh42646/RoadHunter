@@ -2312,13 +2312,30 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                                 style={{
                                   height: "80px",
                                   borderRadius: "0.5rem",
-                                  background: getImageUrl(car.sideViewImage)
-                                    ? `url(${getImageUrl(car.sideViewImage)}) center/contain no-repeat`
-                                    : "linear-gradient(135deg,#4b5563,#1f2937)",
+                                  background: "linear-gradient(135deg,#4b5563,#1f2937)",
                                   border: "1px solid rgba(255, 255, 255, 0.1)",
+                                  overflow: "hidden",
                                 }}
                               >
-                                {!getImageUrl(car.sideViewImage) && (
+                                {getImageUrl(car.sideViewImage) ? (
+                                  <Image
+                                    src={getImageUrl(car.sideViewImage)}
+                                    alt={car.name || "Car"}
+                                    width={80}
+                                    height={80}
+                                    style={{
+                                      objectFit: "contain",
+                                      width: "100%",
+                                      height: "100%",
+                                    }}
+                                    loading="eager"
+                                    priority={hasSelections} // Priority for selected cars
+                                    unoptimized={getImageUrl(car.sideViewImage)?.startsWith('http')} // Unoptimize external URLs
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
                                   <span style={{ fontSize: "2rem" }}>🚗</span>
                                 )}
                                 {hasSelections && (
@@ -2330,6 +2347,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                                       color: "#22c55e",
                                       background: "rgba(15,23,42,0.95)",
                                       borderRadius: "50%",
+                                      zIndex: 2,
                                     }}
                                   />
                                 )}
@@ -2563,10 +2581,12 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
                   {/* Winner Car Image */}
                   {getImageUrl(winnerCar?.sideViewImage) && (
-                    <div className="mb-3">
-                      <img
+                    <div className="mb-3 position-relative" style={{ minHeight: "120px" }}>
+                      <Image
                         src={getImageUrl(winnerCar.sideViewImage)}
                         alt="Winner Car"
+                        width={180}
+                        height={120}
                         className="mx-auto d-block"
                         style={{
                           width: "180px",
@@ -2574,6 +2594,12 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                           height: "auto",
                           objectFit: "contain",
                           filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
+                        }}
+                        loading="eager"
+                        priority
+                        unoptimized={getImageUrl(winnerCar.sideViewImage)?.startsWith('http')}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
                         }}
                       />
                     </div>
@@ -2610,22 +2636,30 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                         const selectedCar = selectedCarId ? getCarById(selectedCarId) : null;
                         return selectedCar ? (
                           <>
-                            {getImageUrl(selectedCar?.sideViewImage) && (
-                              <div className="mb-2">
-                                <img
-                                  src={getImageUrl(selectedCar.sideViewImage)}
-                                  alt="Your Car"
-                                  className="mx-auto d-block"
-                                  style={{
-                                    width: "120px",
-                                    maxWidth: "100%",
-                                    height: "auto",
-                                    objectFit: "contain",
-                                    opacity: isWinner ? 1 : 0.6,
-                                  }}
-                                />
-                              </div>
-                            )}
+                          {getImageUrl(selectedCar?.sideViewImage) && (
+                            <div className="mb-2 position-relative" style={{ minHeight: "80px" }}>
+                              <Image
+                                src={getImageUrl(selectedCar.sideViewImage)}
+                                alt="Your Car"
+                                width={120}
+                                height={80}
+                                className="mx-auto d-block"
+                                style={{
+                                  width: "120px",
+                                  maxWidth: "100%",
+                                  height: "auto",
+                                  objectFit: "contain",
+                                  opacity: isWinner ? 1 : 0.6,
+                                }}
+                                loading="eager"
+                                priority
+                                unoptimized={getImageUrl(selectedCar.sideViewImage)?.startsWith('http')}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
                             <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
                               {selectedCar?.name || "Unknown Car"}
                             </div>
