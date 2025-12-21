@@ -853,14 +853,19 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
         console.log("[RaceCanvas] Canvas initialized successfully");
         retryCount = 0; // Reset retry count on success
+
+        // Canvas is ready, proceed with setup (inside try block so canvas and ctx are in scope)
+        try {
+          setupCanvas(canvas, ctx);
+        } catch (err) {
+          console.error("[RaceCanvas] Error in setupCanvas:", err);
+          setError("Failed to setup game canvas. Please refresh the page.");
+        }
       } catch (err) {
         console.error("[RaceCanvas] Error initializing canvas:", err);
         setError("Failed to initialize game. Please refresh the page.");
         return;
       }
-
-      // Canvas is ready, proceed with setup
-      setupCanvas(canvas, ctx);
     };
 
     const setupCanvas = (canvas, ctx) => {
