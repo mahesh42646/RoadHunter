@@ -592,11 +592,17 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         }
       } else {
         // No active game - but don't show "waiting" state, keep polling for new game
-        setGame(null);
+        // Don't set game to null - keep previous game data so canvas can still draw
         setGameStatus("waiting");
         setTimeRemaining(0);
         setPredictionCounts({});
         setMyPredictions([]);
+        // Update latestStateRef to keep previous game for canvas
+        latestStateRef.current = {
+          game: game, // Keep previous game
+          raceProgress: {},
+          gameStatus: "waiting",
+        };
         // Poll aggressively (every 500ms) to catch new game immediately
         setTimeout(() => {
           loadActiveGame();
