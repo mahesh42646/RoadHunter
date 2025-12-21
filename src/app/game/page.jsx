@@ -1552,21 +1552,6 @@ export default function Html5RaceGamePage() {
           particles.splice(0, particles.length - MAX_PARTICLES_PER_CAR);
         }
         
-        // Car shadow (darker and more realistic) - offset scales with car size
-        const shadowOffset = Math.max(1, baseCarSize * 0.06); // 6% of car size
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.beginPath();
-        ctx.ellipse(
-          centerX + shadowOffset,
-          currentY + baseCarSize * 0.75,
-          baseCarSize * 0.55,
-          baseCarSize * 0.2,
-          0,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-        
         // Draw car using top view image (no rotation needed - images are already correct)
         const carImage = carImagesRef.current[carId];
         if (carImage && carImage.complete && carImage.naturalWidth > 0) {
@@ -1584,11 +1569,48 @@ export default function Html5RaceGamePage() {
             drawWidth = baseCarSize * imageAspectRatio;
           }
           
-          // Draw image maintaining aspect ratio
+          // Calculate car position - bottom edge should touch the track surface
+          // currentY is the center of the lane, so we position car so its bottom aligns with track
+          const carBottomY = currentY + (laneWidth * 0.4); // Track surface is at lane center + offset
+          const carTopY = carBottomY - drawHeight;
+          const carCenterY = carBottomY - drawHeight / 2;
+          
+          // Draw car shadow using the car image shape (more realistic)
+          // Create shadow by drawing the car image with dark color and offset
+          ctx.save();
+          ctx.globalAlpha = 0.3; // Shadow opacity
+          ctx.globalCompositeOperation = 'source-over';
+          
+          // Draw shadow slightly offset and below the car
+          const shadowOffsetX = Math.max(1, drawWidth * 0.03); // 3% offset
+          const shadowOffsetY = Math.max(1, drawHeight * 0.05); // 5% offset down
+          
+          // Create shadow using the car image shape
+          ctx.drawImage(
+            carImage,
+            centerX - drawWidth / 2 + shadowOffsetX,
+            carBottomY - drawHeight + shadowOffsetY, // Shadow at bottom of car
+            drawWidth,
+            drawHeight
+          );
+          
+          // Apply darkening effect to shadow
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.fillRect(
+            centerX - drawWidth / 2 + shadowOffsetX,
+            carBottomY - drawHeight + shadowOffsetY,
+            drawWidth,
+            drawHeight
+          );
+          
+          ctx.restore();
+          
+          // Draw car image - positioned so bottom touches track
           ctx.drawImage(
             carImage,
             centerX - drawWidth / 2,
-            currentY - drawHeight / 2,
+            carTopY, // Top of car
             drawWidth,
             drawHeight
           );
