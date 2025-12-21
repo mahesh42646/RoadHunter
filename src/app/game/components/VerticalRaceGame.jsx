@@ -256,6 +256,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const resizeTimeoutRef = useRef(null); // Throttle resize
   const lastDrawTimeRef = useRef(0); // Throttle drawing
   const [footerHeight, setFooterHeight] = useState(70); // Default footer height
+  const containerRef = useRef(null); // Ref for modal container
   
   // Performance constants
   const MAX_PARTICLES_PER_CAR = 15; // Limit particles for performance
@@ -1765,6 +1766,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
   return (
     <div
+      ref={containerRef}
       className="position-relative"
       style={{
         // Full height/width to adapt to parent container
@@ -1777,6 +1779,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         boxSizing: "border-box",
         background: "var(--bg-darker, #050810)",
         fontFamily: "var(--font-space-grotesk), 'Poppins', 'Segoe UI', system-ui, sans-serif",
+        position: "relative", // Ensure container is positioned for modals
       }}
     >
       {/* Responsive canvas container - maintains vertical aspect ratio */}
@@ -1896,6 +1899,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         size="md"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
+        container={containerRef.current}
       >
         <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <Modal.Title className="w-100 text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
@@ -1921,7 +1925,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       </Modal>
 
       {/* Live indicator */}
-      {gameStatus === "racing" && (
+      {/* {gameStatus === "racing" && (
         <div
           className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1 glass-card"
           style={{
@@ -1935,7 +1939,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>LIVE</span>
           <span style={{ color: "var(--text-muted, #a8b3d0)" }}>Vertical street race</span>
         </div>
-      )}
+      )} */}
 
       {/* Selection Modal - Hide during countdown */}
       <Modal
@@ -1947,6 +1951,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         size="lg"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
+        container={containerRef.current}
       >
         {/* Header Stats Bar */}
         <div
@@ -2274,6 +2279,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         size="lg"
         contentClassName="glass-card"
         style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
+        container={containerRef.current}
       >
         <Modal.Body 
           className="p-4"
