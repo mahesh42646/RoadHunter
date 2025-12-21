@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { io } from "socket.io-client";
 import { Badge, Button, Modal } from "react-bootstrap";
 import {
@@ -383,25 +384,65 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     };
   }, []);
 
-  // Preload car top view images
+  // Preload car images (both top view for canvas and side view for UI) with priority
   useEffect(() => {
     if (!game?.cars) return;
+    
+    const loadPromises = [];
+    
     game.cars.forEach((assignment) => {
       const car = assignment.carId;
       if (!car) return;
       const carId = normalizeCarId(car._id || car);
-      const imageUrl = getImageUrl(car.topViewImage);
-      if (imageUrl && !carImagesRef.current[carId]) {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          carImagesRef.current[carId] = img;
-        };
-        img.onerror = () => {
-          console.warn(`Failed to load car image: ${imageUrl}`);
-        };
-        img.src = imageUrl;
+      
+      // Preload top view image for canvas (priority)
+      const topViewUrl = getImageUrl(car.topViewImage);
+      if (topViewUrl && !carImagesRef.current[carId]) {
+        const loadPromise = new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.loading = "eager"; // Eager loading for game images
+          img.onload = () => {
+            carImagesRef.current[carId] = img;
+            setCarImagesLoaded(prev => ({ ...prev, [carId]: true }));
+            resolve(img);
+          };
+          img.onerror = () => {
+            console.warn(`Failed to load car top view image: ${topViewUrl}`);
+            setCarImagesLoaded(prev => ({ ...prev, [carId]: false }));
+            reject(new Error(`Failed to load image: ${topViewUrl}`));
+          };
+          img.src = topViewUrl;
+        });
+        loadPromises.push(loadPromise);
       }
+      
+      // Preload side view image for UI (lower priority, but still preload)
+      const sideViewUrl = getImageUrl(car.sideViewImage);
+      if (sideViewUrl) {
+        const loadPromise = new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.loading = "lazy"; // Lazy loading for UI images
+          img.onload = () => {
+            resolve(img);
+          };
+          img.onerror = () => {
+            console.warn(`Failed to load car side view image: ${sideViewUrl}`);
+            reject(new Error(`Failed to load image: ${sideViewUrl}`));
+          };
+          img.src = sideViewUrl;
+        });
+        loadPromises.push(loadPromise);
+      }
+    });
+    
+    // Store promises for potential use
+    imageLoadPromisesRef.current = loadPromises;
+    
+    // Optional: Wait for critical images (top view) before starting game
+    Promise.allSettled(loadPromises).then(() => {
+      console.log("[VerticalRaceGame] Car images preloading completed");
     });
   }, [game]);
 
