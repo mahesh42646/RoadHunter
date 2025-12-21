@@ -1773,13 +1773,14 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         height: "100%",
         width: "100%",
         minHeight: "400px", // Minimum height for proper display
-        overflow: "hidden", // Prevent any scrolling
+        overflow: "visible", // Allow modals to overflow
         margin: 0,
         padding: 0,
         boxSizing: "border-box",
         background: "var(--bg-darker, #050810)",
         fontFamily: "var(--font-space-grotesk), 'Poppins', 'Segoe UI', system-ui, sans-serif",
         position: "relative", // Ensure container is positioned for modals
+        isolation: "isolate", // Create new stacking context
       }}
     >
       {/* Responsive canvas container - maintains vertical aspect ratio */}
@@ -1889,40 +1890,51 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         </div>
       )}
 
-      {/* Countdown Modal - Consistent with selection and results */}
-      <Modal
-        show={raceStartCountdown > 0 && gameStatus !== "racing"}
-        onHide={() => {}}
-        backdrop="static"
-        keyboard={false}
-        centered
-        size="md"
-        contentClassName="glass-card"
-        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-        container={() => containerRef.current}
-      >
-        <Modal.Header className="glass-card" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
-          <Modal.Title className="w-100 text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
-            <div className="fw-semibold mb-2" style={{ fontSize: "clamp(1rem, 2vw, 1.25rem)" }}>
-              Race Starting In
-            </div>
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="text-center" style={{ background: "transparent" }}>
+      {/* Countdown Modal - Custom positioned within container */}
+      {raceStartCountdown > 0 && gameStatus !== "racing" && (
+        <div
+          className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
           <div
+            className="glass-card rounded"
             style={{
-              fontSize: "clamp(3rem, 12vw, 6rem)",
-              fontWeight: 800,
-              color: "var(--accent-secondary, #00f5ff)",
-              textShadow: "0 0 30px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
-              lineHeight: 1,
-              padding: "clamp(1rem, 3vw, 2rem) 0",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              maxWidth: "90%",
+              width: "100%",
+              maxHeight: "90%",
+              overflow: "auto",
             }}
           >
-            {raceStartCountdown}
+            <div className="p-3" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              <div className="fw-semibold text-center" style={{ color: "var(--text-primary, #ffffff)", fontSize: "clamp(1rem, 2vw, 1.25rem)" }}>
+                Race Starting In
+              </div>
+            </div>
+            <div className="text-center p-4">
+              <div
+                style={{
+                  fontSize: "clamp(3rem, 12vw, 6rem)",
+                  fontWeight: 800,
+                  color: "var(--accent-secondary, #00f5ff)",
+                  textShadow: "0 0 30px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
+                  lineHeight: 1,
+                }}
+              >
+                {raceStartCountdown}
+              </div>
+            </div>
           </div>
-        </Modal.Body>
-      </Modal>
+        </div>
+      )}
 
       {/* Live indicator */}
       {/* {gameStatus === "racing" && (
@@ -1941,27 +1953,39 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         </div>
       )} */}
 
-      {/* Selection Modal - Hide during countdown */}
-      <Modal
-        show={gameStatus === "predictions" && raceStartCountdown === 0}
-        onHide={() => {}}
-        backdrop="static"
-        keyboard={false}
-        centered
-        size="lg"
-        contentClassName="glass-card"
-        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-        container={() => containerRef.current}
-      >
-        {/* Header Stats Bar */}
+      {/* Selection Modal - Custom positioned within container */}
+      {gameStatus === "predictions" && raceStartCountdown === 0 && (
         <div
-          className="d-flex align-items-center justify-content-between px-3 py-2"
+          className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            background: "rgba(10, 14, 26, 0.8)",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-            fontSize: "0.875rem",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
           }}
         >
+          <div
+            className="glass-card rounded"
+            style={{
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              maxWidth: "90%",
+              width: "100%",
+              maxHeight: "90%",
+              overflow: "auto",
+            }}
+          >
+            {/* Header Stats Bar */}
+            <div
+              className="d-flex align-items-center justify-content-between px-3 py-2"
+              style={{
+                background: "rgba(10, 14, 26, 0.8)",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                fontSize: "0.875rem",
+              }}
+            >
           <div className="d-flex align-items-center gap-3">
             <div className="d-flex align-items-center gap-1">
               <BsPeople style={{ color: "var(--text-muted, #a8b3d0)" }} />
@@ -1996,10 +2020,10 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
         
 
-        <Modal.Body 
-          style={{ background: "transparent", padding: "1rem" }}
-          onClick={() => setShowCarInfo(null)}
-        >
+            <div 
+              style={{ background: "transparent", padding: "1rem" }}
+              onClick={() => setShowCarInfo(null)}
+            >
           {/* Define disabled at this scope so it's available in footer */}
           {(() => {
             const disabled = predicting || timeRemaining <= 0;
@@ -2266,29 +2290,35 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               </>
             );
           })()}
-        </Modal.Body>
-      </Modal>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Results Modal - Show Both User Selections and Winner Simultaneously */}
-      <Modal
-        show={gameStatus === "finished" && raceResults && raceResults.length > 0}
-        onHide={() => {}}
-        backdrop="static"
-        keyboard={false}
-        centered
-        size="lg"
-        contentClassName="glass-card"
-        style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}
-        container={() => containerRef.current}
-      >
-        <Modal.Body 
-          className="p-4"
-          style={{ 
-            background: "var(--bg-card, #141b2d)",
-            maxHeight: "90vh",
-            overflowY: "auto",
+      {/* Results Modal - Custom positioned within container */}
+      {gameStatus === "finished" && raceResults && raceResults.length > 0 && (
+        <div
+          className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
           }}
         >
+          <div
+            className="glass-card rounded p-4"
+            style={{
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              maxWidth: "90%",
+              width: "100%",
+              maxHeight: "90%",
+              overflowY: "auto",
+            }}
+          >
           {/* Single Centered Box with All Info */}
           <div
             className="mx-auto rounded position-relative"
@@ -2426,22 +2456,23 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
             </div>
           </div>
 
-          {/* Footer with countdown */}
-          <div
-            className="mt-4 p-3 rounded text-center"
-            style={{
-              background: "rgba(10, 14, 26, 0.8)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-            }}
-          >
-            {resultCountdown > 0 && (
-              <div className="fw-semibold" style={{ color: "var(--text-primary, #ffffff)" }}>
-                Next race in {resultCountdown}s
-              </div>
-            )}
+            {/* Footer with countdown */}
+            <div
+              className="mt-4 p-3 rounded text-center"
+              style={{
+                background: "rgba(10, 14, 26, 0.8)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}
+            >
+              {resultCountdown > 0 && (
+                <div className="fw-semibold" style={{ color: "var(--text-primary, #ffffff)" }}>
+                  Next race in {resultCountdown}s
+                </div>
+              )}
+            </div>
           </div>
-        </Modal.Body>
-      </Modal>
+        </div>
+      )}
     </div>
   );
 }
