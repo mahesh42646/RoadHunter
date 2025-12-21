@@ -407,28 +407,50 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
   // Establish dedicated game socket (only if external socket not provided)
   useEffect(() => {
-    // If external socket is provided, use it
-    if (externalSocket) {
-      setSocket(externalSocket);
-      return;
+    try {
+      // If external socket is provided, use it
+      if (externalSocket) {
+        setSocket(externalSocket);
+        return;
+      }
+
+      // Otherwise, create own socket
+      const s = io(SOCKET_URL, {
+        auth: token ? { token } : undefined,
+        transports: ["websocket", "polling"],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+      });
+
+      s.on("connect", () => {
+        s.emit("user:join");
+      });
+
+      s.on("error", (err) => {
+        console.error("[VerticalRaceGame] Socket error:", err);
+        // Don't set error for socket errors, just log them
+      });
+
+      s.on("connect_error", (err) => {
+        console.error("[VerticalRaceGame] Socket connection error:", err);
+        // Don't set error for connection errors, socket will retry
+      });
+
+      setSocket(s);
+
+      return () => {
+        try {
+          s.disconnect();
+        } catch (err) {
+          console.error("[VerticalRaceGame] Error disconnecting socket:", err);
+        }
+        setSocket(null);
+      };
+    } catch (err) {
+      console.error("[VerticalRaceGame] Error setting up socket:", err);
+      // Don't set error, component will work without socket initially
     }
-
-    // Otherwise, create own socket
-    const s = io(SOCKET_URL, {
-      auth: token ? { token } : undefined,
-      transports: ["websocket", "polling"],
-    });
-
-    s.on("connect", () => {
-      s.emit("user:join");
-    });
-
-    setSocket(s);
-
-    return () => {
-      s.disconnect();
-      setSocket(null);
-    };
   }, [token, externalSocket]);
 
   const loadActiveGame = useCallback(async () => {
