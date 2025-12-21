@@ -457,7 +457,15 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get("/games/active");
+      const response = await apiClient.get("/games/active").catch((err) => {
+        // Handle 500 errors gracefully - don't show error for server issues
+        if (err?.response?.status === 500) {
+          console.error("[Html5RaceGame] Server error loading game, will retry:", err);
+          // Return null to trigger retry
+          return { data: { game: null } };
+        }
+        throw err;
+      });
 
       if (response.data.game) {
         const activeGame = response.data.game;
