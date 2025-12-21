@@ -643,6 +643,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     const handleRaceStart = (data) => {
       // Exact same logic as party game
       console.log('[Game] Race start event received:', data);
+      // Update game status FIRST before processing race progress
       setGameStatus("racing");
       setRaceProgress({}); // Reset progress when race starts
       // Clear interpolation data when race starts
@@ -662,34 +663,37 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       // Exact same logic as party game - simple and direct
       const currentGameId = game?._id?.toString();
       if (data.gameId === currentGameId) {
-        if (gameStatus === "racing") {
-          const now = performance.now();
-          const carPositions = data.carPositions || {};
-          
-          // Store previous positions and timestamps for interpolation
-          Object.keys(carPositions).forEach((carId) => {
-            if (!carInterpolationRef.current[carId]) {
-              carInterpolationRef.current[carId] = {
-                previousProgress: carPositions[carId]?.progress || 0,
-                currentProgress: carPositions[carId]?.progress || 0,
-                previousTime: now,
-                currentTime: now,
-              };
-            } else {
-              // Move current to previous, set new current
-              carInterpolationRef.current[carId].previousProgress = carInterpolationRef.current[carId].currentProgress;
-              carInterpolationRef.current[carId].previousTime = carInterpolationRef.current[carId].currentTime;
-              carInterpolationRef.current[carId].currentProgress = carPositions[carId]?.progress || 0;
-              carInterpolationRef.current[carId].currentTime = now;
-            }
-          });
-          
-          setRaceProgress(carPositions);
-          // Force re-render to update car positions
-          setGame(prev => prev ? { ...prev } : prev);
-        } else {
-          console.log('[Game] Race progress received but game status is not racing:', gameStatus);
+        // If we receive race progress but status is not racing, update status to racing
+        // This handles race progress arriving before race start event
+        if (gameStatus !== "racing") {
+          console.log('[Game] Race progress received but status is not racing, updating to racing:', gameStatus);
+          setGameStatus("racing");
         }
+        
+        const now = performance.now();
+        const carPositions = data.carPositions || {};
+        
+        // Store previous positions and timestamps for interpolation
+        Object.keys(carPositions).forEach((carId) => {
+          if (!carInterpolationRef.current[carId]) {
+            carInterpolationRef.current[carId] = {
+              previousProgress: carPositions[carId]?.progress || 0,
+              currentProgress: carPositions[carId]?.progress || 0,
+              previousTime: now,
+              currentTime: now,
+            };
+          } else {
+            // Move current to previous, set new current
+            carInterpolationRef.current[carId].previousProgress = carInterpolationRef.current[carId].currentProgress;
+            carInterpolationRef.current[carId].previousTime = carInterpolationRef.current[carId].currentTime;
+            carInterpolationRef.current[carId].currentProgress = carPositions[carId]?.progress || 0;
+            carInterpolationRef.current[carId].currentTime = now;
+          }
+        });
+        
+        setRaceProgress(carPositions);
+        // Force re-render to update car positions
+        setGame(prev => prev ? { ...prev } : prev);
       } else {
         console.log('[Game] Race progress received for different game:', data.gameId, 'current:', currentGameId);
       }
@@ -824,7 +828,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     let resizeObserver = null;
     let forceResizeHandler = null;
     let retryCount = 0;
-    const MAX_RETRIES = 20; // Max 1 second of retries
+    const MAX_RETRIES = 50; // Increased retries for incognito mode (2.5 seconds)
 
     const initCanvas = () => {
       try {
@@ -832,11 +836,22 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         if (!canvas) {
           retryCount++;
           if (retryCount < MAX_RETRIES) {
-            // Retry after a short delay
-            retryTimeout = setTimeout(initCanvas, 50);
+            // Retry after a short delay, with exponential backoff for later retries
+            const delay = retryCount < 10 ? 50 : 100;
+            retryTimeout = setTimeout(initCanvas, delay);
           } else {
             console.error("[RaceCanvas] Canvas element not found after retries");
-            setError("Failed to initialize game canvas. Please refresh the page.");
+            // Don't set error immediately, try one more time after a longer delay
+            if (retryCount === MAX_RETRIES) {
+              retryTimeout = setTimeout(() => {
+                const canvas = raceCanvasRef.current;
+                if (!canvas) {
+                  setError("Failed to initialize game canvas. Please refresh the page.");
+                } else {
+                  initCanvas();
+                }
+              }, 500);
+            }
           }
           return;
         }
