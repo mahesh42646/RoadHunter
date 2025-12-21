@@ -512,25 +512,32 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
   // Load user balance (use wallet prop if provided, otherwise fetch)
   useEffect(() => {
-    // If wallet prop is provided, use it
-    if (wallet?.partyCoins !== undefined) {
-      setUserBalance(wallet.partyCoins);
-      return;
-    }
-
-    // Otherwise, fetch balance
-    const loadBalance = async () => {
-      try {
-        const response = await apiClient.get("/wallet/balance");
-        setUserBalance(response.data.partyCoins || 0);
-      } catch (err) {
-        console.error("[VerticalRaceGame] Failed to load balance", err);
+    try {
+      // If wallet prop is provided, use it
+      if (wallet?.partyCoins !== undefined) {
+        setUserBalance(wallet.partyCoins);
+        return;
       }
-    };
-    loadBalance();
-    // Refresh balance periodically
-    const interval = setInterval(loadBalance, 5000);
-    return () => clearInterval(interval);
+
+      // Otherwise, fetch balance
+      const loadBalance = async () => {
+        try {
+          const response = await apiClient.get("/wallet/balance");
+          setUserBalance(response.data.partyCoins || 0);
+        } catch (err) {
+          console.error("[VerticalRaceGame] Failed to load balance", err);
+          // Don't set error for balance loading failure, just use 0
+          setUserBalance(0);
+        }
+      };
+      loadBalance();
+      // Refresh balance periodically
+      const interval = setInterval(loadBalance, 5000);
+      return () => clearInterval(interval);
+    } catch (err) {
+      console.error("[VerticalRaceGame] Error in balance effect:", err);
+      setUserBalance(0);
+    }
   }, [wallet]);
 
   // Prediction countdown timer
@@ -794,22 +801,41 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     let isDrawing = false;
     let resizeObserver = null;
     let forceResizeHandler = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 20; // Max 1 second of retries
 
     const initCanvas = () => {
-      const canvas = raceCanvasRef.current;
-      if (!canvas) {
-        // Retry after a short delay
-        retryTimeout = setTimeout(initCanvas, 50);
+      try {
+        const canvas = raceCanvasRef.current;
+        if (!canvas) {
+          retryCount++;
+          if (retryCount < MAX_RETRIES) {
+            // Retry after a short delay
+            retryTimeout = setTimeout(initCanvas, 50);
+          } else {
+            console.error("[RaceCanvas] Canvas element not found after retries");
+            setError("Failed to initialize game canvas. Please refresh the page.");
+          }
+          return;
+        }
+
+        const ctx = canvas.getContext("2d", { 
+          alpha: false, // Better performance on mobile
+          desynchronized: true, // Better performance on mobile
+        });
+        if (!ctx) {
+          console.error("[RaceCanvas] Could not get 2D context");
+          setError("Failed to initialize game graphics. Please refresh the page.");
+          return;
+        }
+
+        console.log("[RaceCanvas] Canvas initialized successfully");
+        retryCount = 0; // Reset retry count on success
+      } catch (err) {
+        console.error("[RaceCanvas] Error initializing canvas:", err);
+        setError("Failed to initialize game. Please refresh the page.");
         return;
       }
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        console.error("[RaceCanvas] Could not get 2D context");
-        return;
-      }
-
-      console.log("[RaceCanvas] Canvas initialized successfully");
 
       // Canvas is ready, proceed with setup
       setupCanvas(canvas, ctx);
