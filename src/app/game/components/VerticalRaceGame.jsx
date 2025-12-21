@@ -409,7 +409,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         preloadLinks.push(link);
         
         const loadPromise = new Promise((resolve, reject) => {
-          const img = new Image();
+          const img = new window.Image(); // Use window.Image to avoid conflict with Next.js Image component
           img.crossOrigin = "anonymous";
           img.loading = "eager"; // Eager loading for game images
           img.fetchPriority = "high"; // High priority for game-critical images
@@ -445,7 +445,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         preloadLinks.push(link);
         
         const loadPromise = new Promise((resolve, reject) => {
-          const img = new Image();
+          const img = new window.Image(); // Use window.Image to avoid conflict with Next.js Image component
           img.crossOrigin = "anonymous";
           img.loading = "lazy"; // Lazy loading for UI images
           img.fetchPriority = "low"; // Lower priority for UI images
@@ -466,10 +466,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       }
     });
     
-    // Store promises for potential use
-    imageLoadPromisesRef.current = loadPromises;
-    
-    // Track preload links for cleanup
+    // Store promises and preload links for potential use and cleanup
+    imageLoadPromisesRef.current.promises = loadPromises;
     imageLoadPromisesRef.current.preloadLinks = preloadLinks;
     
     // Optional: Wait for critical images (top view) before starting game
