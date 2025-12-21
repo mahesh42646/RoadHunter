@@ -479,8 +479,9 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     
     // Cleanup preload links on unmount
     return () => {
-      preloadLinks.forEach(link => {
-        if (link.parentNode) {
+      const currentLinks = imageLoadPromisesRef.current?.preloadLinks || preloadLinks;
+      currentLinks.forEach(link => {
+        if (link && link.parentNode) {
           link.parentNode.removeChild(link);
         }
       });
