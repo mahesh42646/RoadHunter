@@ -1570,13 +1570,27 @@ export default function Html5RaceGamePage() {
         // Draw car using top view image (no rotation needed - images are already correct)
         const carImage = carImagesRef.current[carId];
         if (carImage && carImage.complete && carImage.naturalWidth > 0) {
-          // Image is loaded, draw it directly (no rotation)
+          // Calculate aspect ratio to prevent stretching
+          const imageAspectRatio = carImage.naturalWidth / carImage.naturalHeight;
+          let drawWidth = baseCarSize;
+          let drawHeight = baseCarSize;
+          
+          // Maintain aspect ratio - use width as base, adjust height
+          if (imageAspectRatio > 1) {
+            // Image is wider than tall - use full width, adjust height
+            drawHeight = baseCarSize / imageAspectRatio;
+          } else {
+            // Image is taller than wide - use full height, adjust width
+            drawWidth = baseCarSize * imageAspectRatio;
+          }
+          
+          // Draw image maintaining aspect ratio
           ctx.drawImage(
             carImage,
-            centerX - baseCarSize / 2,
-            currentY - baseCarSize / 2,
-            baseCarSize,
-            baseCarSize
+            centerX - drawWidth / 2,
+            currentY - drawHeight / 2,
+            drawWidth,
+            drawHeight
           );
         } else {
           // Fallback: draw simple colored rectangle if image not loaded
@@ -1960,143 +1974,7 @@ export default function Html5RaceGamePage() {
           </div>
         </div>
 
-        {/* Road Preview Section */}
-        <div className="px-3 py-2" style={{ background: "rgba(15, 23, 42, 0.5)" }}>
-          <div className="d-flex gap-2 align-items-center">
-            {(game.tracks || [
-              { segments: ["regular", "regular", "regular"] },
-              { segments: ["desert", "desert", "desert"] },
-              { segments: ["muddy", "muddy", "muddy"] },
-            ]).map((track, idx) => {
-              const segments = track.segments || ["regular", "regular", "regular"];
-              const terrainNames = {
-                regular: "Highway",
-                desert: "Desert",
-                muddy: "Potholes",
-              };
-              // Show middle segment (index 1) terrain
-              const middleTerrain = segments[1] || segments[Math.floor(segments.length / 2)] || "regular";
-              const isActive = idx === 1; // Middle track is active
-              
-              return (
-                <div key={idx} className="flex-grow-1 position-relative">
-                  <div
-                    className="text-center mb-1 small fw-bold"
-                    style={{
-                      color: isActive ? "#ffd700" : "var(--text-muted, #a8b3d0)",
-                      fontSize: "0.75rem",
-                    }}
-                  >
-                    {isActive ? (
-                      <>
-                        <span className="me-1">⛰️</span>
-                        {terrainNames[middleTerrain] || "???"}
-                        <span className="ms-1">→</span>
-                      </>
-                    ) : (
-                      "???"
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      height: "40px",
-                      background: middleTerrain === "regular" 
-                        ? "#2a2d35" 
-                        : middleTerrain === "desert"
-                        ? "#d4a574"
-                        : "#6b4423",
-                      borderRadius: "0.25rem",
-                      border: isActive ? "2px solid #ffd700" : "1px solid rgba(255, 255, 255, 0.1)",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {middleTerrain === "muddy" && (
-                      <>
-                        {/* Potholes */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            width: "8px",
-                            height: "8px",
-                            background: "#3a2410",
-                            borderRadius: "50%",
-                            top: "50%",
-                            left: "30%",
-                            transform: "translate(-50%, -50%)",
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: "absolute",
-                            width: "6px",
-                            height: "6px",
-                            background: "#3a2410",
-                            borderRadius: "50%",
-                            top: "50%",
-                            left: "70%",
-                            transform: "translate(-50%, -50%)",
-                          }}
-                        />
-                        {isActive && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              height: "2px",
-                              background: "var(--accent, #ca0000)",
-                            }}
-                          />
-                        )}
-                      </>
-                    )}
-                    {middleTerrain === "regular" && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "50%",
-                          left: 0,
-                          right: 0,
-                          height: "1px",
-                          background: "repeating-linear-gradient(to right, #fff 0, #fff 10px, transparent 10px, transparent 20px)",
-                          transform: "translateY(-50%)",
-                        }}
-                      />
-                    )}
-                    {middleTerrain === "desert" && (
-                      <>
-                        <div
-                          style={{
-                            position: "absolute",
-                            width: "4px",
-                            height: "4px",
-                            background: "#c49a5f",
-                            borderRadius: "50%",
-                            top: "20%",
-                            left: "25%",
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: "absolute",
-                            width: "3px",
-                            height: "3px",
-                            background: "#c49a5f",
-                            borderRadius: "50%",
-                            top: "60%",
-                            left: "60%",
-                          }}
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        
 
         <Modal.Body 
           style={{ background: "transparent", padding: "1rem" }}
@@ -2418,9 +2296,9 @@ export default function Html5RaceGamePage() {
                               alt="Car"
                               style={{ 
                                 width: "150px", 
-                                height: "100px", 
+                                height: "auto", 
                                 objectFit: "contain",
-                                marginBottom: "1rem",
+                                marginBottom: "0.1rem",
                               }}
                             />
                           )}
@@ -2494,7 +2372,7 @@ export default function Html5RaceGamePage() {
                         alt="Winner Car"
                         style={{
                           width: "200px",
-                          height: "120px",
+                          height: "auto",
                           objectFit: "contain",
                           filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
                         }}
