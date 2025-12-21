@@ -1749,9 +1749,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   }
 
   const winnerResult = raceResults && raceResults.length > 0 ? raceResults[0] : null;
-  const winnerCarIdFromResult = winnerResult?.carId?.toString();
-  const winnerCarIdFromGame =
-    game?.winnerCarId?._id?.toString() || game?.winnerCarId?.toString();
+  const winnerCarIdFromResult = winnerResult?.carId ? normalizeCarId(winnerResult.carId) : null;
+  const winnerCarIdFromGame = game?.winnerCarId ? normalizeCarId(game.winnerCarId) : null;
   const winnerCarId = winnerCarIdFromResult || winnerCarIdFromGame;
   const winnerCar = winnerCarId ? getCarById(winnerCarId) : null;
 
@@ -2401,29 +2400,33 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
                   {myPredictions.length > 0 ? (
                     <>
-                      {myPredictions[0]?.predictedCarId && (
-                        <>
-                          {getImageUrl(getCarById(myPredictions[0].predictedCarId)?.sideViewImage) && (
-                            <div className="mb-2">
-                              <img
-                                src={getImageUrl(getCarById(myPredictions[0].predictedCarId).sideViewImage)}
-                                alt="Your Car"
-                                className="mx-auto d-block"
-                                style={{
-                                  width: "120px",
-                                  maxWidth: "100%",
-                                  height: "auto",
-                                  objectFit: "contain",
-                                  opacity: isWinner ? 1 : 0.6,
-                                }}
-                              />
+                      {(() => {
+                        const selectedCarId = myPredictions[0]?.predictedCarId;
+                        const selectedCar = selectedCarId ? getCarById(selectedCarId) : null;
+                        return selectedCar ? (
+                          <>
+                            {getImageUrl(selectedCar?.sideViewImage) && (
+                              <div className="mb-2">
+                                <img
+                                  src={getImageUrl(selectedCar.sideViewImage)}
+                                  alt="Your Car"
+                                  className="mx-auto d-block"
+                                  style={{
+                                    width: "120px",
+                                    maxWidth: "100%",
+                                    height: "auto",
+                                    objectFit: "contain",
+                                    opacity: isWinner ? 1 : 0.6,
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
+                              {selectedCar?.name || "Unknown Car"}
                             </div>
-                          )}
-                          <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
-                            {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
-                          </div>
-                        </>
-                      )}
+                          </>
+                        ) : null;
+                      })()}
                       <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)", fontSize: "0.9rem" }}>
                         {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} • {myPredictions.length * 100} coins
                       </div>
