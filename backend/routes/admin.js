@@ -362,10 +362,10 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     timestamp: new Date().toISOString()
   });
 
-  // Set a timeout to catch if multer hangs
+  // Set a timeout to catch if multer hangs (5 minutes for large files)
   const multerTimeout = setTimeout(() => {
     if (!res.headersSent) {
-      console.error('[Admin Routes] MULTER TIMEOUT - No response after 60 seconds');
+      console.error('[Admin Routes] MULTER TIMEOUT - No response after 5 minutes');
       console.error('[Admin Routes] Request details:', {
         elapsed: Date.now() - requestStartTime,
         hasFile: !!req.file,
@@ -373,10 +373,10 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
         finished: res.finished
       });
       if (!res.headersSent && !res.finished) {
-        res.status(504).json({ error: 'Upload processing timeout. Please try again with a smaller file.' });
+        res.status(504).json({ error: 'Upload processing timeout. File may be too large or server is overloaded.' });
       }
     }
-  }, 60000);
+  }, 300000); // 5 minutes
 
   // Handle multer errors first
   uploadCar.single('image')(req, res, (err) => {
@@ -440,9 +440,9 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
   let uploadedFilePath = null;
   const startTime = Date.now();
   
-  // Set keep-alive to prevent connection from closing
-  res.setTimeout(60000, () => {
-    console.error('[Admin Routes] Response timeout - connection closed after 60 seconds');
+  // Set keep-alive to prevent connection from closing (5 minutes for large files)
+  res.setTimeout(300000, () => {
+    console.error('[Admin Routes] Response timeout - connection closed after 5 minutes');
   });
   
   // Set response timeout to prevent hanging
@@ -475,7 +475,7 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
         }
       }
     }
-  }, 30000); // 30 second timeout for response
+  }, 300000); // 5 minute timeout for response (for large files up to 100MB)
   
   // Add request error handler
   req.on('error', (error) => {

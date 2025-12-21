@@ -67,7 +67,7 @@ export default function GameManagement({ adminToken }) {
           Authorization: `Bearer ${adminToken}`,
           // Don't set Content-Type - let axios set it automatically with boundary
         },
-        timeout: 120000, // 120 seconds timeout for very large files
+        timeout: 300000, // 300 seconds (5 minutes) timeout for very large files up to 100MB
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
         onUploadProgress: (progressEvent) => {

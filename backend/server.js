@@ -87,10 +87,17 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For form data
+app.use(express.json({ limit: '100mb' })); // Increased for large JSON payloads
+app.use(express.urlencoded({ extended: true, limit: '100mb' })); // Increased for form data
 
+// Increase body size limit for raw data (for file uploads)
+app.use(express.raw({ limit: '100mb', type: 'application/octet-stream' }));
+
+// Increase server timeout for large file uploads
 const server = http.createServer(app);
+server.timeout = 300000; // 5 minutes for large file uploads
+server.keepAliveTimeout = 65000; // Keep connections alive longer
+server.headersTimeout = 66000; // Headers timeout
 
 const io = new Server(server, {
   cors: {

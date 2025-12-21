@@ -71,11 +71,17 @@ const storage = multer.diskStorage({
 });
 
 // No file filter - accept any file type
-// No size limits - accept any size
+// Set high limit for large files (100MB)
 const upload = multer({
   storage,
   // No fileFilter - accept all files
-  // No limits - accept any size
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
+    fieldSize: 10 * 1024 * 1024, // 10MB max field size
+    fields: 20, // Max number of non-file fields
+    fieldNameSize: 100, // Max field name size
+    files: 1, // Max number of files
+  },
 });
 
 module.exports = upload;

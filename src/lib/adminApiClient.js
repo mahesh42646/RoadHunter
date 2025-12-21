@@ -4,7 +4,7 @@ import axios from "axios";
 const adminApiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.darkunde.in/api",
   withCredentials: true,
-  timeout: 120000, // 120 seconds default timeout for large file uploads
+  timeout: 300000, // 300 seconds (5 minutes) default timeout for large file uploads up to 100MB
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
 });
