@@ -616,6 +616,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       console.log('[Game] Race start event received:', data);
       setGameStatus("racing");
       setRaceProgress({}); // Reset progress when race starts
+      // Clear interpolation data when race starts
+      carInterpolationRef.current = {};
       if (data.tracks) {
         setGame(prev => prev ? { ...prev, tracks: data.tracks } : prev);
       }
@@ -681,6 +683,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       );
       setRaceResults(data.game.results || []);
       setRaceProgress({});
+      // Clear interpolation data when race finishes
+      carInterpolationRef.current = {};
       setGameStatus("finished");
 
       try {
@@ -1503,8 +1507,33 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           // Get car ID (exact same logic as party game)
           const carId = car?._id?.toString() || car?.toString() || car?._id || car;
 
-          // Get car progress (exact same logic as party game)
-          const carProgress = status === "racing" ? (progressMap[carId]?.progress || 0) : 0;
+          // Get car progress with interpolation for smooth 30fps animation
+          let carProgress = 0;
+          if (status === "racing") {
+            const rawProgress = progressMap[carId]?.progress || 0;
+            const interpolation = carInterpolationRef.current[carId];
+            
+            if (interpolation && interpolation.currentTime !== interpolation.previousTime) {
+              // Interpolate between previous and current position
+              const now = performance.now();
+              const timeSinceUpdate = now - interpolation.currentTime;
+              const timeBetweenUpdates = interpolation.currentTime - interpolation.previousTime;
+              
+              // If we have valid interpolation data and it's been less than 200ms since last update
+              if (timeBetweenUpdates > 0 && timeSinceUpdate < 200) {
+                const progressDelta = interpolation.currentProgress - interpolation.previousProgress;
+                const interpolationFactor = Math.min(1, timeSinceUpdate / timeBetweenUpdates);
+                carProgress = interpolation.previousProgress + (progressDelta * interpolationFactor);
+              } else {
+                // Use current progress if interpolation data is stale
+                carProgress = rawProgress;
+              }
+            } else {
+              carProgress = rawProgress;
+            }
+          } else {
+            carProgress = 0;
+          }
 
           // Calculate Y position (same pattern as party game's X calculation, but vertical)
           // Party game: currentX = startX + (progress / 100) * (endX - startX)
