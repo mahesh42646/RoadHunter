@@ -40,8 +40,8 @@ export default function AppShell({ children }) {
       </main>
       {!hideChrome && <Footer />}
       {!hideChrome && <FloatingHelp />}
-      {/* Always show bottom nav, even on chrome-free routes */}
-      <MobileBottomNav />
+      {/* Hide bottom nav on chrome-free routes (party, game) */}
+      {!hideChrome && <MobileBottomNav />}
     </>
   );
 }
