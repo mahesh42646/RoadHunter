@@ -268,9 +268,13 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const DRAW_THROTTLE_MS = 16; // ~60fps max
   const RESIZE_THROTTLE_MS = 200; // Throttle resize operations
 
+  // Update latestStateRef immediately when state changes (for canvas access)
   useEffect(() => {
     latestStateRef.current = { game, raceProgress, gameStatus };
   }, [game, raceProgress, gameStatus]);
+  
+  // Also update on every render to ensure it's always current
+  latestStateRef.current = { game, raceProgress, gameStatus };
 
   // Footer height is 0 since this component will be used in a parent page
   // The parent page will handle navigation, so we use full height
@@ -791,20 +795,36 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         return;
       }
 
+      // Update game state but keep the game object (don't set to null)
       setGame((prev) =>
         prev
           ? {
             ...prev,
             winnerCarId: data.game.winnerCarId,
             winnerName: data.game.winnerName,
+            status: "finished",
+            results: data.game.results || [],
           }
-          : null
+          : data.game
       );
       setRaceResults(data.game.results || []);
       setRaceProgress({});
       // Clear interpolation data when race finishes
       carInterpolationRef.current = {};
       setGameStatus("finished");
+      
+      // Update latestStateRef immediately
+      latestStateRef.current = {
+        game: game ? {
+          ...game,
+          winnerCarId: data.game.winnerCarId,
+          winnerName: data.game.winnerName,
+          status: "finished",
+          results: data.game.results || [],
+        } : data.game,
+        raceProgress: {},
+        gameStatus: "finished",
+      };
 
       try {
         const predResponse = await apiClient.get("/games/my-predictions", {
