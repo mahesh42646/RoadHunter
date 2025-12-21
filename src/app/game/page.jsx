@@ -1555,18 +1555,21 @@ export default function Html5RaceGamePage() {
         // Draw car using top view image (no rotation needed - images are already correct)
         const carImage = carImagesRef.current[carId];
         if (carImage && carImage.complete && carImage.naturalWidth > 0) {
+          // Make cars 1.2x bigger
+          const scaledCarSize = baseCarSize * 1.2;
+          
           // Calculate aspect ratio to prevent stretching
           const imageAspectRatio = carImage.naturalWidth / carImage.naturalHeight;
-          let drawWidth = baseCarSize;
-          let drawHeight = baseCarSize;
+          let drawWidth = scaledCarSize;
+          let drawHeight = scaledCarSize;
           
           // Maintain aspect ratio - use width as base, adjust height
           if (imageAspectRatio > 1) {
             // Image is wider than tall - use full width, adjust height
-            drawHeight = baseCarSize / imageAspectRatio;
+            drawHeight = scaledCarSize / imageAspectRatio;
           } else {
             // Image is taller than wide - use full height, adjust width
-            drawWidth = baseCarSize * imageAspectRatio;
+            drawWidth = scaledCarSize * imageAspectRatio;
           }
           
           // Position car so bottom edge touches the track surface
