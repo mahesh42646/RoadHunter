@@ -257,6 +257,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const lastDrawTimeRef = useRef(0); // Throttle drawing
   const [footerHeight, setFooterHeight] = useState(70); // Default footer height
   const containerRef = useRef(null); // Ref for modal container
+  const carInterpolationRef = useRef({}); // Store previous positions and timestamps for interpolation
 
   // Performance constants
   const MAX_PARTICLES_PER_CAR = 15; // Limit particles for performance
@@ -631,7 +632,28 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       const currentGameId = game?._id?.toString();
       if (data.gameId === currentGameId) {
         if (gameStatus === "racing") {
-          setRaceProgress(data.carPositions || {});
+          const now = performance.now();
+          const carPositions = data.carPositions || {};
+          
+          // Store previous positions and timestamps for interpolation
+          Object.keys(carPositions).forEach((carId) => {
+            if (!carInterpolationRef.current[carId]) {
+              carInterpolationRef.current[carId] = {
+                previousProgress: carPositions[carId]?.progress || 0,
+                currentProgress: carPositions[carId]?.progress || 0,
+                previousTime: now,
+                currentTime: now,
+              };
+            } else {
+              // Move current to previous, set new current
+              carInterpolationRef.current[carId].previousProgress = carInterpolationRef.current[carId].currentProgress;
+              carInterpolationRef.current[carId].previousTime = carInterpolationRef.current[carId].currentTime;
+              carInterpolationRef.current[carId].currentProgress = carPositions[carId]?.progress || 0;
+              carInterpolationRef.current[carId].currentTime = now;
+            }
+          });
+          
+          setRaceProgress(carPositions);
           // Force re-render to update car positions
           setGame(prev => prev ? { ...prev } : prev);
         } else {
