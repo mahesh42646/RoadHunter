@@ -389,19 +389,30 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     if (!game?.cars) return;
     
     const loadPromises = [];
+    const preloadLinks = [];
     
     game.cars.forEach((assignment) => {
       const car = assignment.carId;
       if (!car) return;
       const carId = normalizeCarId(car._id || car);
       
-      // Preload top view image for canvas (priority)
+      // Preload top view image for canvas (priority) - critical for game
       const topViewUrl = getImageUrl(car.topViewImage);
       if (topViewUrl && !carImagesRef.current[carId]) {
+        // Add link preload for faster loading
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = topViewUrl;
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+        preloadLinks.push(link);
+        
         const loadPromise = new Promise((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.loading = "eager"; // Eager loading for game images
+          img.fetchPriority = "high"; // High priority for game-critical images
           img.onload = () => {
             carImagesRef.current[carId] = img;
             setCarImagesLoaded(prev => ({ ...prev, [carId]: true }));
@@ -410,6 +421,10 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           img.onerror = () => {
             console.warn(`Failed to load car top view image: ${topViewUrl}`);
             setCarImagesLoaded(prev => ({ ...prev, [carId]: false }));
+            // Clean up preload link on error
+            if (link.parentNode) {
+              link.parentNode.removeChild(link);
+            }
             reject(new Error(`Failed to load image: ${topViewUrl}`));
           };
           img.src = topViewUrl;
@@ -420,15 +435,29 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       // Preload side view image for UI (lower priority, but still preload)
       const sideViewUrl = getImageUrl(car.sideViewImage);
       if (sideViewUrl) {
+        // Add link preload for UI images (lower priority)
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = sideViewUrl;
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+        preloadLinks.push(link);
+        
         const loadPromise = new Promise((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.loading = "lazy"; // Lazy loading for UI images
+          img.fetchPriority = "low"; // Lower priority for UI images
           img.onload = () => {
             resolve(img);
           };
           img.onerror = () => {
             console.warn(`Failed to load car side view image: ${sideViewUrl}`);
+            // Clean up preload link on error
+            if (link.parentNode) {
+              link.parentNode.removeChild(link);
+            }
             reject(new Error(`Failed to load image: ${sideViewUrl}`));
           };
           img.src = sideViewUrl;
@@ -440,10 +469,22 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     // Store promises for potential use
     imageLoadPromisesRef.current = loadPromises;
     
+    // Track preload links for cleanup
+    imageLoadPromisesRef.current.preloadLinks = preloadLinks;
+    
     // Optional: Wait for critical images (top view) before starting game
     Promise.allSettled(loadPromises).then(() => {
       console.log("[VerticalRaceGame] Car images preloading completed");
     });
+    
+    // Cleanup preload links on unmount
+    return () => {
+      preloadLinks.forEach(link => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      });
+    };
   }, [game]);
 
   // Establish dedicated game socket (only if external socket not provided)
