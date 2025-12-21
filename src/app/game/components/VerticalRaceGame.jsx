@@ -58,26 +58,26 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
 // Generate fixed obstacles for a segment (prevents flickering)
 function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, segmentPadding, gameId, trackIndex, segmentIndex) {
   const key = `${gameId}-${trackIndex}-${segmentIndex}`;
-  
+
   // Use seeded random for consistent positions
   let seed = 0;
   for (let i = 0; i < key.length; i++) {
     seed = ((seed << 5) - seed) + key.charCodeAt(i);
     seed = seed & seed; // Convert to 32bit integer
   }
-  
+
   // Simple seeded random function
   const seededRandom = () => {
     seed = (seed * 9301 + 49297) % 233280;
     return seed / 233280;
   };
-  
+
   const obstacles = [];
   const minX = laneX + segmentPadding * 2;
   const maxX = laneX + laneWidth - segmentPadding * 2;
   const minY = segmentY;
   const maxY = segmentY + segmentHeight;
-  
+
   if (terrain === "desert") {
     // Generate stones
     const stoneCount = Math.max(6, Math.floor(laneWidth * segmentHeight / 800));
@@ -90,7 +90,7 @@ function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, s
         rotation: seededRandom() * Math.PI * 2,
       });
     }
-    
+
     // Generate sand texture dots
     const sandDotCount = Math.max(8, Math.floor(laneWidth * segmentHeight / 200));
     for (let i = 0; i < sandDotCount; i++) {
@@ -113,7 +113,7 @@ function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, s
         rotation: seededRandom() * Math.PI * 2,
       });
     }
-    
+
     // Generate mud patches
     const mudPatchCount = Math.max(4, Math.floor(laneWidth / 40));
     for (let i = 0; i < mudPatchCount; i++) {
@@ -127,7 +127,7 @@ function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, s
         heightScale: 0.6 + seededRandom() * 0.4,
       });
     }
-    
+
     // Add debris/rocks in mud
     const debrisCount = Math.max(2, Math.floor(laneWidth / 80));
     for (let i = 0; i < debrisCount; i++) {
@@ -149,7 +149,7 @@ function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, s
         size: Math.max(2, laneWidth * 0.04),
       });
     }
-    
+
     // Add small cracks
     const crackCount = Math.max(1, Math.floor(laneWidth / 100));
     for (let i = 0; i < crackCount; i++) {
@@ -162,7 +162,7 @@ function generateObstacles(terrain, laneX, laneWidth, segmentY, segmentHeight, s
       });
     }
   }
-  
+
   return obstacles;
 }
 
@@ -196,7 +196,7 @@ class Particle {
     ctx.globalAlpha = this.life;
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    
+
     if (this.type === "dust") {
       // Golden dust particles
       ctx.fillStyle = "#fbbf24";
@@ -210,7 +210,7 @@ class Particle {
       ctx.arc(0, 0, this.size * 1.2, 0, Math.PI * 2);
       ctx.fill();
     }
-    
+
     ctx.restore();
   }
 }
@@ -257,7 +257,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const lastDrawTimeRef = useRef(0); // Throttle drawing
   const [footerHeight, setFooterHeight] = useState(70); // Default footer height
   const containerRef = useRef(null); // Ref for modal container
-  
+
   // Performance constants
   const MAX_PARTICLES_PER_CAR = 15; // Limit particles for performance
   const DRAW_THROTTLE_MS = 16; // ~60fps max
@@ -300,7 +300,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   useEffect(() => {
     // Skip hiding nav if in party context
     if (onClose) return;
-    
+
     const hideBottomNav = () => {
       // Find and hide bottom nav elements
       const selectors = [
@@ -309,13 +309,13 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         '[class*="MobileBottomNav"]',
         '[class*="bottom-nav"]',
       ];
-      
+
       let bottomNav = null;
       for (const selector of selectors) {
         bottomNav = document.querySelector(selector);
         if (bottomNav) break;
       }
-      
+
       // Also try finding by position
       if (!bottomNav) {
         const navs = document.querySelectorAll('nav');
@@ -327,7 +327,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           }
         }
       }
-      
+
       if (bottomNav) {
         bottomNav.style.display = 'none';
       }
@@ -335,11 +335,11 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
     // Hide on mount
     hideBottomNav();
-    
+
     // Also hide after a short delay to catch dynamically added navs
     const timeout1 = setTimeout(hideBottomNav, 100);
     const timeout2 = setTimeout(hideBottomNav, 500);
-    
+
     // Use MutationObserver to hide nav if it's added later
     const observer = new MutationObserver(() => {
       hideBottomNav();
@@ -354,13 +354,13 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         '[class*="MobileBottomNav"]',
         '[class*="bottom-nav"]',
       ];
-      
+
       let bottomNav = null;
       for (const selector of selectors) {
         bottomNav = document.querySelector(selector);
         if (bottomNav) break;
       }
-      
+
       if (!bottomNav) {
         const navs = document.querySelectorAll('nav');
         for (const nav of navs) {
@@ -371,11 +371,11 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           }
         }
       }
-      
+
       if (bottomNav) {
         bottomNav.style.display = '';
       }
-      
+
       clearTimeout(timeout1);
       clearTimeout(timeout2);
       observer.disconnect();
@@ -449,7 +449,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           const now = new Date();
           const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
           setTimeRemaining(remaining);
-          
+
           // If predictions already locked but status is still "predictions", check if we need to transition
           if (remaining <= 0 && status === "predictions") {
             // Predictions should be locked, wait for socket event or check again
@@ -578,7 +578,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       setRaceResults(null);
       setPredictionCounts({});
       setError(null);
-      
+
       // Clear obstacles for new game
       obstaclesRef.current = {};
 
@@ -596,7 +596,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       // Exact same logic as party game
       setPredictionCounts(data.finalCounts || {});
       setTimeRemaining(0);
-      
+
       setRaceStartCountdown(5);
       let count = 5;
       raceStartCountdownRef.current = setInterval(() => {
@@ -651,10 +651,10 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       setGame((prev) =>
         prev
           ? {
-              ...prev,
-              winnerCarId: data.game.winnerCarId,
-              winnerName: data.game.winnerName,
-            }
+            ...prev,
+            winnerCarId: data.game.winnerCarId,
+            winnerName: data.game.winnerName,
+          }
           : null
       );
       setRaceResults(data.game.results || []);
@@ -751,7 +751,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         err?.message ||
         (action === "add" ? "Failed to add selection. Please try again." : "Failed to remove selection. Please try again.");
       setError(msg);
-      
+
       // Auto-clear error after 5 seconds
       setTimeout(() => {
         setError(null);
@@ -768,7 +768,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     let isDrawing = false;
     let resizeObserver = null;
     let forceResizeHandler = null;
-    
+
     const initCanvas = () => {
       const canvas = raceCanvasRef.current;
       if (!canvas) {
@@ -776,95 +776,95 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         retryTimeout = setTimeout(initCanvas, 50);
         return;
       }
-      
+
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         console.error("[RaceCanvas] Could not get 2D context");
         return;
       }
-      
+
       console.log("[RaceCanvas] Canvas initialized successfully");
-      
+
       // Canvas is ready, proceed with setup
       setupCanvas(canvas, ctx);
     };
-    
+
     const setupCanvas = (canvas, ctx) => {
 
-    const resize = () => {
-      const parent = canvas.parentElement;
-      if (!parent) {
-        return;
-      }
-      
-      const rect = parent.getBoundingClientRect();
-      // Use computed style to get actual height if rect is 0
-      const computedStyle = window.getComputedStyle(parent);
-      let containerWidth = rect.width || parseFloat(computedStyle.width) || 400;
-      let containerHeight = rect.height || parseFloat(computedStyle.height) || 600;
-      
-      // Account for padding in container (clamp(0.5rem, 2vw, 1rem) on each side)
-      const padding = Math.max(16, Math.min(containerWidth * 0.02, 16)); // ~1rem max
-      containerWidth = Math.max(containerWidth - padding * 2, 300);
-      containerHeight = Math.max(containerHeight - padding * 2, 360);
-      
-      // Target aspect ratio: height should be more than width (vertical game)
-      // Minimum aspect ratio: 1.2:1 (height is 20% more than width)
-      // Ideal aspect ratio: 1.6:1 for vertical racing
-      const minAspectRatio = 1.2; // Height must be at least 1.2x width
-      const idealAspectRatio = 1.6; // Ideal ratio for vertical racing
-      
-      let canvasWidth, canvasHeight;
-      
-      // Calculate optimal size maintaining vertical aspect ratio
-      if (containerHeight / containerWidth >= minAspectRatio) {
-        // Container is tall enough, use full available width
-        canvasWidth = containerWidth;
-        canvasHeight = containerHeight;
-      } else {
-        // Container is too wide/square, maintain aspect ratio with side spacing
-        // Calculate width based on height to maintain aspect ratio
-        canvasHeight = containerHeight;
-        canvasWidth = containerHeight / idealAspectRatio;
-        
-        // Don't exceed container width
-        if (canvasWidth > containerWidth) {
+      const resize = () => {
+        const parent = canvas.parentElement;
+        if (!parent) {
+          return;
+        }
+
+        const rect = parent.getBoundingClientRect();
+        // Use computed style to get actual height if rect is 0
+        const computedStyle = window.getComputedStyle(parent);
+        let containerWidth = rect.width || parseFloat(computedStyle.width) || 400;
+        let containerHeight = rect.height || parseFloat(computedStyle.height) || 600;
+
+        // Account for padding in container (clamp(0.5rem, 2vw, 1rem) on each side)
+        const padding = Math.max(16, Math.min(containerWidth * 0.02, 16)); // ~1rem max
+        containerWidth = Math.max(containerWidth - padding * 2, 300);
+        containerHeight = Math.max(containerHeight - padding * 2, 360);
+
+        // Target aspect ratio: height should be more than width (vertical game)
+        // Minimum aspect ratio: 1.2:1 (height is 20% more than width)
+        // Ideal aspect ratio: 1.6:1 for vertical racing
+        const minAspectRatio = 1.2; // Height must be at least 1.2x width
+        const idealAspectRatio = 1.6; // Ideal ratio for vertical racing
+
+        let canvasWidth, canvasHeight;
+
+        // Calculate optimal size maintaining vertical aspect ratio
+        if (containerHeight / containerWidth >= minAspectRatio) {
+          // Container is tall enough, use full available width
           canvasWidth = containerWidth;
-          canvasHeight = canvasWidth * idealAspectRatio;
-        }
-      }
-      
-      // Ensure minimum dimensions
-      canvasWidth = Math.max(canvasWidth, 300);
-      canvasHeight = Math.max(canvasHeight, 360); // 300 * 1.2 minimum
-      
-      // Ensure height is always more than width (critical for vertical game)
-      if (canvasHeight <= canvasWidth) {
-        canvasHeight = canvasWidth * minAspectRatio;
-      }
-      
-      const dpr = window.devicePixelRatio || 1;
-      
-      if (canvasWidth > 0 && canvasHeight > 0) {
-        canvas.width = canvasWidth * dpr;
-        canvas.height = canvasHeight * dpr;
-        canvas.style.width = `${canvasWidth}px`;
-        canvas.style.height = `${canvasHeight}px`;
-        
-        // Center canvas if container is wider than needed
-        if (containerWidth > canvasWidth) {
-          canvas.style.marginLeft = 'auto';
-          canvas.style.marginRight = 'auto';
+          canvasHeight = containerHeight;
         } else {
-          canvas.style.marginLeft = '0';
-          canvas.style.marginRight = '0';
+          // Container is too wide/square, maintain aspect ratio with side spacing
+          // Calculate width based on height to maintain aspect ratio
+          canvasHeight = containerHeight;
+          canvasWidth = containerHeight / idealAspectRatio;
+
+          // Don't exceed container width
+          if (canvasWidth > containerWidth) {
+            canvasWidth = containerWidth;
+            canvasHeight = canvasWidth * idealAspectRatio;
+          }
         }
-        
-        // Reset transform and scale for high DPI
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.scale(dpr, dpr);
-      }
-    };
+
+        // Ensure minimum dimensions
+        canvasWidth = Math.max(canvasWidth, 300);
+        canvasHeight = Math.max(canvasHeight, 360); // 300 * 1.2 minimum
+
+        // Ensure height is always more than width (critical for vertical game)
+        if (canvasHeight <= canvasWidth) {
+          canvasHeight = canvasWidth * minAspectRatio;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+
+        if (canvasWidth > 0 && canvasHeight > 0) {
+          canvas.width = canvasWidth * dpr;
+          canvas.height = canvasHeight * dpr;
+          canvas.style.width = `${canvasWidth}px`;
+          canvas.style.height = `${canvasHeight}px`;
+
+          // Center canvas if container is wider than needed
+          if (containerWidth > canvasWidth) {
+            canvas.style.marginLeft = 'auto';
+            canvas.style.marginRight = 'auto';
+          } else {
+            canvas.style.marginLeft = '0';
+            canvas.style.marginRight = '0';
+          }
+
+          // Reset transform and scale for high DPI
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.scale(dpr, dpr);
+        }
+      };
 
       // Throttled resize function for better performance
       const throttledResize = () => {
@@ -875,7 +875,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           resize();
         }, RESIZE_THROTTLE_MS);
       };
-      
+
       // Force initial resize
       const forceResize = () => {
         resize();
@@ -883,11 +883,11 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         setTimeout(resize, 100);
         setTimeout(resize, 500);
       };
-      
+
       forceResizeHandler = throttledResize;
       forceResize();
       window.addEventListener("resize", throttledResize);
-      
+
       // Also resize when container size changes (throttled)
       if (canvas.parentElement) {
         resizeObserver = new ResizeObserver((entries) => {
@@ -899,7 +899,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           }
         });
         resizeObserver.observe(canvas.parentElement);
-        
+
         // Also observe the grandparent (the flex container) to catch height changes
         const grandparent = canvas.parentElement.parentElement;
         if (grandparent) {
@@ -907,759 +907,759 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         }
       }
 
-    const draw = () => {
-      if (!canvas || !ctx) return;
-      
-      // Throttle drawing to ~60fps for better performance
-      const now = performance.now();
-      const timeSinceLastDraw = now - lastDrawTimeRef.current;
-      if (timeSinceLastDraw < DRAW_THROTTLE_MS && isDrawing) {
-        animationId = requestAnimationFrame(draw);
-        return;
-      }
-      lastDrawTimeRef.current = now;
-      
-      const { game: g, raceProgress: progressMap, gameStatus: status } =
-        latestStateRef.current;
+      const draw = () => {
+        if (!canvas || !ctx) return;
 
-      // Get actual canvas dimensions
-      const dpr = window.devicePixelRatio || 1;
-      let width = canvas.width / dpr;
-      let height = canvas.height / dpr;
-      
-      // Fallback to client dimensions if canvas not initialized
-      if (width <= 0 || height <= 0) {
-        width = canvas.clientWidth || 400;
-        height = canvas.clientHeight || 600;
-        if (width <= 0 || height <= 0) {
-          if (isDrawing) {
-            animationId = requestAnimationFrame(draw);
-          }
+        // Throttle drawing to ~60fps for better performance
+        const now = performance.now();
+        const timeSinceLastDraw = now - lastDrawTimeRef.current;
+        if (timeSinceLastDraw < DRAW_THROTTLE_MS && isDrawing) {
+          animationId = requestAnimationFrame(draw);
           return;
         }
-      }
+        lastDrawTimeRef.current = now;
 
-      // Clear entire canvas
-      ctx.clearRect(0, 0, width, height);
+        const { game: g, raceProgress: progressMap, gameStatus: status } =
+          latestStateRef.current;
 
-      // Background grass with 3D gradient - ALWAYS DRAW THIS FIRST
-      const grassGradient = ctx.createLinearGradient(0, 0, 0, height);
-      grassGradient.addColorStop(0, "#2db366"); // Lighter at top
-      grassGradient.addColorStop(0.5, "#1f9d55"); // Medium
-      grassGradient.addColorStop(1, "#178045"); // Darker at bottom
-      ctx.fillStyle = grassGradient;
-      ctx.fillRect(0, 0, width, height);
-      
-      // Add grass texture (subtle)
-      ctx.fillStyle = "rgba(40, 150, 80, 0.15)";
-      for (let i = 0; i < Math.floor(height / 20); i++) {
-        const y = i * 20;
-        ctx.fillRect(0, y, width, 1);
-      }
+        // Get actual canvas dimensions
+        const dpr = window.devicePixelRatio || 1;
+        let width = canvas.width / dpr;
+        let height = canvas.height / dpr;
 
-      // Always draw 3 lanes even if game data isn't loaded yet
-      const laneCount = 3;
-      // Responsive road width: scales with canvas but maintains margins
-      const margin = width * 0.05; // 5% margin on each side
-      const roadWidth = width - (margin * 2);
-      const roadLeft = margin;
-      const roadRight = roadLeft + roadWidth;
-      const laneWidth = roadWidth / laneCount;
-
-      // Main road surface with 3D gradient (darker edges, lighter center)
-      const roadGradient = ctx.createLinearGradient(roadLeft, 0, roadRight, 0);
-      roadGradient.addColorStop(0, "#1f2126"); // Dark edge
-      roadGradient.addColorStop(0.5, "#2a2d35"); // Lighter center
-      roadGradient.addColorStop(1, "#1f2126"); // Dark edge
-      ctx.fillStyle = roadGradient;
-      ctx.fillRect(roadLeft, 0, roadWidth, height);
-      
-      // Road border with shadow for 3D effect (scales with canvas)
-      const borderWidth = Math.max(1, width * 0.008); // ~0.8% of width, min 1px
-      
-      // Border shadow (darker)
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
-      ctx.lineWidth = borderWidth * 1.5;
-      ctx.strokeRect(roadLeft + 1, 1, roadWidth - 2, height - 2);
-      
-      // Main border (white)
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = borderWidth;
-      ctx.strokeRect(roadLeft, 0, roadWidth, height);
-
-      // Road edges with 3D effect (white lines with shadow) - scales with canvas
-      const edgeWidth = Math.max(1, width * 0.01); // ~1% of width
-      
-      // Left edge shadow
-      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-      ctx.fillRect(roadLeft - edgeWidth + 1, 1, edgeWidth, height - 2);
-      
-      // Left edge highlight
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(roadLeft - edgeWidth, 0, edgeWidth, height);
-      
-      // Right edge shadow
-      ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-      ctx.fillRect(roadRight + 1, 1, edgeWidth, height - 2);
-      
-      // Right edge highlight
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(roadRight, 0, edgeWidth, height);
-
-      // Red/white striped barrier on right edge - scales with canvas
-      const barrierWidth = Math.max(2, width * 0.02); // ~2% of width
-      const barrierSpacing = Math.max(8, height * 0.04); // ~4% of height
-      const stripeHeight = barrierSpacing / 2;
-      ctx.fillStyle = "#ffffff";
-      for (let y = 0; y < height; y += barrierSpacing) {
-        ctx.fillRect(roadRight + edgeWidth, y, barrierWidth, stripeHeight);
-      }
-      ctx.fillStyle = "#dc2626";
-      for (let y = stripeHeight; y < height; y += barrierSpacing) {
-        ctx.fillRect(roadRight + edgeWidth, y, barrierWidth, stripeHeight);
-      }
-
-      // Lane dividers (dashed white lines) - scales with canvas
-      const dividerLineWidth = Math.max(1, width * 0.005); // ~0.5% of width
-      const dashLength = Math.max(10, height * 0.02); // ~2% of height
-      const dashGap = dashLength * 0.75;
-      ctx.setLineDash([dashLength, dashGap]);
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = dividerLineWidth;
-      for (let i = 1; i < laneCount; i += 1) {
-        const x = roadLeft + laneWidth * i;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-      ctx.setLineDash([]);
-
-      // Track segments with different terrain patterns
-      const trackHeight = height * 0.85;
-      const trackTop = height * 0.1;
-      const segmentCount = 3;
-      const segmentHeight = trackHeight / segmentCount;
-
-      // During predictions: only show first 30% of track from BOTTOM (start line area), rest is hidden
-      // During racing: show full track
-      const isPredictions = status === "predictions";
-      const visibleTrackHeight = isPredictions ? trackHeight * 0.3 : trackHeight;
-      // Visible area starts from bottom (start line), so hidden area is at the top
-      const visibleTrackStart = isPredictions ? trackTop + (trackHeight - visibleTrackHeight) : trackTop;
-      const hiddenTrackStart = trackTop;
-      const hiddenTrackHeight = isPredictions ? trackHeight - visibleTrackHeight : 0;
-
-      // Get tracks from game or use defaults
-      const tracks = g?.tracks || [
-        { segments: ["regular", "regular", "regular"] },
-        { segments: ["desert", "desert", "desert"] },
-        { segments: ["muddy", "muddy", "muddy"] },
-      ];
-
-      tracks.forEach((track, laneIndex) => {
-        const laneX = roadLeft + laneWidth * laneIndex;
-        const segments = track.segments || ["regular", "regular", "regular"];
-
-        // Draw segments bottom-to-top to match backend order
-        // Backend: segments[0] = first 100m (start/bottom), segments[2] = third 100m (finish/top)
-        // Visual: Draw segments[0] at bottom, segments[2] at top
-        segments.forEach((terrain, idx) => {
-          // Reverse visual order: idx 0 (backend segment 0) at bottom, idx 2 (backend segment 2) at top
-          const visualIdx = segments.length - 1 - idx;
-          const y = trackTop + visualIdx * segmentHeight;
-          const segmentBottom = y + segmentHeight;
-          
-          // Use terrain directly (no reversing needed now)
-          const actualTerrain = terrain;
-          
-          // During predictions: check if segment is in visible area (bottom 30%)
-          if (isPredictions) {
-            // If segment is completely in hidden area (top 70%), draw grayed out
-            if (segmentBottom <= visibleTrackStart) {
-              // This segment is completely in hidden area, draw grayed out
-              ctx.fillStyle = "#1a1a1a"; // Dark gray for hidden
-              ctx.fillRect(laneX, y, laneWidth, segmentHeight);
-              
-              // Add "???" text in hidden segments
-              ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-              ctx.font = `bold ${Math.max(12, laneWidth * 0.15)}px Arial`;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText("???", laneX + laneWidth / 2, y + segmentHeight / 2);
-              return;
+        // Fallback to client dimensions if canvas not initialized
+        if (width <= 0 || height <= 0) {
+          width = canvas.clientWidth || 400;
+          height = canvas.clientHeight || 600;
+          if (width <= 0 || height <= 0) {
+            if (isDrawing) {
+              animationId = requestAnimationFrame(draw);
             }
-            
-            // If segment is partially visible, only draw visible part
-            if (y < visibleTrackStart) {
-              // Segment starts in hidden area, only draw visible part
-              const drawY = visibleTrackStart;
-              const drawHeight = segmentBottom - visibleTrackStart;
-              if (drawHeight <= 0) return;
-              
-              // Draw visible part with terrain
-              const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
-              const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
-              const segmentPadding = Math.max(1, laneWidth * 0.02);
-              ctx.fillStyle = terrainColor;
-              ctx.fillRect(laneX + segmentPadding, drawY, laneWidth - (segmentPadding * 2), drawHeight);
-              return; // Skip patterns for partial segments
-            }
+            return;
           }
-          
-          // Segment is fully visible (or during racing)
-          const drawY = y;
-          const drawHeight = segmentHeight;
-          
-          const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
-          const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
+        }
 
-          // Responsive padding - scales with lane width
-          const segmentPadding = Math.max(1, laneWidth * 0.02); // 2% of lane width
-          
-          // Fill terrain segment with 3D gradient effect (only visible part)
-          const roadWidth = laneWidth - (segmentPadding * 2);
-          const roadX = laneX + segmentPadding;
-          
-          // Create 3D gradient (lighter in center, darker on edges for depth)
-          const roadGradient = ctx.createLinearGradient(
-            roadX,
-            drawY,
-            roadX + roadWidth,
-            drawY
-          );
-          
-          // Adjust gradient colors based on terrain
-          if (terrainKey === "regular") {
-            roadGradient.addColorStop(0, "#1f2126"); // Dark edge
-            roadGradient.addColorStop(0.5, "#2a2d35"); // Lighter center
-            roadGradient.addColorStop(1, "#1f2126"); // Dark edge
-          } else if (terrainKey === "desert") {
-            roadGradient.addColorStop(0, "#c49a5f"); // Darker sand edge
-            roadGradient.addColorStop(0.5, "#d4a574"); // Lighter center
-            roadGradient.addColorStop(1, "#c49a5f"); // Darker sand edge
-          } else {
-            roadGradient.addColorStop(0, "#5a3520"); // Darker mud edge
-            roadGradient.addColorStop(0.5, "#6b4423"); // Lighter center
-            roadGradient.addColorStop(1, "#5a3520"); // Darker mud edge
-          }
-          
-          ctx.fillStyle = roadGradient;
-          ctx.fillRect(roadX, drawY, roadWidth, drawHeight);
-          
-          // Add subtle top highlight for 3D effect
-          const highlightGradient = ctx.createLinearGradient(
-            roadX,
-            drawY,
-            roadX,
-            drawY + Math.min(drawHeight * 0.3, 10)
-          );
-          highlightGradient.addColorStop(0, "rgba(255, 255, 255, 0.08)");
-          highlightGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
-          ctx.fillStyle = highlightGradient;
-          ctx.fillRect(roadX, drawY, roadWidth, Math.min(drawHeight * 0.3, 10));
+        // Clear entire canvas
+        ctx.clearRect(0, 0, width, height);
 
-          // Add terrain-specific patterns with fixed obstacles (no flickering) and 3D effects
-          if (drawHeight > 0) {
-            const gameId = g?._id?.toString() || "default";
-            const obstacleKey = `${gameId}-${laneIndex}-${idx}`;
-            
-            // Get or generate fixed obstacles for this segment
-            if (!obstaclesRef.current[obstacleKey]) {
-              obstaclesRef.current[obstacleKey] = generateObstacles(
-                terrainKey,
-                laneX,
-                laneWidth,
-                drawY,
-                drawHeight,
-                segmentPadding,
-                gameId,
-                laneIndex,
-                idx
-              );
-            }
-            
-            const obstacles = obstaclesRef.current[obstacleKey];
-            
-            // Draw obstacles with 3D effects
-            obstacles.forEach((obstacle) => {
-              // Ensure obstacle is within visible bounds
-              const minX = laneX + segmentPadding * 2;
-              const maxX = laneX + laneWidth - segmentPadding * 2;
-              const minY = drawY;
-              const maxY = drawY + drawHeight;
-              
-              // Clamp obstacle position to segment bounds
-              const obsX = Math.max(minX, Math.min(maxX, obstacle.x));
-              const obsY = Math.max(minY, Math.min(maxY, obstacle.y));
-              
-              if (obstacle.type === "stone") {
-                // 3D stone with shadow and highlight
-                const shadowOffset = obstacle.size * 0.2;
-                
-                // Stone shadow (darker, offset)
-                ctx.fillStyle = "rgba(100, 80, 60, 0.6)";
-                ctx.beginPath();
-                ctx.ellipse(
-                  obsX + shadowOffset,
-                  obsY + shadowOffset,
-                  obstacle.size * 0.9,
-                  obstacle.size * 0.5,
-                  0,
-                  0,
-                  Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Stone base (3D gradient effect)
-                const gradient = ctx.createRadialGradient(
-                  obsX - obstacle.size * 0.3,
-                  obsY - obstacle.size * 0.3,
-                  0,
-                  obsX,
-                  obsY,
-                  obstacle.size
-                );
-                gradient.addColorStop(0, "rgba(160, 140, 110, 0.9)");
-                gradient.addColorStop(0.5, "rgba(120, 100, 80, 0.9)");
-                gradient.addColorStop(1, "rgba(90, 70, 50, 0.9)");
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Stone highlight (top-left)
-                ctx.fillStyle = "rgba(180, 160, 130, 0.7)";
-                ctx.beginPath();
-                ctx.arc(obsX - obstacle.size * 0.3, obsY - obstacle.size * 0.3, obstacle.size * 0.4, 0, Math.PI * 2);
-                ctx.fill();
-              } else if (obstacle.type === "sandDot") {
-                // Simple sand texture dot
-                ctx.fillStyle = "rgba(200, 163, 69, 0.3)";
-                ctx.beginPath();
-                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
-                ctx.fill();
-              } else if (obstacle.type === "pothole") {
-                // 3D pothole with depth effect
-                const depth = obstacle.size * 0.3;
-                
-                // Pothole shadow (inner darkness)
-                ctx.fillStyle = "rgba(40, 25, 15, 0.9)";
-                ctx.beginPath();
-                ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Pothole rim highlight (3D edge)
-                const rimGradient = ctx.createLinearGradient(
-                  obsX - obstacle.size,
-                  obsY,
-                  obsX + obstacle.size,
-                  obsY
-                );
-                rimGradient.addColorStop(0, "rgba(140, 100, 70, 0.8)");
-                rimGradient.addColorStop(0.5, "rgba(100, 70, 45, 0.9)");
-                rimGradient.addColorStop(1, "rgba(80, 55, 35, 0.8)");
-                ctx.strokeStyle = rimGradient;
-                ctx.lineWidth = Math.max(1, laneWidth * 0.012);
-                ctx.beginPath();
-                ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
-                ctx.stroke();
-                
-                // Inner pothole highlight (depth illusion)
-                ctx.fillStyle = "rgba(60, 40, 25, 0.6)";
-                ctx.beginPath();
-                ctx.ellipse(obsX, obsY + depth, obstacle.size * 0.7, obstacle.size * 0.4, 0, 0, Math.PI * 2);
-                ctx.fill();
-              } else if (obstacle.type === "mudPatch") {
-                // 3D mud patch with irregular shape
-                ctx.save();
-                ctx.translate(obsX, obsY);
-                ctx.rotate(obstacle.rotation);
-                
-                // Mud patch shadow
-                ctx.fillStyle = "rgba(70, 45, 25, 0.6)";
-                ctx.beginPath();
-                ctx.ellipse(
-                  0,
-                  obstacle.size * 0.2,
-                  obstacle.size * obstacle.widthScale,
-                  obstacle.size * obstacle.heightScale,
-                  0,
-                  0,
-                  Math.PI * 2
-                );
-                ctx.fill();
-                
-                // Mud patch (gradient for 3D)
-                const mudGradient = ctx.createRadialGradient(
-                  -obstacle.size * 0.2,
-                  -obstacle.size * 0.2,
-                  0,
-                  0,
-                  0,
-                  obstacle.size
-                );
-                mudGradient.addColorStop(0, "rgba(110, 75, 45, 0.8)");
-                mudGradient.addColorStop(1, "rgba(80, 50, 30, 0.8)");
-                ctx.fillStyle = mudGradient;
-                ctx.beginPath();
-                ctx.ellipse(
-                  0,
-                  0,
-                  obstacle.size * obstacle.widthScale,
-                  obstacle.size * obstacle.heightScale,
-                  0,
-                  0,
-                  Math.PI * 2
-                );
-                ctx.fill();
-                
-                ctx.restore();
-              } else if (obstacle.type === "debris") {
-                // Debris/rock in mud
-                ctx.fillStyle = "rgba(60, 50, 40, 0.9)";
-                ctx.beginPath();
-                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Debris highlight
-                ctx.fillStyle = "rgba(80, 70, 60, 0.7)";
-                ctx.beginPath();
-                ctx.arc(obsX - obstacle.size * 0.3, obsY - obstacle.size * 0.3, obstacle.size * 0.5, 0, Math.PI * 2);
-                ctx.fill();
-              } else if (obstacle.type === "wearPatch") {
-                // Road wear (subtle 3D)
-                const wearGradient = ctx.createRadialGradient(obsX, obsY, 0, obsX, obsY, obstacle.size);
-                wearGradient.addColorStop(0, "rgba(220, 220, 220, 0.15)");
-                wearGradient.addColorStop(1, "rgba(200, 200, 200, 0.05)");
-                ctx.fillStyle = wearGradient;
-                ctx.beginPath();
-                ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
-                ctx.fill();
-              } else if (obstacle.type === "crack") {
-                // Road crack
-                ctx.strokeStyle = "rgba(100, 100, 100, 0.6)";
-                ctx.lineWidth = Math.max(0.5, laneWidth * 0.003);
-                ctx.beginPath();
-                ctx.moveTo(obsX, obsY);
-                ctx.lineTo(
-                  obsX + Math.cos(obstacle.rotation) * obstacle.length,
-                  obsY + Math.sin(obstacle.rotation) * obstacle.length
-                );
-                ctx.stroke();
+        // Background grass with 3D gradient - ALWAYS DRAW THIS FIRST
+        const grassGradient = ctx.createLinearGradient(0, 0, 0, height);
+        grassGradient.addColorStop(0, "#2db366"); // Lighter at top
+        grassGradient.addColorStop(0.5, "#1f9d55"); // Medium
+        grassGradient.addColorStop(1, "#178045"); // Darker at bottom
+        ctx.fillStyle = grassGradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // Add grass texture (subtle)
+        ctx.fillStyle = "rgba(40, 150, 80, 0.15)";
+        for (let i = 0; i < Math.floor(height / 20); i++) {
+          const y = i * 20;
+          ctx.fillRect(0, y, width, 1);
+        }
+
+        // Always draw 3 lanes even if game data isn't loaded yet
+        const laneCount = 3;
+        // Responsive road width: scales with canvas but maintains margins
+        const margin = width * 0.05; // 5% margin on each side
+        const roadWidth = width - (margin * 2);
+        const roadLeft = margin;
+        const roadRight = roadLeft + roadWidth;
+        const laneWidth = roadWidth / laneCount;
+
+        // Main road surface with 3D gradient (darker edges, lighter center)
+        const roadGradient = ctx.createLinearGradient(roadLeft, 0, roadRight, 0);
+        roadGradient.addColorStop(0, "#1f2126"); // Dark edge
+        roadGradient.addColorStop(0.5, "#2a2d35"); // Lighter center
+        roadGradient.addColorStop(1, "#1f2126"); // Dark edge
+        ctx.fillStyle = roadGradient;
+        ctx.fillRect(roadLeft, 0, roadWidth, height);
+
+        // Road border with shadow for 3D effect (scales with canvas)
+        const borderWidth = Math.max(1, width * 0.008); // ~0.8% of width, min 1px
+
+        // Border shadow (darker)
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.lineWidth = borderWidth * 1.5;
+        ctx.strokeRect(roadLeft + 1, 1, roadWidth - 2, height - 2);
+
+        // Main border (white)
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(roadLeft, 0, roadWidth, height);
+
+        // Road edges with 3D effect (white lines with shadow) - scales with canvas
+        const edgeWidth = Math.max(1, width * 0.01); // ~1% of width
+
+        // Left edge shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.fillRect(roadLeft - edgeWidth + 1, 1, edgeWidth, height - 2);
+
+        // Left edge highlight
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(roadLeft - edgeWidth, 0, edgeWidth, height);
+
+        // Right edge shadow
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.fillRect(roadRight + 1, 1, edgeWidth, height - 2);
+
+        // Right edge highlight
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(roadRight, 0, edgeWidth, height);
+
+        // Red/white striped barrier on right edge - scales with canvas
+        const barrierWidth = Math.max(2, width * 0.02); // ~2% of width
+        const barrierSpacing = Math.max(8, height * 0.04); // ~4% of height
+        const stripeHeight = barrierSpacing / 2;
+        ctx.fillStyle = "#ffffff";
+        for (let y = 0; y < height; y += barrierSpacing) {
+          ctx.fillRect(roadRight + edgeWidth, y, barrierWidth, stripeHeight);
+        }
+        ctx.fillStyle = "#dc2626";
+        for (let y = stripeHeight; y < height; y += barrierSpacing) {
+          ctx.fillRect(roadRight + edgeWidth, y, barrierWidth, stripeHeight);
+        }
+
+        // Lane dividers (dashed white lines) - scales with canvas
+        const dividerLineWidth = Math.max(1, width * 0.005); // ~0.5% of width
+        const dashLength = Math.max(10, height * 0.02); // ~2% of height
+        const dashGap = dashLength * 0.75;
+        ctx.setLineDash([dashLength, dashGap]);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = dividerLineWidth;
+        for (let i = 1; i < laneCount; i += 1) {
+          const x = roadLeft + laneWidth * i;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Track segments with different terrain patterns
+        const trackHeight = height * 0.85;
+        const trackTop = height * 0.1;
+        const segmentCount = 3;
+        const segmentHeight = trackHeight / segmentCount;
+
+        // During predictions: only show first 30% of track from BOTTOM (start line area), rest is hidden
+        // During racing: show full track
+        const isPredictions = status === "predictions";
+        const visibleTrackHeight = isPredictions ? trackHeight * 0.3 : trackHeight;
+        // Visible area starts from bottom (start line), so hidden area is at the top
+        const visibleTrackStart = isPredictions ? trackTop + (trackHeight - visibleTrackHeight) : trackTop;
+        const hiddenTrackStart = trackTop;
+        const hiddenTrackHeight = isPredictions ? trackHeight - visibleTrackHeight : 0;
+
+        // Get tracks from game or use defaults
+        const tracks = g?.tracks || [
+          { segments: ["regular", "regular", "regular"] },
+          { segments: ["desert", "desert", "desert"] },
+          { segments: ["muddy", "muddy", "muddy"] },
+        ];
+
+        tracks.forEach((track, laneIndex) => {
+          const laneX = roadLeft + laneWidth * laneIndex;
+          const segments = track.segments || ["regular", "regular", "regular"];
+
+          // Draw segments bottom-to-top to match backend order
+          // Backend: segments[0] = first 100m (start/bottom), segments[2] = third 100m (finish/top)
+          // Visual: Draw segments[0] at bottom, segments[2] at top
+          segments.forEach((terrain, idx) => {
+            // Reverse visual order: idx 0 (backend segment 0) at bottom, idx 2 (backend segment 2) at top
+            const visualIdx = segments.length - 1 - idx;
+            const y = trackTop + visualIdx * segmentHeight;
+            const segmentBottom = y + segmentHeight;
+
+            // Use terrain directly (no reversing needed now)
+            const actualTerrain = terrain;
+
+            // During predictions: check if segment is in visible area (bottom 30%)
+            if (isPredictions) {
+              // If segment is completely in hidden area (top 70%), draw grayed out
+              if (segmentBottom <= visibleTrackStart) {
+                // This segment is completely in hidden area, draw grayed out
+                ctx.fillStyle = "#1a1a1a"; // Dark gray for hidden
+                ctx.fillRect(laneX, y, laneWidth, segmentHeight);
+
+                // Add "???" text in hidden segments
+                ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.font = `bold ${Math.max(12, laneWidth * 0.15)}px Arial`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("???", laneX + laneWidth / 2, y + segmentHeight / 2);
+                return;
               }
-            });
-            
-            // Add terrain-specific base patterns
+
+              // If segment is partially visible, only draw visible part
+              if (y < visibleTrackStart) {
+                // Segment starts in hidden area, only draw visible part
+                const drawY = visibleTrackStart;
+                const drawHeight = segmentBottom - visibleTrackStart;
+                if (drawHeight <= 0) return;
+
+                // Draw visible part with terrain
+                const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
+                const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
+                const segmentPadding = Math.max(1, laneWidth * 0.02);
+                ctx.fillStyle = terrainColor;
+                ctx.fillRect(laneX + segmentPadding, drawY, laneWidth - (segmentPadding * 2), drawHeight);
+                return; // Skip patterns for partial segments
+              }
+            }
+
+            // Segment is fully visible (or during racing)
+            const drawY = y;
+            const drawHeight = segmentHeight;
+
+            const terrainKey = actualTerrain === "hidden" ? "regular" : actualTerrain;
+            const terrainColor = TERRAIN_COLORS[terrainKey] || TERRAIN_COLORS.regular;
+
+            // Responsive padding - scales with lane width
+            const segmentPadding = Math.max(1, laneWidth * 0.02); // 2% of lane width
+
+            // Fill terrain segment with 3D gradient effect (only visible part)
+            const roadWidth = laneWidth - (segmentPadding * 2);
+            const roadX = laneX + segmentPadding;
+
+            // Create 3D gradient (lighter in center, darker on edges for depth)
+            const roadGradient = ctx.createLinearGradient(
+              roadX,
+              drawY,
+              roadX + roadWidth,
+              drawY
+            );
+
+            // Adjust gradient colors based on terrain
             if (terrainKey === "regular") {
-              // Center line (dashed) - 3D effect
-              const centerLineY = drawY + drawHeight / 2;
-              const dashLength = Math.max(8, drawHeight * 0.15);
-              const dashGap = dashLength * 0.5;
-              
-              // Line shadow
-              ctx.strokeStyle = "rgba(200, 200, 200, 0.3)";
-              ctx.lineWidth = Math.max(1, laneWidth * 0.011);
-              ctx.setLineDash([dashLength, dashGap]);
-              ctx.beginPath();
-              ctx.moveTo(laneX + laneWidth / 2, drawY + 1);
-              ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight + 1);
-              ctx.stroke();
-              
-              // Main line
-              ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-              ctx.lineWidth = Math.max(1, laneWidth * 0.01);
-              ctx.beginPath();
-              ctx.moveTo(laneX + laneWidth / 2, drawY);
-              ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight);
-              ctx.stroke();
-              ctx.setLineDash([]);
-              
-              // Road texture lines (subtle)
-              const textureLineWidth = Math.max(0.5, laneWidth * 0.0015);
-              ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-              const textureLineCount = Math.max(4, Math.floor(drawHeight / 15));
-              for (let i = 0; i < textureLineCount; i += 1) {
-                const texX = laneX + segmentPadding;
-                const texY = drawY + (i * drawHeight) / textureLineCount;
-                ctx.fillRect(texX, texY, laneWidth - (segmentPadding * 2), textureLineWidth);
+              roadGradient.addColorStop(0, "#1f2126"); // Dark edge
+              roadGradient.addColorStop(0.5, "#2a2d35"); // Lighter center
+              roadGradient.addColorStop(1, "#1f2126"); // Dark edge
+            } else if (terrainKey === "desert") {
+              roadGradient.addColorStop(0, "#c49a5f"); // Darker sand edge
+              roadGradient.addColorStop(0.5, "#d4a574"); // Lighter center
+              roadGradient.addColorStop(1, "#c49a5f"); // Darker sand edge
+            } else {
+              roadGradient.addColorStop(0, "#5a3520"); // Darker mud edge
+              roadGradient.addColorStop(0.5, "#6b4423"); // Lighter center
+              roadGradient.addColorStop(1, "#5a3520"); // Darker mud edge
+            }
+
+            ctx.fillStyle = roadGradient;
+            ctx.fillRect(roadX, drawY, roadWidth, drawHeight);
+
+            // Add subtle top highlight for 3D effect
+            const highlightGradient = ctx.createLinearGradient(
+              roadX,
+              drawY,
+              roadX,
+              drawY + Math.min(drawHeight * 0.3, 10)
+            );
+            highlightGradient.addColorStop(0, "rgba(255, 255, 255, 0.08)");
+            highlightGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+            ctx.fillStyle = highlightGradient;
+            ctx.fillRect(roadX, drawY, roadWidth, Math.min(drawHeight * 0.3, 10));
+
+            // Add terrain-specific patterns with fixed obstacles (no flickering) and 3D effects
+            if (drawHeight > 0) {
+              const gameId = g?._id?.toString() || "default";
+              const obstacleKey = `${gameId}-${laneIndex}-${idx}`;
+
+              // Get or generate fixed obstacles for this segment
+              if (!obstaclesRef.current[obstacleKey]) {
+                obstaclesRef.current[obstacleKey] = generateObstacles(
+                  terrainKey,
+                  laneX,
+                  laneWidth,
+                  drawY,
+                  drawHeight,
+                  segmentPadding,
+                  gameId,
+                  laneIndex,
+                  idx
+                );
+              }
+
+              const obstacles = obstaclesRef.current[obstacleKey];
+
+              // Draw obstacles with 3D effects
+              obstacles.forEach((obstacle) => {
+                // Ensure obstacle is within visible bounds
+                const minX = laneX + segmentPadding * 2;
+                const maxX = laneX + laneWidth - segmentPadding * 2;
+                const minY = drawY;
+                const maxY = drawY + drawHeight;
+
+                // Clamp obstacle position to segment bounds
+                const obsX = Math.max(minX, Math.min(maxX, obstacle.x));
+                const obsY = Math.max(minY, Math.min(maxY, obstacle.y));
+
+                if (obstacle.type === "stone") {
+                  // 3D stone with shadow and highlight
+                  const shadowOffset = obstacle.size * 0.2;
+
+                  // Stone shadow (darker, offset)
+                  ctx.fillStyle = "rgba(100, 80, 60, 0.6)";
+                  ctx.beginPath();
+                  ctx.ellipse(
+                    obsX + shadowOffset,
+                    obsY + shadowOffset,
+                    obstacle.size * 0.9,
+                    obstacle.size * 0.5,
+                    0,
+                    0,
+                    Math.PI * 2
+                  );
+                  ctx.fill();
+
+                  // Stone base (3D gradient effect)
+                  const gradient = ctx.createRadialGradient(
+                    obsX - obstacle.size * 0.3,
+                    obsY - obstacle.size * 0.3,
+                    0,
+                    obsX,
+                    obsY,
+                    obstacle.size
+                  );
+                  gradient.addColorStop(0, "rgba(160, 140, 110, 0.9)");
+                  gradient.addColorStop(0.5, "rgba(120, 100, 80, 0.9)");
+                  gradient.addColorStop(1, "rgba(90, 70, 50, 0.9)");
+                  ctx.fillStyle = gradient;
+                  ctx.beginPath();
+                  ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                  ctx.fill();
+
+                  // Stone highlight (top-left)
+                  ctx.fillStyle = "rgba(180, 160, 130, 0.7)";
+                  ctx.beginPath();
+                  ctx.arc(obsX - obstacle.size * 0.3, obsY - obstacle.size * 0.3, obstacle.size * 0.4, 0, Math.PI * 2);
+                  ctx.fill();
+                } else if (obstacle.type === "sandDot") {
+                  // Simple sand texture dot
+                  ctx.fillStyle = "rgba(200, 163, 69, 0.3)";
+                  ctx.beginPath();
+                  ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                  ctx.fill();
+                } else if (obstacle.type === "pothole") {
+                  // 3D pothole with depth effect
+                  const depth = obstacle.size * 0.3;
+
+                  // Pothole shadow (inner darkness)
+                  ctx.fillStyle = "rgba(40, 25, 15, 0.9)";
+                  ctx.beginPath();
+                  ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
+                  ctx.fill();
+
+                  // Pothole rim highlight (3D edge)
+                  const rimGradient = ctx.createLinearGradient(
+                    obsX - obstacle.size,
+                    obsY,
+                    obsX + obstacle.size,
+                    obsY
+                  );
+                  rimGradient.addColorStop(0, "rgba(140, 100, 70, 0.8)");
+                  rimGradient.addColorStop(0.5, "rgba(100, 70, 45, 0.9)");
+                  rimGradient.addColorStop(1, "rgba(80, 55, 35, 0.8)");
+                  ctx.strokeStyle = rimGradient;
+                  ctx.lineWidth = Math.max(1, laneWidth * 0.012);
+                  ctx.beginPath();
+                  ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
+                  ctx.stroke();
+
+                  // Inner pothole highlight (depth illusion)
+                  ctx.fillStyle = "rgba(60, 40, 25, 0.6)";
+                  ctx.beginPath();
+                  ctx.ellipse(obsX, obsY + depth, obstacle.size * 0.7, obstacle.size * 0.4, 0, 0, Math.PI * 2);
+                  ctx.fill();
+                } else if (obstacle.type === "mudPatch") {
+                  // 3D mud patch with irregular shape
+                  ctx.save();
+                  ctx.translate(obsX, obsY);
+                  ctx.rotate(obstacle.rotation);
+
+                  // Mud patch shadow
+                  ctx.fillStyle = "rgba(70, 45, 25, 0.6)";
+                  ctx.beginPath();
+                  ctx.ellipse(
+                    0,
+                    obstacle.size * 0.2,
+                    obstacle.size * obstacle.widthScale,
+                    obstacle.size * obstacle.heightScale,
+                    0,
+                    0,
+                    Math.PI * 2
+                  );
+                  ctx.fill();
+
+                  // Mud patch (gradient for 3D)
+                  const mudGradient = ctx.createRadialGradient(
+                    -obstacle.size * 0.2,
+                    -obstacle.size * 0.2,
+                    0,
+                    0,
+                    0,
+                    obstacle.size
+                  );
+                  mudGradient.addColorStop(0, "rgba(110, 75, 45, 0.8)");
+                  mudGradient.addColorStop(1, "rgba(80, 50, 30, 0.8)");
+                  ctx.fillStyle = mudGradient;
+                  ctx.beginPath();
+                  ctx.ellipse(
+                    0,
+                    0,
+                    obstacle.size * obstacle.widthScale,
+                    obstacle.size * obstacle.heightScale,
+                    0,
+                    0,
+                    Math.PI * 2
+                  );
+                  ctx.fill();
+
+                  ctx.restore();
+                } else if (obstacle.type === "debris") {
+                  // Debris/rock in mud
+                  ctx.fillStyle = "rgba(60, 50, 40, 0.9)";
+                  ctx.beginPath();
+                  ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                  ctx.fill();
+
+                  // Debris highlight
+                  ctx.fillStyle = "rgba(80, 70, 60, 0.7)";
+                  ctx.beginPath();
+                  ctx.arc(obsX - obstacle.size * 0.3, obsY - obstacle.size * 0.3, obstacle.size * 0.5, 0, Math.PI * 2);
+                  ctx.fill();
+                } else if (obstacle.type === "wearPatch") {
+                  // Road wear (subtle 3D)
+                  const wearGradient = ctx.createRadialGradient(obsX, obsY, 0, obsX, obsY, obstacle.size);
+                  wearGradient.addColorStop(0, "rgba(220, 220, 220, 0.15)");
+                  wearGradient.addColorStop(1, "rgba(200, 200, 200, 0.05)");
+                  ctx.fillStyle = wearGradient;
+                  ctx.beginPath();
+                  ctx.arc(obsX, obsY, obstacle.size, 0, Math.PI * 2);
+                  ctx.fill();
+                } else if (obstacle.type === "crack") {
+                  // Road crack
+                  ctx.strokeStyle = "rgba(100, 100, 100, 0.6)";
+                  ctx.lineWidth = Math.max(0.5, laneWidth * 0.003);
+                  ctx.beginPath();
+                  ctx.moveTo(obsX, obsY);
+                  ctx.lineTo(
+                    obsX + Math.cos(obstacle.rotation) * obstacle.length,
+                    obsY + Math.sin(obstacle.rotation) * obstacle.length
+                  );
+                  ctx.stroke();
+                }
+              });
+
+              // Add terrain-specific base patterns
+              if (terrainKey === "regular") {
+                // Center line (dashed) - 3D effect
+                const centerLineY = drawY + drawHeight / 2;
+                const dashLength = Math.max(8, drawHeight * 0.15);
+                const dashGap = dashLength * 0.5;
+
+                // Line shadow
+                ctx.strokeStyle = "rgba(200, 200, 200, 0.3)";
+                ctx.lineWidth = Math.max(1, laneWidth * 0.011);
+                ctx.setLineDash([dashLength, dashGap]);
+                ctx.beginPath();
+                ctx.moveTo(laneX + laneWidth / 2, drawY + 1);
+                ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight + 1);
+                ctx.stroke();
+
+                // Main line
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+                ctx.lineWidth = Math.max(1, laneWidth * 0.01);
+                ctx.beginPath();
+                ctx.moveTo(laneX + laneWidth / 2, drawY);
+                ctx.lineTo(laneX + laneWidth / 2, drawY + drawHeight);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Road texture lines (subtle)
+                const textureLineWidth = Math.max(0.5, laneWidth * 0.0015);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+                const textureLineCount = Math.max(4, Math.floor(drawHeight / 15));
+                for (let i = 0; i < textureLineCount; i += 1) {
+                  const texX = laneX + segmentPadding;
+                  const texY = drawY + (i * drawHeight) / textureLineCount;
+                  ctx.fillRect(texX, texY, laneWidth - (segmentPadding * 2), textureLineWidth);
+                }
               }
             }
-          }
+          });
         });
-      });
 
-      // Draw hidden/grayed out area during predictions
-      if (isPredictions && hiddenTrackHeight > 0) {
-        // Dark overlay for hidden track area
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; // Dark overlay
-        ctx.fillRect(roadLeft, hiddenTrackStart, roadWidth, hiddenTrackHeight);
-        
-        // Add "???" marks in hidden area
-        const questionMarkSize = Math.max(16, Math.min(laneWidth * 0.2, height * 0.03));
-        const questionSpacing = questionMarkSize * 2;
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.font = `bold ${questionMarkSize}px Arial`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        
-        // Draw "???" in each lane of hidden area
-        for (let laneIdx = 0; laneIdx < laneCount; laneIdx++) {
-          const laneCenterX = roadLeft + laneWidth * laneIdx + laneWidth / 2;
-          for (let y = hiddenTrackStart + questionSpacing; y < hiddenTrackStart + hiddenTrackHeight; y += questionSpacing) {
-            ctx.fillText("???", laneCenterX, y);
-          }
-        }
-      }
+        // Draw hidden/grayed out area during predictions
+        if (isPredictions && hiddenTrackHeight > 0) {
+          // Dark overlay for hidden track area
+          ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; // Dark overlay
+          ctx.fillRect(roadLeft, hiddenTrackStart, roadWidth, hiddenTrackHeight);
 
-      // Start line (white line at bottom) - scales with canvas
-      const startY = trackTop + trackHeight;
-      const startLinePadding = Math.max(2, roadWidth * 0.02); // 2% of road width
-      const startLineHeight = Math.max(2, height * 0.008); // ~0.8% of height
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(
-        roadLeft + startLinePadding,
-        startY - startLineHeight,
-        roadWidth - (startLinePadding * 2),
-        startLineHeight
-      );
-
-      // Finish line Y position (always needed for car positioning)
-      const finishY = trackTop;
-
-      // Finish line (checkered pattern at top) - only show during racing
-      if (!isPredictions) {
-        const cellSize = Math.max(6, Math.min(roadWidth * 0.03, height * 0.02)); // Scales with both width and height
-        const finishLinePadding = Math.max(2, roadWidth * 0.02);
-        const finishLineHeight = cellSize * 2; // Two rows of cells
-        for (let x = roadLeft + finishLinePadding; x < roadRight - finishLinePadding; x += cellSize) {
-          for (let y = finishY - cellSize; y < finishY + finishLineHeight; y += cellSize) {
-            const isBlack =
-              (Math.floor((x - roadLeft - finishLinePadding) / cellSize) +
-                Math.floor((y - finishY + cellSize) / cellSize)) %
-                2 ===
-              0;
-            ctx.fillStyle = isBlack ? "#000000" : "#ffffff";
-            ctx.fillRect(x, y, cellSize, cellSize);
-          }
-        }
-      }
-
-      // Draw cars - always show cars even if no game data
-      // Car size scales proportionally with lane width and segment height
-      // Increased by 30% for better visibility
-      const cars = g?.cars || [];
-      const baseCarSize = Math.min(
-        laneWidth * 0.7, // 70% of lane width
-        segmentHeight * 0.35, // 35% of segment height
-        height * 0.08 // Max 8% of canvas height to prevent oversized cars
-      ) * 1.3; // Increase by 30%
-
-      // If no cars from game, create placeholder cars for each lane
-      const carsToDraw = cars.length > 0 ? cars : [
-        { carId: { _id: "car1", name: "Car 1" }, trackNumber: 1 },
-        { carId: { _id: "car2", name: "Car 2" }, trackNumber: 2 },
-        { carId: { _id: "car3", name: "Car 3" }, trackNumber: 3 },
-      ];
-      
-      // Always draw at least 3 cars
-      const finalCars = carsToDraw.length >= 3 ? carsToDraw : [
-        ...carsToDraw,
-        ...Array(3 - carsToDraw.length).fill(null).map((_, i) => ({
-          carId: { _id: `placeholder${i}`, name: `Car ${i + 1}` },
-          trackNumber: carsToDraw.length + i + 1,
-        })),
-      ];
-
-      finalCars.slice(0, 3).forEach((assignment, idx) => {
-        const car = assignment?.carId || assignment;
-        if (!car) return;
-        const trackIndex = (assignment.trackNumber || 1) - 1;
-        const laneX = roadLeft + laneWidth * trackIndex;
-        const centerX = laneX + laneWidth / 2;
-
-        // Get car ID (exact same logic as party game)
-        const carId = car?._id?.toString() || car?.toString() || car?._id || car;
-        
-        // Get car progress (exact same logic as party game)
-        const carProgress = status === "racing" ? (progressMap[carId]?.progress || 0) : 0;
-        
-        // Calculate Y position (same pattern as party game's X calculation, but vertical)
-        // Party game: currentX = startX + (progress / 100) * (endX - startX)
-        // Vertical: currentY = startY - (progress / 100) * (startY - finishY)
-        // startY is bottom (larger), finishY is top (smaller)
-        const currentY = startY - (carProgress / 100) * (startY - finishY);
-        
-        // During predictions: only show cars in visible area (bottom 30% of track)
-        if (isPredictions) {
-          // If car is above visible area (in hidden top 70%), don't draw it
-          if (currentY < visibleTrackStart) {
-            return; // Skip drawing this car (it's in hidden area)
-          }
-        }
-        
-        // Get current terrain for particle effects
-        // Segments are now drawn bottom-to-top to match backend order
-        // Backend: segments[0] = start/bottom, segments[2] = finish/top
-        // Car starts at bottom (startY) and moves to top (finishY)
-        // Calculate which segment the car is in (0 = bottom/start, 2 = top/finish)
-        const distanceFromStart = startY - currentY; // 0 at start, trackHeight at finish
-        const segmentIndex = Math.floor(distanceFromStart / segmentHeight);
-        // Clamp to valid segment range
-        const track = tracks[trackIndex];
-        const segmentCount = track?.segments?.length || 3;
-        const clampedSegmentIndex = Math.max(0, Math.min(segmentCount - 1, segmentIndex));
-        const currentTerrain = track?.segments?.[clampedSegmentIndex] || "regular";
-        
-        // Initialize particles for this car if not exists
-        if (!particlesRef.current[carId]) {
-          particlesRef.current[carId] = [];
-        }
-        
-        // Clear particles if not racing
-        if (status !== "racing") {
-          particlesRef.current[carId] = [];
-        }
-        
-        // Add particles based on terrain and speed (optimized with limits)
-        // Particle scale relative to car size
-        const particleScale = Math.max(0.5, baseCarSize / 50); // Scale based on car size
-        const particles = particlesRef.current[carId];
-        
-        // Limit total particles for performance
-        if (particles.length < MAX_PARTICLES_PER_CAR && status === "racing" && carProgress > 0 && carProgress < 100) {
-          const speed = carProgress / 100; // 0 to 1
-          const particleChance = speed * 0.25; // Reduced chance for better performance
-          
-          if (currentTerrain === "desert" && Math.random() < particleChance) {
-            // Add dust particles (limit to 1-2 per frame)
-            const particlesToAdd = Math.min(2, MAX_PARTICLES_PER_CAR - particles.length);
-            for (let i = 0; i < particlesToAdd; i++) {
-              particles.push(
-                new Particle(
-                  centerX + (Math.random() - 0.5) * baseCarSize,
-                  currentY + baseCarSize * 0.6,
-                  "dust",
-                  particleScale
-                )
-              );
-            }
-          } else if (currentTerrain === "muddy" && Math.random() < particleChance) {
-            // Add mud particles (limit to 2-3 per frame)
-            const particlesToAdd = Math.min(3, MAX_PARTICLES_PER_CAR - particles.length);
-            for (let i = 0; i < particlesToAdd; i++) {
-              particles.push(
-                new Particle(
-                  centerX + (Math.random() - 0.5) * baseCarSize,
-                  currentY + baseCarSize * 0.6,
-                  "mud",
-                  particleScale
-                )
-              );
-            }
-          }
-        }
-        
-        // Update and draw particles (optimized cleanup)
-        for (let i = particles.length - 1; i >= 0; i--) {
-          if (particles[i].update()) {
-            particles[i].draw(ctx);
-          } else {
-            particles.splice(i, 1);
-          }
-        }
-        
-        // Cleanup old particles if too many (safety check)
-        if (particles.length > MAX_PARTICLES_PER_CAR * 1.5) {
-          particles.splice(0, particles.length - MAX_PARTICLES_PER_CAR);
-        }
-        
-        // Draw car using top view image (no rotation needed - images are already correct)
-        const carImage = carImagesRef.current[carId];
-        if (carImage && carImage.complete && carImage.naturalWidth > 0) {
-          // Make cars 1.2x bigger
-          const scaledCarSize = baseCarSize * 1.6;
-          
-          // Calculate aspect ratio to prevent stretching
-          const imageAspectRatio = carImage.naturalWidth / carImage.naturalHeight;
-          let drawWidth = scaledCarSize;
-          let drawHeight = scaledCarSize;
-          
-          // Maintain aspect ratio - use width as base, adjust height
-          if (imageAspectRatio > 1) {
-            // Image is wider than tall - use full width, adjust height
-            drawHeight = scaledCarSize / imageAspectRatio;
-          } else {
-            // Image is taller than wide - use full height, adjust width
-            drawWidth = scaledCarSize * imageAspectRatio;
-          }
-          
-          // Position car so bottom edge touches the track surface
-          // currentY represents the car's position along the track (center of lane vertically)
-          // The track surface is at currentY, so car bottom should be at currentY
-          const carBottomY = currentY;
-          const carTopY = carBottomY - drawHeight;
-          
-          // Draw car image - positioned so bottom touches track surface
-          ctx.drawImage(
-            carImage,
-            centerX - drawWidth / 2,
-            carTopY, // Top of car (bottom edge at currentY touches track)
-            drawWidth,
-            drawHeight
-          );
-        } else {
-          // Fallback: draw simple colored rectangle if image not loaded
-          const name = car.name?.toLowerCase?.() || "";
-          let carColor = "#ef4444"; // Default red
-          if (name.includes("red") || name.includes("super")) carColor = "#ef4444";
-          else if (name.includes("blue") || name.includes("police")) carColor = "#3b82f6";
-          else if (name.includes("green") || name.includes("monster")) carColor = "#22c55e";
-          else if (name.includes("yellow")) carColor = "#eab308";
-          else if (name.includes("white")) carColor = "#ffffff";
-          else if (name.includes("black")) carColor = "#1f2937";
-          else if (trackIndex === 0) carColor = "#ef4444";
-          else if (trackIndex === 1) carColor = "#3b82f6";
-          else if (trackIndex === 2) carColor = "#22c55e";
-          
-          // Simple fallback rectangle
-          ctx.fillStyle = carColor;
-          drawRoundedRect(
-            ctx,
-            centerX - baseCarSize / 2,
-            currentY - baseCarSize / 2,
-            baseCarSize,
-            baseCarSize * 0.7,
-            baseCarSize * 0.15
-          );
-          ctx.fill();
-          
-          // Car number on fallback
-          const carNumber = car.shortCode || assignment.trackNumber || trackIndex + 1;
-          ctx.fillStyle = "#ffffff";
-          ctx.strokeStyle = "#000000";
-          ctx.lineWidth = 2;
-          ctx.font = `bold ${Math.max(8, baseCarSize * 0.2)}px Arial`;
+          // Add "???" marks in hidden area
+          const questionMarkSize = Math.max(16, Math.min(laneWidth * 0.2, height * 0.03));
+          const questionSpacing = questionMarkSize * 2;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+          ctx.font = `bold ${questionMarkSize}px Arial`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.strokeText(String(carNumber), centerX, currentY);
-          ctx.fillText(String(carNumber), centerX, currentY);
-        }
-      });
 
-      if (isDrawing) {
-        animationId = requestAnimationFrame(draw);
-      }
-    };
+          // Draw "???" in each lane of hidden area
+          for (let laneIdx = 0; laneIdx < laneCount; laneIdx++) {
+            const laneCenterX = roadLeft + laneWidth * laneIdx + laneWidth / 2;
+            for (let y = hiddenTrackStart + questionSpacing; y < hiddenTrackStart + hiddenTrackHeight; y += questionSpacing) {
+              ctx.fillText("???", laneCenterX, y);
+            }
+          }
+        }
+
+        // Start line (white line at bottom) - scales with canvas
+        const startY = trackTop + trackHeight;
+        const startLinePadding = Math.max(2, roadWidth * 0.02); // 2% of road width
+        const startLineHeight = Math.max(2, height * 0.008); // ~0.8% of height
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(
+          roadLeft + startLinePadding,
+          startY - startLineHeight,
+          roadWidth - (startLinePadding * 2),
+          startLineHeight
+        );
+
+        // Finish line Y position (always needed for car positioning)
+        const finishY = trackTop;
+
+        // Finish line (checkered pattern at top) - only show during racing
+        if (!isPredictions) {
+          const cellSize = Math.max(6, Math.min(roadWidth * 0.03, height * 0.02)); // Scales with both width and height
+          const finishLinePadding = Math.max(2, roadWidth * 0.02);
+          const finishLineHeight = cellSize * 2; // Two rows of cells
+          for (let x = roadLeft + finishLinePadding; x < roadRight - finishLinePadding; x += cellSize) {
+            for (let y = finishY - cellSize; y < finishY + finishLineHeight; y += cellSize) {
+              const isBlack =
+                (Math.floor((x - roadLeft - finishLinePadding) / cellSize) +
+                  Math.floor((y - finishY + cellSize) / cellSize)) %
+                2 ===
+                0;
+              ctx.fillStyle = isBlack ? "#000000" : "#ffffff";
+              ctx.fillRect(x, y, cellSize, cellSize);
+            }
+          }
+        }
+
+        // Draw cars - always show cars even if no game data
+        // Car size scales proportionally with lane width and segment height
+        // Increased by 30% for better visibility
+        const cars = g?.cars || [];
+        const baseCarSize = Math.min(
+          laneWidth * 0.7, // 70% of lane width
+          segmentHeight * 0.35, // 35% of segment height
+          height * 0.08 // Max 8% of canvas height to prevent oversized cars
+        ) * 1.3; // Increase by 30%
+
+        // If no cars from game, create placeholder cars for each lane
+        const carsToDraw = cars.length > 0 ? cars : [
+          { carId: { _id: "car1", name: "Car 1" }, trackNumber: 1 },
+          { carId: { _id: "car2", name: "Car 2" }, trackNumber: 2 },
+          { carId: { _id: "car3", name: "Car 3" }, trackNumber: 3 },
+        ];
+
+        // Always draw at least 3 cars
+        const finalCars = carsToDraw.length >= 3 ? carsToDraw : [
+          ...carsToDraw,
+          ...Array(3 - carsToDraw.length).fill(null).map((_, i) => ({
+            carId: { _id: `placeholder${i}`, name: `Car ${i + 1}` },
+            trackNumber: carsToDraw.length + i + 1,
+          })),
+        ];
+
+        finalCars.slice(0, 3).forEach((assignment, idx) => {
+          const car = assignment?.carId || assignment;
+          if (!car) return;
+          const trackIndex = (assignment.trackNumber || 1) - 1;
+          const laneX = roadLeft + laneWidth * trackIndex;
+          const centerX = laneX + laneWidth / 2;
+
+          // Get car ID (exact same logic as party game)
+          const carId = car?._id?.toString() || car?.toString() || car?._id || car;
+
+          // Get car progress (exact same logic as party game)
+          const carProgress = status === "racing" ? (progressMap[carId]?.progress || 0) : 0;
+
+          // Calculate Y position (same pattern as party game's X calculation, but vertical)
+          // Party game: currentX = startX + (progress / 100) * (endX - startX)
+          // Vertical: currentY = startY - (progress / 100) * (startY - finishY)
+          // startY is bottom (larger), finishY is top (smaller)
+          const currentY = startY - (carProgress / 100) * (startY - finishY);
+
+          // During predictions: only show cars in visible area (bottom 30% of track)
+          if (isPredictions) {
+            // If car is above visible area (in hidden top 70%), don't draw it
+            if (currentY < visibleTrackStart) {
+              return; // Skip drawing this car (it's in hidden area)
+            }
+          }
+
+          // Get current terrain for particle effects
+          // Segments are now drawn bottom-to-top to match backend order
+          // Backend: segments[0] = start/bottom, segments[2] = finish/top
+          // Car starts at bottom (startY) and moves to top (finishY)
+          // Calculate which segment the car is in (0 = bottom/start, 2 = top/finish)
+          const distanceFromStart = startY - currentY; // 0 at start, trackHeight at finish
+          const segmentIndex = Math.floor(distanceFromStart / segmentHeight);
+          // Clamp to valid segment range
+          const track = tracks[trackIndex];
+          const segmentCount = track?.segments?.length || 3;
+          const clampedSegmentIndex = Math.max(0, Math.min(segmentCount - 1, segmentIndex));
+          const currentTerrain = track?.segments?.[clampedSegmentIndex] || "regular";
+
+          // Initialize particles for this car if not exists
+          if (!particlesRef.current[carId]) {
+            particlesRef.current[carId] = [];
+          }
+
+          // Clear particles if not racing
+          if (status !== "racing") {
+            particlesRef.current[carId] = [];
+          }
+
+          // Add particles based on terrain and speed (optimized with limits)
+          // Particle scale relative to car size
+          const particleScale = Math.max(0.5, baseCarSize / 50); // Scale based on car size
+          const particles = particlesRef.current[carId];
+
+          // Limit total particles for performance
+          if (particles.length < MAX_PARTICLES_PER_CAR && status === "racing" && carProgress > 0 && carProgress < 100) {
+            const speed = carProgress / 100; // 0 to 1
+            const particleChance = speed * 0.25; // Reduced chance for better performance
+
+            if (currentTerrain === "desert" && Math.random() < particleChance) {
+              // Add dust particles (limit to 1-2 per frame)
+              const particlesToAdd = Math.min(2, MAX_PARTICLES_PER_CAR - particles.length);
+              for (let i = 0; i < particlesToAdd; i++) {
+                particles.push(
+                  new Particle(
+                    centerX + (Math.random() - 0.5) * baseCarSize,
+                    currentY + baseCarSize * 0.6,
+                    "dust",
+                    particleScale
+                  )
+                );
+              }
+            } else if (currentTerrain === "muddy" && Math.random() < particleChance) {
+              // Add mud particles (limit to 2-3 per frame)
+              const particlesToAdd = Math.min(3, MAX_PARTICLES_PER_CAR - particles.length);
+              for (let i = 0; i < particlesToAdd; i++) {
+                particles.push(
+                  new Particle(
+                    centerX + (Math.random() - 0.5) * baseCarSize,
+                    currentY + baseCarSize * 0.6,
+                    "mud",
+                    particleScale
+                  )
+                );
+              }
+            }
+          }
+
+          // Update and draw particles (optimized cleanup)
+          for (let i = particles.length - 1; i >= 0; i--) {
+            if (particles[i].update()) {
+              particles[i].draw(ctx);
+            } else {
+              particles.splice(i, 1);
+            }
+          }
+
+          // Cleanup old particles if too many (safety check)
+          if (particles.length > MAX_PARTICLES_PER_CAR * 1.5) {
+            particles.splice(0, particles.length - MAX_PARTICLES_PER_CAR);
+          }
+
+          // Draw car using top view image (no rotation needed - images are already correct)
+          const carImage = carImagesRef.current[carId];
+          if (carImage && carImage.complete && carImage.naturalWidth > 0) {
+            // Make cars 1.2x bigger
+            const scaledCarSize = baseCarSize * 1.6;
+
+            // Calculate aspect ratio to prevent stretching
+            const imageAspectRatio = carImage.naturalWidth / carImage.naturalHeight;
+            let drawWidth = scaledCarSize;
+            let drawHeight = scaledCarSize;
+
+            // Maintain aspect ratio - use width as base, adjust height
+            if (imageAspectRatio > 1) {
+              // Image is wider than tall - use full width, adjust height
+              drawHeight = scaledCarSize / imageAspectRatio;
+            } else {
+              // Image is taller than wide - use full height, adjust width
+              drawWidth = scaledCarSize * imageAspectRatio;
+            }
+
+            // Position car so bottom edge touches the track surface
+            // currentY represents the car's position along the track (center of lane vertically)
+            // The track surface is at currentY, so car bottom should be at currentY
+            const carBottomY = currentY;
+            const carTopY = carBottomY - drawHeight;
+
+            // Draw car image - positioned so bottom touches track surface
+            ctx.drawImage(
+              carImage,
+              centerX - drawWidth / 2,
+              carTopY, // Top of car (bottom edge at currentY touches track)
+              drawWidth,
+              drawHeight
+            );
+          } else {
+            // Fallback: draw simple colored rectangle if image not loaded
+            const name = car.name?.toLowerCase?.() || "";
+            let carColor = "#ef4444"; // Default red
+            if (name.includes("red") || name.includes("super")) carColor = "#ef4444";
+            else if (name.includes("blue") || name.includes("police")) carColor = "#3b82f6";
+            else if (name.includes("green") || name.includes("monster")) carColor = "#22c55e";
+            else if (name.includes("yellow")) carColor = "#eab308";
+            else if (name.includes("white")) carColor = "#ffffff";
+            else if (name.includes("black")) carColor = "#1f2937";
+            else if (trackIndex === 0) carColor = "#ef4444";
+            else if (trackIndex === 1) carColor = "#3b82f6";
+            else if (trackIndex === 2) carColor = "#22c55e";
+
+            // Simple fallback rectangle
+            ctx.fillStyle = carColor;
+            drawRoundedRect(
+              ctx,
+              centerX - baseCarSize / 2,
+              currentY - baseCarSize / 2,
+              baseCarSize,
+              baseCarSize * 0.7,
+              baseCarSize * 0.15
+            );
+            ctx.fill();
+
+            // Car number on fallback
+            const carNumber = car.shortCode || assignment.trackNumber || trackIndex + 1;
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2;
+            ctx.font = `bold ${Math.max(8, baseCarSize * 0.2)}px Arial`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.strokeText(String(carNumber), centerX, currentY);
+            ctx.fillText(String(carNumber), centerX, currentY);
+          }
+        });
+
+        if (isDrawing) {
+          animationId = requestAnimationFrame(draw);
+        }
+      };
 
       // Start the animation loop
       isDrawing = true;
       animationId = requestAnimationFrame(draw);
     };
-    
+
     // Start initialization
     initCanvas();
-    
+
     // Return cleanup from useEffect
     return () => {
       if (retryTimeout) {
@@ -1690,14 +1690,14 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     return game?.totalPot ??
       Object.values(predictionCounts).reduce((sum, count) => sum + count, 0) * 100;
   }, [game?.totalPot, predictionCounts]);
-  
+
   const platformFee = useMemo(() => totalPot * 0.05, [totalPot]);
   const winnerPool = useMemo(() => totalPot - platformFee, [totalPot, platformFee]);
   const myTotalSelections = useMemo(() => myPredictions.length, [myPredictions.length]);
   const totalSelections = useMemo(() => {
     return Object.values(predictionCounts).reduce((sum, count) => sum + count, 0);
   }, [predictionCounts]);
-  
+
   const potentialPayout = useMemo(() => {
     return myTotalSelections > 0 && totalSelections > 0
       ? Math.floor(winnerPool / totalSelections) * myTotalSelections
@@ -1706,11 +1706,13 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
   const getCarById = useCallback((carId) => {
     if (!carId || !game?.cars) return null;
-    const found = game.cars.find(
-      (c) =>
-        c.carId?._id?.toString() === carId.toString() ||
-        c.carId?.toString() === carId.toString()
-    );
+    const normalizedSearchId = normalizeCarId(carId);
+    if (!normalizedSearchId) return null;
+    
+    const found = game.cars.find((c) => {
+      const carIdNormalized = normalizeCarId(c.carId);
+      return carIdNormalized === normalizedSearchId;
+    });
     return found?.carId;
   }, [game?.cars]);
 
@@ -1767,7 +1769,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   return (
     <div
       ref={containerRef}
-      className="position-relative"
+      className="position-relative "
       style={{
         // Full height/width to adapt to parent container
         height: "100%",
@@ -1776,7 +1778,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         overflow: "visible", // Allow modals to overflow
         margin: 0,
         padding: 0,
-        boxSizing: "border-box",
         background: "var(--bg-darker, #050810)",
         fontFamily: "var(--font-space-grotesk), 'Poppins', 'Segoe UI', system-ui, sans-serif",
         position: "relative", // Ensure container is positioned for modals
@@ -1785,40 +1786,41 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     >
       {/* Responsive canvas container - maintains vertical aspect ratio */}
       <div
-        className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
+        className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center  p-0 m-0"
         style={{
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
           zIndex: 1,
-          padding: "clamp(0.5rem, 2vw, 1rem)",
+          padding: "0",
           boxSizing: "border-box",
         }}
       >
-        <canvas
+        <canvas className="p-0 m-0"
           ref={raceCanvasRef}
           style={{
             display: "block",
             background: "#1f9d55",
+            padding: "0",
+            margin: "0",
           }}
         />
       </div>
 
       {/* Minimal header overlay - top right */}
       <div
-        className="position-absolute glass-card"
+        className="position-absolute glass-card "
         style={{
           top: "clamp(0.5rem, 1vw, 1rem)",
           right: "clamp(0.5rem, 1vw, 1rem)",
           zIndex: 10,
           borderRadius: "0.75rem",
-          padding: "clamp(0.5rem, 1vw, 0.75rem)",
-        }}
-      >
+          // padding: "clamp(0.5rem, 1vw, 0.75rem)",
+        }}   >
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <div className="d-flex align-items-center gap-1">
-            <span 
+            <span
               className="badge small"
               style={{
                 background: "linear-gradient(135deg, var(--accent, #ca0000) 0%, var(--accent-tertiary, #ce0000) 100%)",
@@ -1836,18 +1838,18 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                 background: timeRemaining > 10
                   ? "rgba(0, 245, 255, 0.2)"
                   : timeRemaining > 5
-                  ? "rgba(255, 193, 7, 0.2)"
-                  : "rgba(202, 0, 0, 0.2)",
+                    ? "rgba(255, 193, 7, 0.2)"
+                    : "rgba(202, 0, 0, 0.2)",
                 color: timeRemaining > 10
                   ? "var(--accent-secondary, #00f5ff)"
                   : timeRemaining > 5
-                  ? "#ffc107"
-                  : "var(--accent, #ca0000)",
+                    ? "#ffc107"
+                    : "var(--accent, #ca0000)",
                 border: `1px solid ${timeRemaining > 10
                   ? "var(--accent-secondary, #00f5ff)"
                   : timeRemaining > 5
-                  ? "#ffc107"
-                  : "var(--accent, #ca0000)"}`,
+                    ? "#ffc107"
+                    : "var(--accent, #ca0000)"}`,
               }}
             >
               <BsClock className="me-1" />
@@ -1875,8 +1877,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
             maxWidth: "90%",
           }}
         >
-          <div 
-            className="alert py-2 small mb-0" 
+          <div
+            className="alert py-2 small mb-0"
             role="alert"
             style={{
               background: "rgba(202, 0, 0, 0.2)",
@@ -1986,310 +1988,310 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                 fontSize: "0.875rem",
               }}
             >
-          <div className="d-flex align-items-center gap-3">
-            <div className="d-flex align-items-center gap-1">
-              <BsPeople style={{ color: "var(--text-muted, #a8b3d0)" }} />
-              <span style={{ color: "var(--text-primary, #ffffff)" }}>{totalSelections}</span>
-            </div>
-            <div className="d-flex align-items-center gap-1">
-              <BsCoin style={{ color: "#ffd700" }} />
-              <span style={{ color: "var(--text-primary, #ffffff)" }}>{formatNumber(totalPot)}</span>
-            </div>
-            <div style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-              {timeRemaining}s
-            </div>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <div className="d-flex align-items-center gap-1">
-              <BsCoin style={{ color: "#ffd700" }} />
-              <span style={{ color: "var(--text-primary, #ffffff)" }}>{formatNumber(userBalance)}</span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline-light"
-              style={{
-                minWidth: "30px",
-                padding: "0.25rem 0.5rem",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-              }}
-            >
-              +
-            </Button>
-          </div>
-        </div>
-
-        
-
-            <div 
-              style={{ background: "transparent", padding: "1rem" }}
-              onClick={() => setShowCarInfo(null)}
-            >
-          {/* Define disabled at this scope so it's available in footer */}
-          {(() => {
-            const disabled = predicting || timeRemaining <= 0;
-            return (
-              <>
-                <div className="row g-2">
-                  {game.cars.map((assignment) => {
-                      const car = assignment.carId;
-                      const carId = normalizeCarId(car?._id || car);
-                      const count = predictionCounts[carId] || 0;
-
-                      const myCarSelections = myPredictions.filter(
-                        (p) => normalizeCarId(p.predictedCarId) === carId
-                      );
-                      const mySelectionCount = myCarSelections.length;
-                      const hasSelections = mySelectionCount > 0;
-                      const hasOtherSelections =
-                        myPredictions.length > 0 && !hasSelections;
-
-                // Calculate potential payout ratio (multiplier)
-                // If this car wins: payout = winnerPool / totalSelections per selection
-                // Ratio = payout per selection / cost per selection (100 coins)
-                const carTotalSelections = count;
-                const payoutPerSelection = totalSelections > 0
-                  ? winnerPool / totalSelections
-                  : 0;
-                const currentRatio = payoutPerSelection > 0
-                  ? (payoutPerSelection / 100).toFixed(1)
-                  : "0.0";
-                // Max ratio if only this car had selections (theoretical max)
-                const maxRatio = carTotalSelections > 0 && totalSelections > 0
-                  ? (winnerPool / (carTotalSelections * 100)).toFixed(1)
-                  : currentRatio;
-
-                return (
-                  <div key={carId} className="col-4">
-                    <div
-                      className="h-100 p-2 position-relative"
-                      style={{
-                        borderRadius: "0.75rem",
-                        background: "rgba(20, 27, 45, 0.6)",
-                        border: hasSelections
-                          ? "2px solid var(--accent-secondary, #00f5ff)"
-                          : "1px solid rgba(255, 255, 255, 0.1)",
-                        boxShadow: hasSelections
-                          ? "0 0 15px var(--glow-cyan, rgba(0, 245, 255, 0.4))"
-                          : "none",
-                      }}
-                    >
-                      {/* Rating and Info Button */}
-                      <div className="d-flex justify-content-between align-items-start mb-1">
-                        <span
-                          className="small fw-bold"
-                          style={{ color: "#ffd700", fontSize: "0.7rem" }}
-                        >
-                          {currentRatio}/{maxRatio}
-                        </span>
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="p-0"
-                          style={{
-                            minWidth: "20px",
-                            height: "20px",
-                            color: "var(--text-muted, #a8b3d0)",
-                            textDecoration: "none",
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowCarInfo(showCarInfo === carId ? null : carId);
-                          }}
-                        >
-                          ?
-                        </Button>
-                      </div>
-
-                      {/* Car Image */}
-                      <div
-                        className="mb-2 position-relative d-flex align-items-center justify-content-center rounded-2"
-                        style={{
-                          height: "80px",
-                          borderRadius: "0.5rem",
-                          background: getImageUrl(car.sideViewImage)
-                            ? `url(${getImageUrl(car.sideViewImage)}) center/contain no-repeat`
-                            : "linear-gradient(135deg,#4b5563,#1f2937)",
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
-                        }}
-                      >
-                        {!getImageUrl(car.sideViewImage) && (
-                          <span style={{ fontSize: "2rem" }}>🚗</span>
-                        )}
-                        {hasSelections && (
-                          <BsCheckCircle
-                            className="position-absolute"
-                            style={{
-                              top: 4,
-                              right: 4,
-                              color: "#22c55e",
-                              background: "rgba(15,23,42,0.95)",
-                              borderRadius: "50%",
-                            }}
-                          />
-                        )}
-                      </div>
-
-                      {/* Car Name */}
-                      <div
-                        className="fw-semibold small mb-1 text-truncate text-center"
-                        style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}
-                      >
-                        {car.name}
-                      </div>
-
-                      {/* Cost */}
-                      <div className="d-flex align-items-center justify-content-center gap-1 mb-2">
-                        <BsCoin style={{ color: "#ffd700", fontSize: "0.75rem" }} />
-                        <span style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}>
-                          {formatNumber(count * 100)}
-                        </span>
-                      </div>
-
-                      {/* Select Button */}
-                      <Button
-                        variant={hasSelections ? "primary" : "outline-light"}
-                        size="sm"
-                        className="w-100"
-                        disabled={disabled || hasOtherSelections}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (disabled || hasOtherSelections) return;
-                          if (hasSelections) {
-                            makePrediction(carId, "remove");
-                          } else {
-                            makePrediction(carId, "add");
-                          }
-                        }}
-                        style={{
-                          fontSize: "0.75rem",
-                          padding: "0.25rem",
-                          background: hasSelections
-                            ? "linear-gradient(135deg, var(--accent, #ca0000) 0%, var(--accent-tertiary, #ce0000) 100%)"
-                            : "transparent",
-                          border: hasSelections
-                            ? "none"
-                            : "1px solid rgba(255, 255, 255, 0.2)",
-                        }}
-                      >
-                        <BsCoin style={{ color: "#ffd700", fontSize: "0.7rem" }} className="me-1" />
-                        {hasSelections ? mySelectionCount : 0}
-                      </Button>
-
-                      {/* Car Info Modal */}
-                      {showCarInfo === carId && (
-                        <div
-                          className="position-absolute top-0 start-0 end-0 p-2 rounded"
-                          style={{
-                            background: "rgba(10, 14, 26, 0.95)",
-                            border: "1px solid var(--accent-secondary, #00f5ff)",
-                            zIndex: 10,
-                            backdropFilter: "blur(10px)",
-                            boxShadow: "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="small mb-2 fw-bold" style={{ color: "var(--text-primary, #ffffff)" }}>
-                            Car Speeds:
-                          </div>
-                          <div className="small mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                            <div>Highway: {car.speedRegular} km/h</div>
-                            <div>Desert: {car.speedDesert} km/h</div>
-                            <div>Muddy: {car.speedMuddy} km/h</div>
-                          </div>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="p-0"
-                            style={{ color: "var(--accent-secondary, #00f5ff)", fontSize: "0.7rem" }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowCarInfo(null);
-                            }}
-                          >
-                            Close
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Footer with Counter and Play Button */}
-            <div
-              className="d-flex align-items-center justify-content-between px-3 py-2 mt-3"
-              style={{
-                background: "rgba(10, 14, 26, 0.8)",
-                borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "0 0 0.5rem 0.5rem",
-              }}
-            >
-              {/* Counter */}
-              <div className="d-flex align-items-center gap-2">
-                <Button
-                  variant="outline-light"
-                  size="sm"
-                  disabled={myPredictions.length === 0 || disabled}
-                  onClick={() => {
-                    if (myPredictions.length === 0 || disabled) return;
-                    const selectedCarId = myPredictions[0]?.predictedCarId;
-                    if (selectedCarId) {
-                      makePrediction(normalizeCarId(selectedCarId), "remove");
-                    }
-                  }}
-                  style={{
-                    minWidth: "35px",
-                    padding: "0.25rem 0.5rem",
-                  }}
-                >
-                  −
-                </Button>
-                <div className="d-flex align-items-center gap-1 px-2">
+              <div className="d-flex align-items-center gap-3">
+                <div className="d-flex align-items-center gap-1">
+                  <BsPeople style={{ color: "var(--text-muted, #a8b3d0)" }} />
+                  <span style={{ color: "var(--text-primary, #ffffff)" }}>{totalSelections}</span>
+                </div>
+                <div className="d-flex align-items-center gap-1">
                   <BsCoin style={{ color: "#ffd700" }} />
-                  <span style={{ color: "var(--text-primary, #ffffff)" }}>
-                    {myPredictions.length * 100}
-                  </span>
+                  <span style={{ color: "var(--text-primary, #ffffff)" }}>{formatNumber(totalPot)}</span>
+                </div>
+                <div style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                  {timeRemaining}s
+                </div>
+              </div>
+              <div className="d-flex align-items-center gap-2">
+                <div className="d-flex align-items-center gap-1">
+                  <BsCoin style={{ color: "#ffd700" }} />
+                  <span style={{ color: "var(--text-primary, #ffffff)" }}>{formatNumber(userBalance)}</span>
                 </div>
                 <Button
-                  variant="outline-light"
                   size="sm"
-                  disabled={disabled || myPredictions.length === 0 || (myPredictions.length * 100 + 100) > userBalance}
-                  onClick={() => {
-                    if (disabled || myPredictions.length === 0) return;
-                    const selectedCarId = myPredictions[0]?.predictedCarId;
-                    if (selectedCarId) {
-                      makePrediction(normalizeCarId(selectedCarId), "add");
-                    }
-                  }}
+                  variant="outline-light"
                   style={{
-                    minWidth: "35px",
+                    minWidth: "30px",
                     padding: "0.25rem 0.5rem",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
                   }}
                 >
                   +
                 </Button>
               </div>
-
-              {/* Play Button (disabled - just visual) */}
-              <Button
-                variant="primary"
-                size="lg"
-                disabled
-                style={{
-                  background: "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)",
-                  border: "none",
-                  padding: "0.5rem 2rem",
-                  fontSize: "1rem",
-                  fontWeight: 600,
-                }}
-              >
-                Play
-              </Button>
             </div>
-              </>
-            );
-          })()}
+
+
+
+            <div
+              style={{ background: "transparent", padding: "1rem" }}
+              onClick={() => setShowCarInfo(null)}
+            >
+              {/* Define disabled at this scope so it's available in footer */}
+              {(() => {
+                const disabled = predicting || timeRemaining <= 0;
+                return (
+                  <>
+                    <div className="row g-2">
+                      {game.cars.map((assignment) => {
+                        const car = assignment.carId;
+                        const carId = normalizeCarId(car?._id || car);
+                        const count = predictionCounts[carId] || 0;
+
+                        const myCarSelections = myPredictions.filter(
+                          (p) => normalizeCarId(p.predictedCarId) === carId
+                        );
+                        const mySelectionCount = myCarSelections.length;
+                        const hasSelections = mySelectionCount > 0;
+                        const hasOtherSelections =
+                          myPredictions.length > 0 && !hasSelections;
+
+                        // Calculate potential payout ratio (multiplier)
+                        // If this car wins: payout = winnerPool / totalSelections per selection
+                        // Ratio = payout per selection / cost per selection (100 coins)
+                        const carTotalSelections = count;
+                        const payoutPerSelection = totalSelections > 0
+                          ? winnerPool / totalSelections
+                          : 0;
+                        const currentRatio = payoutPerSelection > 0
+                          ? (payoutPerSelection / 100).toFixed(1)
+                          : "0.0";
+                        // Max ratio if only this car had selections (theoretical max)
+                        const maxRatio = carTotalSelections > 0 && totalSelections > 0
+                          ? (winnerPool / (carTotalSelections * 100)).toFixed(1)
+                          : currentRatio;
+
+                        return (
+                          <div key={carId} className="col-4">
+                            <div
+                              className="h-100 p-2 position-relative"
+                              style={{
+                                borderRadius: "0.75rem",
+                                background: "rgba(20, 27, 45, 0.6)",
+                                border: hasSelections
+                                  ? "2px solid var(--accent-secondary, #00f5ff)"
+                                  : "1px solid rgba(255, 255, 255, 0.1)",
+                                boxShadow: hasSelections
+                                  ? "0 0 15px var(--glow-cyan, rgba(0, 245, 255, 0.4))"
+                                  : "none",
+                              }}
+                            >
+                              {/* Rating and Info Button */}
+                              <div className="d-flex justify-content-between align-items-start mb-1">
+                                <span
+                                  className="small fw-bold"
+                                  style={{ color: "#ffd700", fontSize: "0.7rem" }}
+                                >
+                                  {currentRatio}/{maxRatio}
+                                </span>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="p-0"
+                                  style={{
+                                    minWidth: "20px",
+                                    height: "20px",
+                                    color: "var(--text-muted, #a8b3d0)",
+                                    textDecoration: "none",
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowCarInfo(showCarInfo === carId ? null : carId);
+                                  }}
+                                >
+                                  ?
+                                </Button>
+                              </div>
+
+                              {/* Car Image */}
+                              <div
+                                className="mb-2 position-relative d-flex align-items-center justify-content-center rounded-2"
+                                style={{
+                                  height: "80px",
+                                  borderRadius: "0.5rem",
+                                  background: getImageUrl(car.sideViewImage)
+                                    ? `url(${getImageUrl(car.sideViewImage)}) center/contain no-repeat`
+                                    : "linear-gradient(135deg,#4b5563,#1f2937)",
+                                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                              >
+                                {!getImageUrl(car.sideViewImage) && (
+                                  <span style={{ fontSize: "2rem" }}>🚗</span>
+                                )}
+                                {hasSelections && (
+                                  <BsCheckCircle
+                                    className="position-absolute"
+                                    style={{
+                                      top: 4,
+                                      right: 4,
+                                      color: "#22c55e",
+                                      background: "rgba(15,23,42,0.95)",
+                                      borderRadius: "50%",
+                                    }}
+                                  />
+                                )}
+                              </div>
+
+                              {/* Car Name */}
+                              <div
+                                className="fw-semibold small mb-1 text-truncate text-center"
+                                style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}
+                              >
+                                {car.name}
+                              </div>
+
+                              {/* Cost */}
+                              <div className="d-flex align-items-center justify-content-center gap-1 mb-2">
+                                <BsCoin style={{ color: "#ffd700", fontSize: "0.75rem" }} />
+                                <span style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}>
+                                  {formatNumber(count * 100)}
+                                </span>
+                              </div>
+
+                              {/* Select Button */}
+                              <Button
+                                variant={hasSelections ? "primary" : "outline-light"}
+                                size="sm"
+                                className="w-100"
+                                disabled={disabled || hasOtherSelections}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (disabled || hasOtherSelections) return;
+                                  if (hasSelections) {
+                                    makePrediction(carId, "remove");
+                                  } else {
+                                    makePrediction(carId, "add");
+                                  }
+                                }}
+                                style={{
+                                  fontSize: "0.75rem",
+                                  padding: "0.25rem",
+                                  background: hasSelections
+                                    ? "linear-gradient(135deg, var(--accent, #ca0000) 0%, var(--accent-tertiary, #ce0000) 100%)"
+                                    : "transparent",
+                                  border: hasSelections
+                                    ? "none"
+                                    : "1px solid rgba(255, 255, 255, 0.2)",
+                                }}
+                              >
+                                <BsCoin style={{ color: "#ffd700", fontSize: "0.7rem" }} className="me-1" />
+                                {hasSelections ? mySelectionCount : 0}
+                              </Button>
+
+                              {/* Car Info Modal */}
+                              {showCarInfo === carId && (
+                                <div
+                                  className="position-absolute top-0 start-0 end-0 p-2 rounded"
+                                  style={{
+                                    background: "rgba(10, 14, 26, 0.95)",
+                                    border: "1px solid var(--accent-secondary, #00f5ff)",
+                                    zIndex: 10,
+                                    backdropFilter: "blur(10px)",
+                                    boxShadow: "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="small mb-2 fw-bold" style={{ color: "var(--text-primary, #ffffff)" }}>
+                                    Car Speeds:
+                                  </div>
+                                  <div className="small mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                                    <div>Highway: {car.speedRegular} km/h</div>
+                                    <div>Desert: {car.speedDesert} km/h</div>
+                                    <div>Muddy: {car.speedMuddy} km/h</div>
+                                  </div>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="p-0"
+                                    style={{ color: "var(--accent-secondary, #00f5ff)", fontSize: "0.7rem" }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowCarInfo(null);
+                                    }}
+                                  >
+                                    Close
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Footer with Counter and Play Button */}
+                    <div
+                      className="d-flex align-items-center justify-content-between px-3 py-2 mt-3"
+                      style={{
+                        background: "rgba(10, 14, 26, 0.8)",
+                        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                        borderRadius: "0 0 0.5rem 0.5rem",
+                      }}
+                    >
+                      {/* Counter */}
+                      <div className="d-flex align-items-center gap-2">
+                        <Button
+                          variant="outline-light"
+                          size="sm"
+                          disabled={myPredictions.length === 0 || disabled}
+                          onClick={() => {
+                            if (myPredictions.length === 0 || disabled) return;
+                            const selectedCarId = myPredictions[0]?.predictedCarId;
+                            if (selectedCarId) {
+                              makePrediction(normalizeCarId(selectedCarId), "remove");
+                            }
+                          }}
+                          style={{
+                            minWidth: "35px",
+                            padding: "0.25rem 0.5rem",
+                          }}
+                        >
+                          −
+                        </Button>
+                        <div className="d-flex align-items-center gap-1 px-2">
+                          <BsCoin style={{ color: "#ffd700" }} />
+                          <span style={{ color: "var(--text-primary, #ffffff)" }}>
+                            {myPredictions.length * 100}
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline-light"
+                          size="sm"
+                          disabled={disabled || myPredictions.length === 0 || (myPredictions.length * 100 + 100) > userBalance}
+                          onClick={() => {
+                            if (disabled || myPredictions.length === 0) return;
+                            const selectedCarId = myPredictions[0]?.predictedCarId;
+                            if (selectedCarId) {
+                              makePrediction(normalizeCarId(selectedCarId), "add");
+                            }
+                          }}
+                          style={{
+                            minWidth: "35px",
+                            padding: "0.25rem 0.5rem",
+                          }}
+                        >
+                          +
+                        </Button>
+                      </div>
+
+                      {/* Play Button (disabled - just visual) */}
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        disabled
+                        style={{
+                          background: "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)",
+                          border: "none",
+                          padding: "0.5rem 2rem",
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Play
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2319,142 +2321,142 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               overflowY: "auto",
             }}
           >
-          {/* Single Centered Box with All Info */}
-          <div
-            className="mx-auto rounded position-relative"
-            style={{
-              background: "rgba(20, 27, 45, 0.8)",
-              border: "2px solid rgba(0, 245, 255, 0.3)",
-              padding: "2rem",
-              maxWidth: "500px",
-              boxShadow: "0 10px 40px rgba(0, 245, 255, 0.2)",
-            }}
-          >
-            {/* Subtle glow effect */}
+            {/* Single Centered Box with All Info */}
             <div
-              className="position-absolute"
+              className="mx-auto rounded position-relative"
               style={{
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "300px",
-                height: "300px",
-                background: "radial-gradient(circle, var(--glow-cyan, rgba(0, 245, 255, 0.15)) 0%, transparent 70%)",
-                pointerEvents: "none",
-                zIndex: 1,
+                background: "rgba(20, 27, 45, 0.8)",
+                border: "2px solid rgba(0, 245, 255, 0.3)",
+                padding: "2rem",
+                maxWidth: "500px",
+                boxShadow: "0 10px 40px rgba(0, 245, 255, 0.2)",
               }}
-            />
-
-            <div className="position-relative" style={{ zIndex: 2 }}>
-              {/* Winner Section */}
-              <div className="text-center mb-4">
-                <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
-                  <span style={{ fontSize: "2rem" }}>🏆</span>
-                  <h4 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
-                    Winner
-                  </h4>
-                </div>
-
-                {/* Winner Car Image */}
-                {getImageUrl(winnerCar?.sideViewImage) && (
-                  <div className="mb-3">
-                    <img
-                      src={getImageUrl(winnerCar.sideViewImage)}
-                      alt="Winner Car"
-                      className="mx-auto d-block"
-                      style={{
-                        width: "180px",
-                        maxWidth: "100%",
-                        height: "auto",
-                        objectFit: "contain",
-                        filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="fs-2 fw-bold mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                  {winnerCar?.name || game.winnerName || "Unknown"}
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div 
-                className="mx-auto mb-4"
+            >
+              {/* Subtle glow effect */}
+              <div
+                className="position-absolute"
                 style={{
-                  width: "80%",
-                  height: "1px",
-                  background: "linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent)",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "300px",
+                  height: "300px",
+                  background: "radial-gradient(circle, var(--glow-cyan, rgba(0, 245, 255, 0.15)) 0%, transparent 70%)",
+                  pointerEvents: "none",
+                  zIndex: 1,
                 }}
               />
 
-              {/* Your Selection Section */}
-              <div className="text-center mb-4">
-                <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
-                  <span style={{ fontSize: "1.5rem" }}>🎯</span>
-                  <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
-                    Your Selection
-                  </h5>
+              <div className="position-relative" style={{ zIndex: 2 }}>
+                {/* Winner Section */}
+                <div className="text-center mb-4">
+                  <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                    <span style={{ fontSize: "2rem" }}>🏆</span>
+                    <h4 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
+                      Winner
+                    </h4>
+                  </div>
+
+                  {/* Winner Car Image */}
+                  {getImageUrl(winnerCar?.sideViewImage) && (
+                    <div className="mb-3">
+                      <img
+                        src={getImageUrl(winnerCar.sideViewImage)}
+                        alt="Winner Car"
+                        className="mx-auto d-block"
+                        style={{
+                          width: "180px",
+                          maxWidth: "100%",
+                          height: "auto",
+                          objectFit: "contain",
+                          filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="fs-2 fw-bold mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                    {winnerCar?.name || game.winnerName || "Unknown"}
+                  </div>
                 </div>
 
-                {myPredictions.length > 0 ? (
-                  <>
-                    {myPredictions[0]?.predictedCarId && (
-                      <>
-                        {getImageUrl(getCarById(myPredictions[0].predictedCarId)?.sideViewImage) && (
-                          <div className="mb-2">
-                            <img
-                              src={getImageUrl(getCarById(myPredictions[0].predictedCarId).sideViewImage)}
-                              alt="Your Car"
-                              className="mx-auto d-block"
-                              style={{ 
-                                width: "120px",
-                                maxWidth: "100%",
-                                height: "auto", 
-                                objectFit: "contain",
-                                opacity: isWinner ? 1 : 0.6,
-                              }}
-                            />
-                          </div>
-                        )}
-                        <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
-                          {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
-                        </div>
-                      </>
-                    )}
-                    <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)", fontSize: "0.9rem" }}>
-                      {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} • {myPredictions.length * 100} coins
-                    </div>
-                  </>
-                ) : (
-                  <div className="py-2">
-                    <div className="fs-6" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                      No selections made
-                    </div>
-                  </div>
-                )}
-              </div>
+                {/* Divider */}
+                <div
+                  className="mx-auto mb-4"
+                  style={{
+                    width: "80%",
+                    height: "1px",
+                    background: "linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent)",
+                  }}
+                />
 
-              {/* Win/Loss Message */}
-              <div className="text-center">
-                {isWinner && winningSelections.length > 0 && (
-                  <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                    🎉 You won {formatNumber(totalPayout)} coins!
+                {/* Your Selection Section */}
+                <div className="text-center mb-4">
+                  <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                    <span style={{ fontSize: "1.5rem" }}>🎯</span>
+                    <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
+                      Your Selection
+                    </h5>
                   </div>
-                )}
-                {!isWinner && myPredictions.length > 0 && (
-                  <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
-                    You lost {formatNumber(totalInvested)} coins
-                  </div>
-                )}
-                {myPredictions.length === 0 && (
-                  <div className="fw-semibold fs-5" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                    Better luck next time!
-                  </div>
-                )}
+
+                  {myPredictions.length > 0 ? (
+                    <>
+                      {myPredictions[0]?.predictedCarId && (
+                        <>
+                          {getImageUrl(getCarById(myPredictions[0].predictedCarId)?.sideViewImage) && (
+                            <div className="mb-2">
+                              <img
+                                src={getImageUrl(getCarById(myPredictions[0].predictedCarId).sideViewImage)}
+                                alt="Your Car"
+                                className="mx-auto d-block"
+                                style={{
+                                  width: "120px",
+                                  maxWidth: "100%",
+                                  height: "auto",
+                                  objectFit: "contain",
+                                  opacity: isWinner ? 1 : 0.6,
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
+                            {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
+                          </div>
+                        </>
+                      )}
+                      <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)", fontSize: "0.9rem" }}>
+                        {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} • {myPredictions.length * 100} coins
+                      </div>
+                    </>
+                  ) : (
+                    <div className="py-2">
+                      <div className="fs-6" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                        No selections made
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Win/Loss Message */}
+                <div className="text-center">
+                  {isWinner && winningSelections.length > 0 && (
+                    <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                      🎉 You won {formatNumber(totalPayout)} coins!
+                    </div>
+                  )}
+                  {!isWinner && myPredictions.length > 0 && (
+                    <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
+                      You lost {formatNumber(totalInvested)} coins
+                    </div>
+                  )}
+                  {myPredictions.length === 0 && (
+                    <div className="fw-semibold fs-5" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                      Better luck next time!
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
             {/* Footer with countdown */}
             <div
