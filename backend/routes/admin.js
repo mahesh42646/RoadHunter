@@ -416,10 +416,23 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
   let uploadedFilePath = null;
   const startTime = Date.now();
   
+  // Set keep-alive to prevent connection from closing
+  res.setTimeout(60000, () => {
+    console.error('[Admin Routes] Response timeout - connection closed after 60 seconds');
+  });
+  
   // Set response timeout to prevent hanging
   const responseTimeout = setTimeout(() => {
     if (!res.headersSent) {
       console.error('[Admin Routes] Response timeout - no response sent after 30 seconds');
+      console.error('[Admin Routes] Request details:', {
+        method: req.method,
+        url: req.url,
+        hasFile: !!req.file,
+        fileSize: req.file?.size,
+        headersSent: res.headersSent,
+        finished: res.finished
+      });
       if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
         try {
           fs.unlinkSync(uploadedFilePath);
@@ -427,8 +440,15 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
           console.error('[Admin Routes] Error cleaning up file on timeout:', unlinkError);
         }
       }
-      if (!res.headersSent) {
-        res.status(504).json({ error: 'Request timeout. File processing took too long.' });
+      if (!res.headersSent && !res.finished) {
+        try {
+          res.status(504).json({ error: 'Request timeout. File processing took too long.' });
+          if (typeof res.flush === 'function') {
+            res.flush();
+          }
+        } catch (timeoutError) {
+          console.error('[Admin Routes] Error sending timeout response:', timeoutError);
+        }
       }
     }
   }, 30000); // 30 second timeout for response
@@ -511,11 +531,34 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     // Clear timeout and send response
     clearTimeout(responseTimeout);
     
-    // Ensure response is sent immediately
+    // Ensure response is sent immediately with explicit flushing
     if (!res.headersSent) {
-      console.log('[Admin Routes] Sending success response...');
-      res.json({ imageUrl });
-      console.log('[Admin Routes] Success response sent');
+      console.log('[Admin Routes] Sending success response...', { imageUrl });
+      try {
+        // Set headers explicitly
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Length', Buffer.byteLength(JSON.stringify({ imageUrl })));
+        
+        // Send response and flush
+        res.status(200).json({ imageUrl });
+        
+        // Force flush the response
+        if (typeof res.flush === 'function') {
+          res.flush();
+        }
+        
+        console.log('[Admin Routes] Success response sent and flushed');
+      } catch (sendError) {
+        console.error('[Admin Routes] Error sending response:', sendError);
+        // Try to send error response if possible
+        if (!res.headersSent) {
+          try {
+            res.status(500).json({ error: 'Failed to send response' });
+          } catch (e) {
+            console.error('[Admin Routes] Cannot send error response either:', e);
+          }
+        }
+      }
     } else {
       console.error('[Admin Routes] WARNING: Response already sent, cannot send success response');
     }
@@ -571,9 +614,17 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     
     // Make sure response hasn't been sent
     if (!res.headersSent) {
-      console.log('[Admin Routes] Sending error response...');
-      res.status(500).json({ error: errorMessage });
-      console.log('[Admin Routes] Error response sent');
+      console.log('[Admin Routes] Sending error response...', { errorMessage });
+      try {
+        res.status(500).json({ error: errorMessage });
+        // Force flush the response
+        if (typeof res.flush === 'function') {
+          res.flush();
+        }
+        console.log('[Admin Routes] Error response sent and flushed');
+      } catch (sendError) {
+        console.error('[Admin Routes] Error sending error response:', sendError);
+      }
     } else {
       console.error('[Admin Routes] Response already sent, cannot send error response');
     }
