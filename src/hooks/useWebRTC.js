@@ -36,28 +36,55 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
   // Get media stream optimized for low latency and high quality
   const getMediaStream = async (audio, video) => {
     try {
+      // Check if mediaDevices API is available (mobile safety check)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const error = new Error("MediaDevices API not available. Please use HTTPS or a supported browser.");
+        logError("MediaDevices API not available");
+        setError(error.message);
+        throw error;
+      }
+
+      // Mobile-friendly constraints (lower quality for better compatibility)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const constraints = {
         audio: audio ? {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 48000,
-          channelCount: 2, // Stereo for better quality
-          latency: 0.01, // Ultra low latency audio (10ms)
+          ...(isMobile ? {
+            sampleRate: 44100, // Lower sample rate for mobile
+            channelCount: 1, // Mono for mobile
+          } : {
+            sampleRate: 48000,
+            channelCount: 2, // Stereo for desktop
+            latency: 0.01, // Ultra low latency audio (10ms)
+          }),
         } : false,
         video: video ? {
-          // High quality settings for local network
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 },
-          frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
-          aspectRatio: { ideal: 16/9 },
-          // Prefer hardware acceleration
-          facingMode: "user",
+          ...(isMobile ? {
+            // Mobile-friendly video constraints
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 30, max: 30 }, // 30fps for mobile
+            facingMode: "user",
+          } : {
+            // High quality settings for desktop
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
+            aspectRatio: { ideal: 16/9 },
+            facingMode: "user",
+          }),
         } : false,
       };
 
-      log(`Requesting media: audio=${audio}, video=${video}`);
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      log(`Requesting media: audio=${audio}, video=${video}, mobile=${isMobile}`);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints).catch((err) => {
+        // Handle permission denied or other errors gracefully
+        logError("getUserMedia failed:", err);
+        setError(err.message || "Failed to access camera/microphone. Please check permissions.");
+        throw err;
+      });
       log(`✅ Got stream with ${stream.getTracks().length} tracks`);
       
       // Optimize video tracks for ultra low latency and high quality
