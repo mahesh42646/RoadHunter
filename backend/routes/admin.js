@@ -348,29 +348,72 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
 });
 
 // Image upload endpoint for cars - no validations, accept any file
-router.post('/cars/upload', authenticateAdmin, uploadCar.single('image'), async (req, res) => {
+router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
+  // Handle multer errors first
+  uploadCar.single('image')(req, res, (err) => {
+    if (err) {
+      console.error('[Admin Routes] Multer error:', err);
+      let errorMessage = 'File upload failed';
+      
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        errorMessage = 'File is too large. Please try a smaller file.';
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        errorMessage = 'Unexpected file field. Please use "image" as the field name.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      return res.status(400).json({ error: errorMessage });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file provided' });
+      return res.status(400).json({ error: 'No file provided. Please select an image file.' });
+    }
+
+    // Verify file was actually saved
+    if (!fs.existsSync(req.file.path)) {
+      return res.status(500).json({ error: 'File was not saved properly. Please try again.' });
     }
 
     // Use original file directly - no optimization
     const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
     const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
     
-    console.log('[Admin Routes] File uploaded successfully:', imageUrl);
+    console.log('[Admin Routes] File uploaded successfully:', {
+      originalName: req.file.originalname,
+      savedPath: req.file.path,
+      imageUrl: imageUrl,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+    
     res.json({ imageUrl });
   } catch (error) {
-    console.error('[Admin Routes] Error uploading file:', error);
+    console.error('[Admin Routes] Error uploading file:', {
+      message: error.message,
+      stack: error.stack,
+      file: req.file ? {
+        originalname: req.file.originalname,
+        path: req.file.path,
+        size: req.file.size
+      } : null
+    });
+    
     // Clean up uploaded file on error
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try {
         fs.unlinkSync(req.file.path);
+        console.log('[Admin Routes] Cleaned up uploaded file:', req.file.path);
       } catch (unlinkError) {
-        console.error('Error deleting uploaded file:', unlinkError);
+        console.error('[Admin Routes] Error deleting uploaded file:', unlinkError);
       }
     }
-    res.status(500).json({ error: error.message || 'Failed to upload file' });
+    
+    const errorMessage = error.message || 'Failed to upload file. Please check the file and try again.';
+    res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -572,9 +615,18 @@ router.get('/games', authenticateAdmin, async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
+    // Filter out cars with null carId (deleted cars) from each game
+    const gamesWithValidCars = games.map((game) => {
+      const gameObj = game.toObject();
+      if (gameObj.cars) {
+        gameObj.cars = gameObj.cars.filter((car) => car.carId && car.carId._id);
+      }
+      return gameObj;
+    });
+
     const total = await Game.countDocuments();
 
-    res.json({ games, total, page, limit, totalPages: Math.ceil(total / limit) });
+    res.json({ games: gamesWithValidCars, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     next(error);
   }

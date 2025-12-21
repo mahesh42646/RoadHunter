@@ -79,10 +79,23 @@ export default function GameManagement({ adminToken }) {
         response: error.response?.data,
         status: error.response?.status,
         code: error.code,
+        fileName: file?.name,
+        fileSize: file?.size,
+        fileType: file?.type,
       });
-      const errorMessage = error.response?.data?.error || 
-                          error.message || 
-                          `Failed to upload ${type} image. Please try again.`;
+      
+      let errorMessage = `Failed to upload ${type} image.`;
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = `Upload timeout. The file may be too large. Please try a smaller file or check your connection.`;
+      } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        errorMessage = `Network error. Please check your connection and try again.`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       throw new Error(errorMessage);
     } finally {
       setUploading(prev => ({ ...prev, [type]: false }));

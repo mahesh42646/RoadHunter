@@ -13,9 +13,20 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname) || '.jpg';
-    cb(null, `car-${uniqueSuffix}${ext}`);
+    try {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      // Get extension from original filename, sanitize it
+      const originalExt = path.extname(file.originalname || '');
+      // Remove any special characters from extension, keep only alphanumeric and dots
+      const sanitizedExt = originalExt.replace(/[^a-zA-Z0-9.]/g, '') || '.jpg';
+      // Ensure extension starts with a dot
+      const ext = sanitizedExt.startsWith('.') ? sanitizedExt : '.' + sanitizedExt;
+      cb(null, `car-${uniqueSuffix}${ext}`);
+    } catch (error) {
+      console.error('[Upload Car] Error generating filename:', error);
+      // Fallback filename
+      cb(null, `car-${Date.now()}-${Math.round(Math.random() * 1E9)}.jpg`);
+    }
   },
 });
 

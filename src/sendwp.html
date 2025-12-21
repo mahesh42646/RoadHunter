@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Message Sender</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .upload-section {
+            padding: 30px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .file-input-label:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-name {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .people-list {
+            padding: 30px;
+        }
+
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .list-header h2 {
+            color: #333;
+            font-size: 22px;
+        }
+
+        .count-badge {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .people-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .person-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .person-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .person-card.sent {
+            border: 3px solid #dc3545;
+            background: #fff5f5;
+        }
+
+        .person-card.sent:hover {
+            border-color: #dc3545;
+        }
+
+        .sent-badge {
+            display: inline-block;
+            background: #dc3545;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .person-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .person-mobile {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .whatsapp-btn {
+            width: 100%;
+            padding: 12px;
+            background: #25D366;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .whatsapp-btn:hover {
+            background: #20BA5A;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+        }
+
+        .whatsapp-btn:active {
+            transform: translateY(0);
+        }
+
+        .whatsapp-btn.sent {
+            background: #6c757d;
+            opacity: 0.8;
+        }
+
+        .whatsapp-btn.sent:hover {
+            background: #5a6268;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .message-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .message-preview h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message-preview p {
+            color: #333;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        @media (max-width: 768px) {
+            .people-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 WhatsApp Message Sender</h1>
+            <p>Upload Excel file to send messages</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <label for="excelFile" class="file-input-label">
+                    📄 Choose Excel File
+                </label>
+                <input type="file" id="excelFile" accept=".xlsx,.xls" />
+                <span class="file-name" id="fileName">No file selected</span>
+            </div>
+        </div>
+
+        <div class="people-list" id="peopleList" style="display: none;">
+            <div class="message-preview">
+                <h3>Message Preview</h3>
+                <p id="messagePreview"></p>
+            </div>
+            <div class="list-header">
+                <h2>People List</h2>
+                <span class="count-badge" id="peopleCount">0 people</span>
+            </div>
+            <div class="people-grid" id="peopleGrid"></div>
+        </div>
+
+        <div class="empty-state" id="emptyState">
+            <div class="empty-state-icon">📊</div>
+            <h3>No data loaded</h3>
+            <p>Please upload an Excel file to get started</p>
+        </div>
+    </div>
+
+    <script>
+        const PRESET_MESSAGE = `📢 वेबिनार सूचना
+
+🗓️ आज
+⏰ संध्याकाळी ७:०० वाजता
+
+📚 Agri Input Manufacturing Law / Legal Information – Part 2
+🏛️ NAMA Association द्वारे आयोजित वेबिनार
+
+🙏 सर्वांनी वेळेवर सहभागी होण्याची विनंती आहे.
+🔗 वेबिनारची लिंक लाईव्ह होण्याच्या १० मिनिटे आधी या ग्रुपमध्ये शेअर केली जाईल:
+👉 https://chat.whatsapp.com/JDyo9cZW9Tn5Biip4nJGI9
+
+🙏 धन्यवाद,
+👋 वेबिनारमध्ये भेटूया`;
+        
+        let peopleData = [];
+        let sentNumbers = new Set();
+
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName').textContent = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    processExcelData(jsonData);
+                } catch (error) {
+                    alert('Error reading Excel file: ' + error.message);
+                    console.error(error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function processExcelData(data) {
+            peopleData = [];
+            sentNumbers.clear();
+            
+            data.forEach((row, index) => {
+                const mobileKey = Object.keys(row).find(key => 
+                    key.toLowerCase().includes('mobile') || 
+                    key.toLowerCase().includes('whatsapp') ||
+                    key.toLowerCase().includes('phone')
+                );
+                
+                const nameKey = Object.keys(row).find(key => 
+                    key.toLowerCase().includes('company') || 
+                    key.toLowerCase().includes('name')
+                );
+
+                if (mobileKey && row[mobileKey]) {
+                    let mobile = String(row[mobileKey]).replace(/\D/g, '');
+                    
+                    if (mobile.length >= 10) {
+                        if (mobile.length > 10) {
+                            mobile = mobile.slice(-10);
+                        }
+                        
+                        const name = nameKey && row[nameKey] ? String(row[nameKey]).trim() : `Person ${index + 1}`;
+                        
+                        peopleData.push({
+                            name: name,
+                            mobile: mobile
+                        });
+                    }
+                }
+            });
+
+            displayPeople();
+        }
+
+        function displayPeople() {
+            const peopleList = document.getElementById('peopleList');
+            const emptyState = document.getElementById('emptyState');
+            const peopleGrid = document.getElementById('peopleGrid');
+            const peopleCount = document.getElementById('peopleCount');
+
+            if (peopleData.length === 0) {
+                peopleList.style.display = 'none';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            peopleList.style.display = 'block';
+            emptyState.style.display = 'none';
+            peopleCount.textContent = `${peopleData.length} ${peopleData.length === 1 ? 'person' : 'people'}`;
+
+            peopleGrid.innerHTML = peopleData.map((person, index) => {
+                const isSent = sentNumbers.has(person.mobile);
+                return `
+                <div class="person-card ${isSent ? 'sent' : ''}" id="card-${index}">
+                    <div class="person-name">
+                        ${escapeHtml(person.name)}
+                        ${isSent ? '<span class="sent-badge">✓ Sent</span>' : ''}
+                    </div>
+                    <div class="person-mobile">📱 ${person.mobile}</div>
+                    <button class="whatsapp-btn ${isSent ? 'sent' : ''}" onclick="sendWhatsAppMessage('${person.mobile}', ${index})">
+                        ${isSent ? '✓ Sent - Send Again' : '💬 Send WP Message'}
+                    </button>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function sendWhatsAppMessage(mobile, index) {
+            const encodedMessage = encodeURIComponent(PRESET_MESSAGE);
+            const whatsappUrl = `https://wa.me/91${mobile}?text=${encodedMessage}`;
+            window.open(whatsappUrl, '_blank');
+            
+            sentNumbers.add(mobile);
+            updateCardDisplay(index);
+        }
+
+        function updateCardDisplay(index) {
+            const card = document.getElementById(`card-${index}`);
+            if (!card) return;
+            
+            const person = peopleData[index];
+            const isSent = sentNumbers.has(person.mobile);
+            
+            if (isSent) {
+                card.classList.add('sent');
+                const nameDiv = card.querySelector('.person-name');
+                if (!nameDiv.innerHTML.includes('sent-badge')) {
+                    nameDiv.innerHTML = `${escapeHtml(person.name)}<span class="sent-badge">✓ Sent</span>`;
+                }
+                const btn = card.querySelector('.whatsapp-btn');
+                btn.classList.add('sent');
+                btn.innerHTML = '✓ Sent - Send Again';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.getElementById('messagePreview').textContent = PRESET_MESSAGE;
+    </script>
+</body>
+</html>

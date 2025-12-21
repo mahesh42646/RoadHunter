@@ -53,9 +53,16 @@ router.get('/active', async (req, res, next) => {
     }
 
     // Get prediction counts (number of selections per car)
+    // Filter out cars with null carId (deleted cars)
+    const validCars = game.cars.filter((car) => car.carId && car.carId._id);
+    if (validCars.length === 0) {
+      console.error('[Games Routes] Game has no valid cars:', game._id);
+      return res.status(500).json({ error: 'Game has no valid cars' });
+    }
+    
     const predictions = await Prediction.find({ gameId: game._id });
     const counts = {};
-    game.cars.forEach((car) => {
+    validCars.forEach((car) => {
       const carIdStr = car.carId._id.toString();
       counts[carIdStr] = predictions.filter(
         (p) => {
@@ -64,6 +71,9 @@ router.get('/active', async (req, res, next) => {
         }
       ).length;
     });
+    
+    // Update game.cars to only include valid cars
+    game.cars = validCars;
 
     res.json({
       game: {
@@ -159,9 +169,15 @@ router.post('/predict', authenticate, async (req, res, next) => {
       return res.status(400).json({ error: 'Prediction phase has ended' });
     }
 
+    // Filter out cars with null carId (deleted cars)
+    const validCars = game.cars.filter((car) => car.carId && car.carId._id);
+    if (validCars.length === 0) {
+      return res.status(400).json({ error: 'Game has no valid cars' });
+    }
+    
     // Verify car is in this game
-    const carInGame = game.cars.find(
-      (c) => c.carId._id.toString() === carId
+    const carInGame = validCars.find(
+      (c) => c.carId && c.carId._id && c.carId._id.toString() === carId
     );
     if (!carInGame) {
       return res.status(400).json({ error: 'Invalid car selection' });
@@ -289,10 +305,17 @@ router.get('/history', authenticate, async (req, res, next) => {
       predictionsMap[p.gameId.toString()] = p;
     });
 
-    const gamesWithPredictions = games.map((game) => ({
-      ...game.toObject(),
-      userPrediction: predictionsMap[game._id.toString()] || null,
-    }));
+    const gamesWithPredictions = games.map((game) => {
+      const gameObj = game.toObject();
+      // Filter out cars with null carId (deleted cars)
+      if (gameObj.cars) {
+        gameObj.cars = gameObj.cars.filter((car) => car.carId && car.carId._id);
+      }
+      return {
+        ...gameObj,
+        userPrediction: predictionsMap[game._id.toString()] || null,
+      };
+    });
 
     res.json({ games: gamesWithPredictions });
   } catch (error) {
@@ -419,9 +442,18 @@ router.get('/admin/games', authenticate, isAdmin, async (req, res, next) => {
       .skip(skip)
       .limit(limit);
 
+    // Filter out cars with null carId (deleted cars) from each game
+    const gamesWithValidCars = games.map((game) => {
+      const gameObj = game.toObject();
+      if (gameObj.cars) {
+        gameObj.cars = gameObj.cars.filter((car) => car.carId && car.carId._id);
+      }
+      return gameObj;
+    });
+
     const total = await Game.countDocuments();
 
-    res.json({ games, total, page, limit });
+    res.json({ games: gamesWithValidCars, total, page, limit });
   } catch (error) {
     next(error);
   }
