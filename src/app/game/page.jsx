@@ -1569,48 +1569,17 @@ export default function Html5RaceGamePage() {
             drawWidth = baseCarSize * imageAspectRatio;
           }
           
-          // Calculate car position - bottom edge should touch the track surface
-          // currentY is the center of the lane, so we position car so its bottom aligns with track
-          const carBottomY = currentY + (laneWidth * 0.4); // Track surface is at lane center + offset
+          // Position car so bottom edge touches the track surface
+          // currentY represents the car's position along the track (center of lane vertically)
+          // The track surface is at currentY, so car bottom should be at currentY
+          const carBottomY = currentY;
           const carTopY = carBottomY - drawHeight;
-          const carCenterY = carBottomY - drawHeight / 2;
           
-          // Draw car shadow using the car image shape (more realistic)
-          // Create shadow by drawing the car image with dark color and offset
-          ctx.save();
-          ctx.globalAlpha = 0.3; // Shadow opacity
-          ctx.globalCompositeOperation = 'source-over';
-          
-          // Draw shadow slightly offset and below the car
-          const shadowOffsetX = Math.max(1, drawWidth * 0.03); // 3% offset
-          const shadowOffsetY = Math.max(1, drawHeight * 0.05); // 5% offset down
-          
-          // Create shadow using the car image shape
-          ctx.drawImage(
-            carImage,
-            centerX - drawWidth / 2 + shadowOffsetX,
-            carBottomY - drawHeight + shadowOffsetY, // Shadow at bottom of car
-            drawWidth,
-            drawHeight
-          );
-          
-          // Apply darkening effect to shadow
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-          ctx.fillRect(
-            centerX - drawWidth / 2 + shadowOffsetX,
-            carBottomY - drawHeight + shadowOffsetY,
-            drawWidth,
-            drawHeight
-          );
-          
-          ctx.restore();
-          
-          // Draw car image - positioned so bottom touches track
+          // Draw car image - positioned so bottom touches track surface
           ctx.drawImage(
             carImage,
             centerX - drawWidth / 2,
-            carTopY, // Top of car
+            carTopY, // Top of car (bottom edge at currentY touches track)
             drawWidth,
             drawHeight
           );
