@@ -349,6 +349,14 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
 
 // Image upload endpoint for cars - no validations, accept any file
 router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
+  // Log incoming request info
+  console.log('[Admin Routes] Upload request received:', {
+    contentType: req.headers['content-type'],
+    contentLength: req.headers['content-length'],
+    hasBody: !!req.body,
+    timestamp: new Date().toISOString()
+  });
+
   // Handle multer errors first
   uploadCar.single('image')(req, res, (err) => {
     if (err) {
@@ -356,7 +364,9 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
         code: err.code,
         message: err.message,
         field: err.field,
-        stack: err.stack
+        name: err.name,
+        stack: err.stack,
+        originalError: err.toString()
       });
       
       let errorMessage = 'File upload failed';
@@ -366,6 +376,16 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
         errorMessage = 'File is too large. Please try a smaller file.';
       } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
         errorMessage = 'Unexpected file field. Please use "image" as the field name.';
+      } else if (err.code === 'LIMIT_PART_COUNT') {
+        errorMessage = 'Too many parts in the request.';
+      } else if (err.code === 'LIMIT_PART_FIELD_COUNT') {
+        errorMessage = 'Too many fields in the request.';
+      } else if (err.code === 'LIMIT_FIELD_KEY') {
+        errorMessage = 'Field name is too long.';
+      } else if (err.code === 'LIMIT_FIELD_VALUE') {
+        errorMessage = 'Field value is too long.';
+      } else if (err.code === 'LIMIT_FIELD_COUNT') {
+        errorMessage = 'Too many fields in the form.';
       } else if (err.code === 'ENOENT') {
         errorMessage = 'Upload directory does not exist. Contact server administrator.';
         statusCode = 500;
@@ -375,19 +395,39 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       } else if (err.code === 'ENOSPC') {
         errorMessage = 'No space left on server. Contact server administrator.';
         statusCode = 500;
+      } else if (err.code === 'EMFILE' || err.code === 'ENFILE') {
+        errorMessage = 'Too many open files. Server resource limit reached. Contact server administrator.';
+        statusCode = 500;
       } else if (err.message) {
-        errorMessage = err.message;
+        errorMessage = `Upload error: ${err.message}`;
       }
       
-      return res.status(statusCode).json({ error: errorMessage });
+      // Make sure response hasn't been sent
+      if (!res.headersSent) {
+        return res.status(statusCode).json({ error: errorMessage });
+      } else {
+        console.error('[Admin Routes] Response already sent, cannot send error response');
+      }
+    } else {
+      next();
     }
-    next();
   });
-}, async (req, res) => {
+}, async (req, res, next) => {
   let uploadedFilePath = null;
   
   try {
+    console.log('[Admin Routes] Processing uploaded file:', {
+      hasFile: !!req.file,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size,
+      filePath: req.file?.path,
+      mimetype: req.file?.mimetype,
+      carName: req.body?.carName,
+      imageType: req.body?.imageType
+    });
+
     if (!req.file) {
+      console.error('[Admin Routes] No file in request');
       return res.status(400).json({ error: 'No file provided. Please select an image file.' });
     }
 
@@ -456,12 +496,20 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       code: error.code,
       errno: error.errno,
       syscall: error.syscall,
+      name: error.name,
+      type: error.constructor?.name,
       file: req.file ? {
         originalname: req.file.originalname,
         path: req.file.path,
         size: req.file.size,
         mimetype: req.file.mimetype
-      } : null
+      } : null,
+      requestInfo: {
+        contentType: req.headers['content-type'],
+        contentLength: req.headers['content-length'],
+        method: req.method,
+        url: req.url
+      }
     });
     
     // Clean up uploaded file on error
@@ -489,7 +537,12 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       errorMessage = error.message;
     }
     
-    res.status(500).json({ error: errorMessage });
+    // Make sure response hasn't been sent
+    if (!res.headersSent) {
+      res.status(500).json({ error: errorMessage });
+    } else {
+      console.error('[Admin Routes] Response already sent, cannot send error response');
+    }
   }
 });
 

@@ -88,6 +88,7 @@ app.use(helmet({
 app.use(compression());
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For form data
 
 const server = http.createServer(app);
 
@@ -604,6 +605,25 @@ app.use('/api/admin', require('./routes/admin'));
 
 app.use((err, req, res, _next) => {
   const status = err.status || 500;
+  
+  // For upload routes, show actual error message
+  if (req.url.includes('/cars/upload')) {
+    console.error('[Global Error Handler] Upload error:', {
+      message: err.message,
+      code: err.code,
+      name: err.name,
+      stack: err.stack,
+      requestUrl: req.url,
+      requestMethod: req.method,
+      contentType: req.headers['content-type'],
+      contentLength: req.headers['content-length']
+    });
+    
+    // Don't send generic "Internal server error" for upload errors
+    const message = err.message || 'File upload failed';
+    return res.status(status).json({ error: message });
+  }
+  
   const message = status === 500 ? 'Internal server error' : err.message;
   if (status === 500) {
     console.error('Error:', err);

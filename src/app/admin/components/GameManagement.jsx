@@ -118,12 +118,25 @@ export default function GameManagement({ adminToken }) {
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         errorMessage = `Upload timeout after 120 seconds. File size: ${(file?.size / 1024 / 1024).toFixed(2)}MB. The file may be too large or connection is slow.`;
       } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        // Network error - but check if it's actually a backend error
-        if (error.response) {
+        // Network error - check if request was sent
+        if (error.request) {
+          // Request was made but no response received
+          if (error.code === 'ECONNABORTED') {
+            errorMessage = `Upload timeout. File size: ${(file?.size / 1024 / 1024).toFixed(2)}MB. The file may be too large or server is not responding.`;
+          } else if (error.message?.includes('Failed to fetch') || error.message?.includes('Network request failed')) {
+            errorMessage = `Connection failed. Server may be unreachable or request was blocked. File size: ${(file?.size / 1024 / 1024).toFixed(2)}MB.`;
+          } else {
+            errorMessage = `Network error: No response from server. File size: ${(file?.size / 1024 / 1024).toFixed(2)}MB. This could be due to:\n- File too large for server to handle\n- Server timeout\n- Connection interrupted\n- Server resource limits exceeded`;
+          }
+        } else if (error.response) {
+          // Got response but it's an error
           errorMessage = `Backend error: ${error.response.status} ${error.response.statusText || 'Unknown error'}`;
         } else {
+          // No request or response - likely a setup issue
           errorMessage = `Network error: ${error.message}. Check if server is running and accessible.`;
         }
+      } else if (error.code === 'ERR_CANCELED') {
+        errorMessage = `Upload was canceled. Please try again.`;
       } else if (error.message) {
         errorMessage = error.message;
       }
