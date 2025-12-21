@@ -531,36 +531,34 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     // Clear timeout and send response
     clearTimeout(responseTimeout);
     
-    // Ensure response is sent immediately with explicit flushing
-    if (!res.headersSent) {
-      console.log('[Admin Routes] Sending success response...', { imageUrl });
-      try {
-        // Set headers explicitly
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Content-Length', Buffer.byteLength(JSON.stringify({ imageUrl })));
-        
-        // Send response and flush
-        res.status(200).json({ imageUrl });
-        
-        // Force flush the response
-        if (typeof res.flush === 'function') {
+    // Ensure response is sent immediately
+    if (!res.headersSent && !res.finished) {
+      console.log('[Admin Routes] Sending success response...', { imageUrl, processingTime: Date.now() - startTime });
+      
+      // Use res.json() which handles everything properly
+      res.status(200).json({ imageUrl });
+      
+      // Log after sending
+      console.log('[Admin Routes] Success response sent', {
+        headersSent: res.headersSent,
+        finished: res.finished,
+        statusCode: res.statusCode
+      });
+      
+      // Try to flush if available (for HTTP/1.1 keep-alive)
+      if (typeof res.flush === 'function') {
+        try {
           res.flush();
-        }
-        
-        console.log('[Admin Routes] Success response sent and flushed');
-      } catch (sendError) {
-        console.error('[Admin Routes] Error sending response:', sendError);
-        // Try to send error response if possible
-        if (!res.headersSent) {
-          try {
-            res.status(500).json({ error: 'Failed to send response' });
-          } catch (e) {
-            console.error('[Admin Routes] Cannot send error response either:', e);
-          }
+        } catch (flushError) {
+          // Flush errors are usually harmless
+          console.warn('[Admin Routes] Flush warning (usually harmless):', flushError.message);
         }
       }
     } else {
-      console.error('[Admin Routes] WARNING: Response already sent, cannot send success response');
+      console.error('[Admin Routes] WARNING: Cannot send response', {
+        headersSent: res.headersSent,
+        finished: res.finished
+      });
     }
   } catch (error) {
     clearTimeout(responseTimeout); // Clear timeout on error
