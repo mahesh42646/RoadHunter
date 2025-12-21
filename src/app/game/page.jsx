@@ -1556,7 +1556,7 @@ export default function Html5RaceGamePage() {
         const carImage = carImagesRef.current[carId];
         if (carImage && carImage.complete && carImage.naturalWidth > 0) {
           // Make cars 1.2x bigger
-          const scaledCarSize = baseCarSize * 1.2;
+          const scaledCarSize = baseCarSize * 1.6;
           
           // Calculate aspect ratio to prevent stretching
           const imageAspectRatio = carImage.naturalWidth / carImage.naturalHeight;
@@ -2258,138 +2258,143 @@ export default function Html5RaceGamePage() {
           className="p-4"
           style={{ 
             background: "var(--bg-card, #141b2d)",
-            minHeight: "400px",
+            maxHeight: "90vh",
+            overflowY: "auto",
           }}
         >
-          <div className="row g-4">
-            {/* Left Side - User Selections */}
-            <div className="col-12 col-md-6">
-              <div
-                className="h-100 p-4 rounded"
+          {/* Single Centered Box with All Info */}
+          <div
+            className="mx-auto rounded position-relative"
+            style={{
+              background: "rgba(20, 27, 45, 0.8)",
+              border: "2px solid rgba(0, 245, 255, 0.3)",
+              padding: "2rem",
+              maxWidth: "500px",
+              boxShadow: "0 10px 40px rgba(0, 245, 255, 0.2)",
+            }}
+          >
+            {/* Subtle glow effect */}
+            <div
+              className="position-absolute"
+              style={{
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: "300px",
+                height: "300px",
+                background: "radial-gradient(circle, var(--glow-cyan, rgba(0, 245, 255, 0.15)) 0%, transparent 70%)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+
+            <div className="position-relative" style={{ zIndex: 2 }}>
+              {/* Winner Section */}
+              <div className="text-center mb-4">
+                <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                  <span style={{ fontSize: "2rem" }}>🏆</span>
+                  <h4 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
+                    Winner
+                  </h4>
+                </div>
+
+                {/* Winner Car Image */}
+                {getImageUrl(winnerCar?.sideViewImage) && (
+                  <div className="mb-3">
+                    <img
+                      src={getImageUrl(winnerCar.sideViewImage)}
+                      alt="Winner Car"
+                      className="mx-auto d-block"
+                      style={{
+                        width: "180px",
+                        maxWidth: "100%",
+                        height: "auto",
+                        objectFit: "contain",
+                        filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="fs-2 fw-bold mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                  {winnerCar?.name || game.winnerName || "Unknown"}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div 
+                className="mx-auto mb-4"
                 style={{
-                  background: "rgba(20, 27, 45, 0.6)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  minHeight: "300px",
+                  width: "80%",
+                  height: "1px",
+                  background: "linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent)",
                 }}
-              >
-                <div className="d-flex align-items-center gap-2 mb-3">
+              />
+
+              {/* Your Selection Section */}
+              <div className="text-center mb-4">
+                <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
                   <span style={{ fontSize: "1.5rem" }}>🎯</span>
                   <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
-                    Your Selections
+                    Your Selection
                   </h5>
                 </div>
-                
+
                 {myPredictions.length > 0 ? (
                   <>
-                    <div className="d-flex flex-column align-items-center justify-content-center mb-3">
-                      {myPredictions[0]?.predictedCarId && (
-                        <>
-                          {getImageUrl(getCarById(myPredictions[0].predictedCarId)?.sideViewImage) && (
+                    {myPredictions[0]?.predictedCarId && (
+                      <>
+                        {getImageUrl(getCarById(myPredictions[0].predictedCarId)?.sideViewImage) && (
+                          <div className="mb-2">
                             <img
                               src={getImageUrl(getCarById(myPredictions[0].predictedCarId).sideViewImage)}
-                              alt="Car"
+                              alt="Your Car"
+                              className="mx-auto d-block"
                               style={{ 
-                                width: "150px", 
+                                width: "120px",
+                                maxWidth: "100%",
                                 height: "auto", 
                                 objectFit: "contain",
-                                marginBottom: "0.1rem",
+                                opacity: isWinner ? 1 : 0.6,
                               }}
                             />
-                          )}
-                          <div className="fs-4 fw-bold mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                            {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
                           </div>
-                        </>
-                      )}
-                    </div>
-                    <div className="text-center">
-                      <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
-                        {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} placed
-                      </div>
-                      <div className="d-flex align-items-center justify-content-center gap-2">
-                        <BsCoin style={{ color: "#ffd700" }} />
-                        <span style={{ color: "var(--text-primary, #ffffff)", fontSize: "1.1rem" }}>
-                          {myPredictions.length * 100} coins
-                        </span>
-                      </div>
+                        )}
+                        <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
+                          {getCarById(myPredictions[0].predictedCarId)?.name || "Unknown Car"}
+                        </div>
+                      </>
+                    )}
+                    <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)", fontSize: "0.9rem" }}>
+                      {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} • {myPredictions.length * 100} coins
                     </div>
                   </>
                 ) : (
-                  <div className="text-center py-5">
-                    <div className="fs-5 fw-bold mb-2" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                  <div className="py-2">
+                    <div className="fs-6" style={{ color: "var(--text-muted, #a8b3d0)" }}>
                       No selections made
                     </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Right Side - Winner Car */}
-            <div className="col-12 col-md-6">
-              <div
-                className="h-100 p-4 rounded position-relative d-flex flex-column align-items-center justify-content-center"
-                style={{
-                  background: "rgba(20, 27, 45, 0.6)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  minHeight: "300px",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Subtle glow effect */}
-                <div
-                  className="position-absolute"
-                  style={{
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "200px",
-                    height: "200px",
-                    background: "radial-gradient(circle, var(--glow-cyan, rgba(0, 245, 255, 0.2)) 0%, transparent 70%)",
-                    pointerEvents: "none",
-                    zIndex: 1,
-                  }}
-                />
-
-                <div className="position-relative" style={{ zIndex: 2 }}>
-                  <div className="d-flex align-items-center gap-2 mb-3">
-                    <span style={{ fontSize: "1.5rem" }}>🏆</span>
-                    <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
-                      Winner
-                    </h5>
+              {/* Win/Loss Message */}
+              <div className="text-center">
+                {isWinner && winningSelections.length > 0 && (
+                  <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                    🎉 You won {formatNumber(totalPayout)} coins!
                   </div>
-
-                  {/* Winner Car Image */}
-                  {getImageUrl(winnerCar?.sideViewImage) && (
-                    <div className="mb-3">
-                      <img
-                        src={getImageUrl(winnerCar.sideViewImage)}
-                        alt="Winner Car"
-                        style={{
-                          width: "200px",
-                          height: "auto",
-                          objectFit: "contain",
-                          filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="fs-3 fw-bold mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                    {winnerCar?.name || game.winnerName || "Unknown"}
+                )}
+                {!isWinner && myPredictions.length > 0 && (
+                  <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
+                    You lost {formatNumber(totalInvested)} coins
                   </div>
-
-                  {/* Win/Loss Message */}
-                  {isWinner && winningSelections.length > 0 && (
-                    <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                      🎉 You won {formatNumber(totalPayout)} coins!
-                    </div>
-                  )}
-                  {!isWinner && myPredictions.length > 0 && (
-                    <div className="fw-semibold fs-5 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
-                      You lost {formatNumber(totalInvested)} coins
-                    </div>
-                  )}
-                </div>
+                )}
+                {myPredictions.length === 0 && (
+                  <div className="fw-semibold fs-5" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                    Better luck next time!
+                  </div>
+                )}
               </div>
             </div>
           </div>
