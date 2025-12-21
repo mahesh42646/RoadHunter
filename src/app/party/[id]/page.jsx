@@ -906,18 +906,17 @@ export default function PartyRoomPage() {
     >
       {/* Top Section - Participants */}
       <div
-        className="glass-card"
+        className="glass-card p-3"
         style={{
-          flex: "0 0 40%",
-          margin: "0.5rem",
-          padding: "0.75rem",
+          flex: "0 0 25%",
+          
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
         }}
       >
-        <div className="d-flex justify-content-between align-items-start mb-2" style={{ gap: "0.5rem" }}>
+        <div className="d-flex justify-content-between align-items-start " style={{ gap: "0.5rem" }}>
           <div className="d-flex justify-content-between align-items-center" style={{ minWidth: 0 }}>
             <div className="d-flex align-items-center gap-2 mb-1">
               <h6 className="fw-bold mb-0 text-truncate" style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
@@ -947,7 +946,7 @@ export default function PartyRoomPage() {
               </div>
             </div>
           </div>
-          <div className="d-flex gap-1 border flex-shrink-0 align-items-center p-0">
+          <div className="d-flex gap-1  flex-shrink-0 align-items-center p-0">
             {!isParticipant && (
               <Button variant="primary" size="sm" onClick={handleJoin} disabled={joining} style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}>
                 {joining ? "..." : "Join"}
@@ -1009,15 +1008,15 @@ export default function PartyRoomPage() {
 
         {/* Participants Cards Grid - Responsive */}
         <div
-          className="participants-grid-responsive"
+          className="participants-grid-responsive "
           style={{
             flex: 1,
             overflowY: "auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(5, 1fr)", // Mobile: 5 cards per row
+            display: "flex",
             gap: "0.5rem",
-            padding: "0.5rem",
+            padding: "0.1rem",
             alignContent: "flex-start",
+           
           }}
         >
           {topParticipants.map((participant, idx) => {
@@ -1028,12 +1027,10 @@ export default function PartyRoomPage() {
             return (
               <div
                 key={idx}
-                className="glass-card participant-card"
+                className=" rounded-3 border p-1"
                 style={{
                   position: "relative",
                   width: "100%",
-                  padding: "0.5rem",
-                  borderRadius: "0.5rem",
                   cursor: !isCurrentUser ? "pointer" : "default",
                   border: isParticipantHost
                     ? "1px solid var(--accent)"
@@ -1044,6 +1041,9 @@ export default function PartyRoomPage() {
                   transition: "all 0.2s ease",
                   display: "flex",
                   flexDirection: "column",
+                  height: "100%",
+                  width: "auto",
+                  aspectRatio: "1",
                 }}
                 onClick={async () => {
                   if (!isCurrentUser) {
@@ -1065,8 +1065,7 @@ export default function PartyRoomPage() {
                   e.currentTarget.style.boxShadow = isParticipantHost 
                     ? "0 4px 12px rgba(255, 45, 149, 0.3)" 
                     : "0 2px 8px rgba(0, 0, 0, 0.2)";
-                }}
-              >
+                }}  >
                 {/* Host Badge */}
                 {isParticipantHost && (
                   <div
@@ -1080,31 +1079,29 @@ export default function PartyRoomPage() {
                     <Badge
                       className="host-badge"
                       style={{
-                        background: "rgba(255, 45, 149, 0.9)",
                         color: "white",
                         border: "none",
                         fontSize: "clamp(0.5rem, 1.2vw, 0.6rem)",
-                        padding: "clamp(0.15rem, 0.5vw, 0.2rem) clamp(0.3rem, 0.8vw, 0.4rem)",
                         display: "flex",
                         alignItems: "center",
                         gap: "clamp(0.15rem, 0.5vw, 0.25rem)",
                         fontWeight: "bold",
-                        boxShadow: "0 2px 6px rgba(255, 45, 149, 0.4)",
                       }}
                     >
                       <BsStarFill style={{ fontSize: "clamp(0.5rem, 1.2vw, 0.65rem)" }} />
-                      <span className="host-badge-text">HOST</span>
+                     
                     </Badge>
                   </div>
                 )}
 
                 {/* Avatar/Video Container */}
-                <div
+                <div 
+                  className="rounded "
                   style={{
                     position: "relative",
                     width: "100%",
                     aspectRatio: "1",
-                    borderRadius: "0.5rem",
+                    
                     overflow: "hidden",
                     // marginBottom: "0.5rem",
                 
@@ -1119,7 +1116,7 @@ export default function PartyRoomPage() {
                     <>
                       {isHost ? (
                         // Host sees their own local video
-                        <video
+                        <video className="rounded-3 border"
                           ref={webrtc.localVideoRef}
                           autoPlay
                           playsInline
@@ -1133,7 +1130,7 @@ export default function PartyRoomPage() {
                         />
                       ) : (
                         // Participants see host's remote video
-                        <video
+                        <video className="rounded-3 border"
                           ref={webrtc.remoteVideoRef}
                           autoPlay
                           playsInline
@@ -1176,7 +1173,7 @@ export default function PartyRoomPage() {
                       )}
                       {/* Fallback avatar if video not available */}
                       {(!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) && (
-                        <div
+                        <div className="rounded-3"
                           style={{
                             position: "absolute",
                             inset: 0,
@@ -1198,6 +1195,7 @@ export default function PartyRoomPage() {
                   ) : (
                     // Regular participant avatar
                     <div
+                      className="rounded-3"
                       style={{
                         width: "100%",
                         height: "100%",
@@ -1262,14 +1260,14 @@ export default function PartyRoomPage() {
       <div
         className="glass-card"
         style={{
-          flex: "0 0 60%",
-          margin: "0.1rem",
-          padding: "0.1rem",
-          paddingBottom: isParticipant ? "75px" : "10px", // Account for bottom nav (60px) + spacing
+          flex: "0 0 75%",
+          
+          // paddingBottom: isParticipant ? "33px" : "10px", // Account for bottom nav (60px) + spacing
           display: "flex",
           flexDirection: "column",
           overflow: "auto",
           minHeight: 0,
+          padding: "0",
         }}
       >
         
@@ -1277,11 +1275,11 @@ export default function PartyRoomPage() {
           style={{
             flex: 1,
             overflowY: "auto",
-            marginBottom: "0.5rem",
+            // marginBottom: "0.5rem",
             display: "flex",
             flexDirection: "column",
-            gap: "0.4rem",
-            paddingBottom: isParticipant && activeBottomNav === "chat" ? "90px" : "10px", // Extra space for fixed chat input
+            // gap: "0.4rem",
+            paddingBottom: isParticipant && activeBottomNav === "chat" ? "30px" : "0px", // Extra space for fixed chat input
           }}
         >
             {recentMessages.map((msg, idx) => {
@@ -1293,7 +1291,7 @@ export default function PartyRoomPage() {
                   style={{
                     
                     background: "linear-gradient(90deg, rgba(58, 58, 58, 0.43) 0%, rgba(0, 0, 0, 0.1) 100%)",
-                    borderRadius: "0.5rem",
+                    
                   }}
                 >
                   <div
@@ -1386,7 +1384,7 @@ export default function PartyRoomPage() {
                 background: "rgba(15, 22, 36, 0.98)",
                 backdropFilter: "blur(20px)",
                 padding: "0.75rem",
-                borderRadius: "0.5rem",
+                
                 boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.3)",
               }}
             >

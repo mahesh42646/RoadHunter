@@ -68,7 +68,7 @@ a {
 /* Glassmorphism Card */
 .glass-card {
   background: rgba(20, 27, 45, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.059);
   border-radius: 1.5rem;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -79,11 +79,11 @@ a {
 }
 
 .glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.098);
   box-shadow: 
-    0 12px 48px rgba(0, 0, 0, 0.5),
+    0 12px 48px rgba(0, 0, 0, 0.157),
     0 0 40px var(--glow-pink),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    inset 0 1px 0 rgba(255, 255, 255, 0.063);
 }
 
 /* Rainbow Gradient Text */
@@ -531,18 +531,10 @@ button:active {
   }
 }
 
-/* Responsive Participants Cards Grid */
-.participants-grid-responsive {
-  grid-template-columns: repeat(5, 1fr) !important; /* Mobile: 5 cards per row */
-}
 
 /* Tablet - 7 cards per row */
 @media (min-width: 576px) {
-  .participants-grid-responsive {
-    grid-template-columns: repeat(7, 1fr) !important;
-    gap: 0.6rem !important;
-    padding: 0.6rem !important;
-  }
+ 
   
   .participant-card {
     padding: 0.2rem !important;
@@ -551,11 +543,7 @@ button:active {
 
 /* Medium screens - 8 cards per row */
 @media (min-width: 768px) {
-  .participants-grid-responsive {
-    grid-template-columns: repeat(8, 1fr) !important;
-    gap: 0.7rem !important;
-    padding: 0.7rem !important;
-  }
+ 
   
   .participant-card {
     padding: 0.5rem !important;
@@ -564,11 +552,7 @@ button:active {
 
 /* Large screens - 9 cards per row */
 @media (min-width: 992px) {
-  .participants-grid-responsive {
-    grid-template-columns: repeat(9, 1fr) !important;
-    gap: 0.75rem !important;
-    padding: 0.75rem !important;
-  }
+ 
   
   .participant-card {
     padding: 0.7rem !important;
@@ -577,11 +561,7 @@ button:active {
 
 /* Desktop - 10 cards per row */
 @media (min-width: 1200px) {
-  .participants-grid-responsive {
-    grid-template-columns: repeat(10, 1fr) !important;
-    gap: 0.75rem !important;
-    padding: 0.75rem !important;
-  }
+ 
   
   .participant-card {
     padding: 0.5rem !important;
@@ -590,10 +570,7 @@ button:active {
 
 /* Extra large screens - maintain 10 cards but with more spacing */
 @media (min-width: 1400px) {
-  .participants-grid-responsive {
-    gap: 0.85rem !important;
-    padding: 0.85rem !important;
-  }
+ 
   
   .participant-card {
     padding: 0.5rem !important;
@@ -624,10 +601,7 @@ button:active {
     display: none !important;
   }
   
-  .host-badge-text {
-    display: none !important;
-  }
-  
+ 
   .host-badge {
     padding: 0.15rem 0.25rem !important;
   }
@@ -635,10 +609,7 @@ button:active {
 
 /* Ensure proper spacing on mobile */
 @media (max-width: 576px) {
-  .participants-grid-responsive {
-    gap: 0.4rem !important;
-    padding: 0.4rem !important;
-  }
+
   
   .participant-card {
     padding: 0.4rem !important;

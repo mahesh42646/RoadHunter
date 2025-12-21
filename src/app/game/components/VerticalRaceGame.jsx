@@ -1246,7 +1246,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                   // Pothole shadow (inner darkness)
                   ctx.fillStyle = "rgba(40, 25, 15, 0.9)";
                   ctx.beginPath();
-                  ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.6, 0, 0, Math.PI * 2);
+                  ctx.ellipse(obsX, obsY, obstacle.size, obstacle.size * 0.2, 0, 0, Math.PI * 2);
                   ctx.fill();
 
                   // Pothole rim highlight (3D edge)
@@ -1915,7 +1915,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               overflow: "auto",
             }}
           >
-            <div className="p-3" style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+            <div className="p-3" >
               <div className="fw-semibold text-center" style={{ color: "var(--text-primary, #ffffff)", fontSize: "clamp(1rem, 2vw, 1.25rem)" }}>
                 Race Starting In
               </div>
@@ -2326,7 +2326,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               style={{
                 background: "rgba(20, 27, 45, 0.8)",
                 border: "2px solid rgba(0, 245, 255, 0.3)",
-                padding: "2rem",
+                
                 maxWidth: "500px",
                 boxShadow: "0 10px 40px rgba(0, 245, 255, 0.2)",
               }}
