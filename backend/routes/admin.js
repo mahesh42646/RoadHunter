@@ -349,21 +349,6 @@ router.get('/transactions', authenticateAdmin, async (req, res, next) => {
 
 // Image upload endpoint for cars - no validations, accept any file
 router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
-  // Set a timeout for the entire request
-  const requestTimeout = setTimeout(() => {
-    if (!res.headersSent) {
-      console.error('[Admin Routes] Request timeout - no response sent after 60 seconds');
-      res.status(504).json({ error: 'Request timeout. File processing took too long.' });
-    }
-  }, 60000); // 60 second timeout for processing
-
-  // Clear timeout when response is sent
-  const originalEnd = res.end;
-  res.end = function(...args) {
-    clearTimeout(requestTimeout);
-    originalEnd.apply(this, args);
-  };
-
   // Log incoming request info
   console.log('[Admin Routes] Upload request received:', {
     contentType: req.headers['content-type'],
@@ -374,7 +359,6 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
 
   // Handle multer errors first
   uploadCar.single('image')(req, res, (err) => {
-    clearTimeout(requestTimeout); // Clear timeout if multer error occurs
     if (err) {
       console.error('[Admin Routes] Multer error:', {
         code: err.code,
@@ -432,6 +416,23 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
   let uploadedFilePath = null;
   const startTime = Date.now();
   
+  // Set response timeout to prevent hanging
+  const responseTimeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('[Admin Routes] Response timeout - no response sent after 30 seconds');
+      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+        try {
+          fs.unlinkSync(uploadedFilePath);
+        } catch (unlinkError) {
+          console.error('[Admin Routes] Error cleaning up file on timeout:', unlinkError);
+        }
+      }
+      if (!res.headersSent) {
+        res.status(504).json({ error: 'Request timeout. File processing took too long.' });
+      }
+    }
+  }, 30000); // 30 second timeout for response
+  
   try {
     console.log('[Admin Routes] Processing uploaded file:', {
       hasFile: !!req.file,
@@ -440,49 +441,42 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       filePath: req.file?.path,
       mimetype: req.file?.mimetype,
       carName: req.body?.carName,
-      imageType: req.body?.imageType,
-      timestamp: new Date().toISOString()
+      imageType: req.body?.imageType
     });
 
     if (!req.file) {
       console.error('[Admin Routes] No file in request');
+      clearTimeout(responseTimeout);
       return res.status(400).json({ error: 'No file provided. Please select an image file.' });
     }
 
     uploadedFilePath = req.file.path;
-    
-    // Log file received
-    console.log('[Admin Routes] File received successfully, starting processing...');
 
-    // Check file system health
+    // Quick validation - don't do heavy checks that might hang
     try {
-      // Verify file was actually saved
+      // Verify file was actually saved (quick check)
       if (!fs.existsSync(uploadedFilePath)) {
+        clearTimeout(responseTimeout);
         return res.status(500).json({ error: 'File was not saved properly. Check server disk space and permissions.' });
       }
 
-      // Check file size matches what was uploaded
+      // Check file size (quick check)
       const stats = fs.statSync(uploadedFilePath);
       if (stats.size === 0) {
         fs.unlinkSync(uploadedFilePath);
+        clearTimeout(responseTimeout);
         return res.status(500).json({ error: 'File was saved but is empty (0 bytes). File may be corrupted or disk is full.' });
       }
-
-      // Check available disk space (rough estimate)
-      try {
-        const uploadsDir = path.dirname(uploadedFilePath);
-        const testFile = path.join(uploadsDir, '.space-check');
-        fs.writeFileSync(testFile, 'test');
-        fs.unlinkSync(testFile);
-      } catch (spaceError) {
-        console.error('[Admin Routes] Disk space check failed:', spaceError);
-        if (fs.existsSync(uploadedFilePath)) {
-          fs.unlinkSync(uploadedFilePath);
-        }
-        return res.status(500).json({ error: 'Server disk space issue. File could not be saved. Contact administrator.' });
-      }
+      
+      // Skip disk space check to avoid hanging - just verify file exists and has size
+      console.log('[Admin Routes] File validation passed:', {
+        exists: true,
+        size: stats.size,
+        path: uploadedFilePath
+      });
     } catch (fsError) {
       console.error('[Admin Routes] File system error:', fsError);
+      clearTimeout(responseTimeout);
       if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
         try {
           fs.unlinkSync(uploadedFilePath);
@@ -490,50 +484,22 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
           console.error('[Admin Routes] Error cleaning up file:', unlinkError);
         }
       }
-      return res.status(500).json({ 
-        error: `File system error: ${fsError.message || 'Unable to save file. Check server disk space and permissions.'}` 
-      });
+      if (!res.headersSent) {
+        return res.status(500).json({ 
+          error: `File system error: ${fsError.message || 'Unable to save file. Check server disk space and permissions.'}` 
+        });
+      }
+      return;
     }
 
-    // Rename file with car name if provided (after multer processes req.body)
-    let finalFilePath = uploadedFilePath;
-    if (req.body?.carName && req.body?.carName.trim()) {
-      try {
-        const carName = req.body.carName.trim();
-        const imageType = req.body.imageType || 'image';
-        
-        // Sanitize car name for filename
-        const sanitizedCarName = carName
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/-+/g, '-')
-          .substring(0, 50);
-        
-        // Get extension from current file
-        const ext = path.extname(uploadedFilePath) || '.jpg';
-        const uploadsDir = path.dirname(uploadedFilePath);
-        const newFilename = `${sanitizedCarName}-${imageType}-${Date.now()}${ext}`;
-        const newFilePath = path.join(uploadsDir, newFilename);
-        
-        // Rename file
-        fs.renameSync(uploadedFilePath, newFilePath);
-        finalFilePath = newFilePath;
-        console.log('[Admin Routes] File renamed:', { from: uploadedFilePath, to: newFilePath });
-      } catch (renameError) {
-        console.error('[Admin Routes] Error renaming file (using original name):', renameError);
-        // Continue with original filename if rename fails
-      }
-    }
-    
     // Use original file directly - no optimization
-    const relativePath = path.relative(path.join(__dirname, '../uploads'), finalFilePath);
+    const relativePath = path.relative(path.join(__dirname, '../uploads'), uploadedFilePath);
     const imageUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
     
     const processingTime = Date.now() - startTime;
     console.log('[Admin Routes] File uploaded successfully:', {
       originalName: req.file.originalname,
-      savedPath: finalFilePath,
+      savedPath: uploadedFilePath,
       imageUrl: imageUrl,
       size: req.file.size,
       mimetype: req.file.mimetype,
@@ -542,14 +508,20 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
       processingTimeMs: processingTime
     });
     
-    // Make sure response hasn't been sent
+    // Clear timeout and send response
+    clearTimeout(responseTimeout);
+    
+    // Ensure response is sent immediately
     if (!res.headersSent) {
+      console.log('[Admin Routes] Sending success response...');
       res.json({ imageUrl });
-      console.log('[Admin Routes] Response sent successfully');
+      console.log('[Admin Routes] Success response sent');
     } else {
       console.error('[Admin Routes] WARNING: Response already sent, cannot send success response');
     }
   } catch (error) {
+    clearTimeout(responseTimeout); // Clear timeout on error
+    
     console.error('[Admin Routes] Error uploading file:', {
       message: error.message,
       stack: error.stack,
@@ -599,7 +571,9 @@ router.post('/cars/upload', authenticateAdmin, (req, res, next) => {
     
     // Make sure response hasn't been sent
     if (!res.headersSent) {
+      console.log('[Admin Routes] Sending error response...');
       res.status(500).json({ error: errorMessage });
+      console.log('[Admin Routes] Error response sent');
     } else {
       console.error('[Admin Routes] Response already sent, cannot send error response');
     }
