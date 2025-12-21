@@ -1869,9 +1869,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           }
         });
 
-        if (isDrawing) {
-          animationId = requestAnimationFrame(draw);
-        }
+        // Always continue drawing loop - never stop it
+        animationId = requestAnimationFrame(draw);
       };
 
       // Start the animation loop
