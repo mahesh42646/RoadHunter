@@ -341,6 +341,7 @@ export default function HomePage() {
           })
         )}
       </div>
+      </div>
 
       {/* Login Modal */}
       <Modal
