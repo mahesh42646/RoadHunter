@@ -132,13 +132,8 @@ export default function PartyRoomPage() {
     }
 
     if (!isAuthenticated) {
-      // Only redirect if not authenticated, but check if user was in a party first
-      if (currentPartyId) {
-        // User was in a party, try to restore it
-        router.replace(`/party/${currentPartyId}`);
-      } else {
-        router.replace("/user/login");
-      }
+      // Redirect to home (party list) if not authenticated
+      router.replace("/");
       return;
     }
 
