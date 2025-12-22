@@ -34,18 +34,13 @@ export default function HomePage() {
   useEffect(() => {
     if (!hydrated) return;
 
-    // If user is already in a party, redirect to that party immediately
-    if (currentPartyId) {
-      router.replace(`/party/${currentPartyId}`);
-      return;
-    }
-
-    // Load parties (works for both authenticated and non-authenticated users)
+    // Always show party list - don't auto-redirect to last party
+    // User can manually click to join a party
     loadParties();
 
     const interval = setInterval(loadParties, 5000);
     return () => clearInterval(interval);
-  }, [hydrated, router, currentPartyId]);
+  }, [hydrated, router]);
 
   // After login, join selected party if any
   useEffect(() => {
