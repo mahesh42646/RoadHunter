@@ -2742,30 +2742,25 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                     setGifting(true);
                     try {
                       const giftAmount = Math.floor(totalPayout * giftPercentage / 100);
-                      // Use gift API to send coins to all participants
-                      // Note: This might need a backend endpoint for direct coin distribution
-                      // For now, using a placeholder - backend should implement /parties/:partyId/gifts/distribute-coins
-                      await apiClient.post(`/parties/${partyId}/gifts/distribute-coins`, {
+                      const response = await apiClient.post(`/parties/${partyId}/gifts/distribute-coins`, {
                         amount: giftAmount,
                         gameId: game._id,
                       });
+                      
+                      // Show success message
+                      alert(`Successfully distributed ${formatNumber(giftAmount)} coins to ${response.data.recipientCount} party participants!`);
+                      
                       setShowWinModal(false);
                       // Refresh balance
                       if (wallet?.partyCoins !== undefined) {
-                        // Balance will be updated via wallet prop
+                        // Balance will be updated via wallet prop or socket event
                       } else {
-                        const response = await apiClient.get("/wallet/balance");
-                        setUserBalance(response.data.partyCoins || 0);
+                        const balanceResponse = await apiClient.get("/wallet/balance");
+                        setUserBalance(balanceResponse.data.partyCoins || 0);
                       }
                     } catch (error) {
                       console.error("Failed to send gift:", error);
-                      // If endpoint doesn't exist, just close modal (backend can implement later)
-                      if (error.response?.status === 404) {
-                        alert("Gift feature coming soon!");
-                        setShowWinModal(false);
-                      } else {
-                        alert(error.response?.data?.error || "Failed to send gift");
-                      }
+                      alert(error.response?.data?.error || "Failed to distribute coins. Please try again.");
                     } finally {
                       setGifting(false);
                     }
