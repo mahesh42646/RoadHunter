@@ -378,8 +378,11 @@ export default function PartyRoomPage() {
         }
       } else {
         // User is not a participant but party exists
-        // Don't auto-join, just set loading to false so they can see the party
-        // and choose to join
+        // Redirect to home page to see party list - no manual join button
+        clearCurrentParty();
+        clearPartyState();
+        router.replace("/");
+        return;
       }
 
       setLoading(false);
@@ -585,9 +588,13 @@ export default function PartyRoomPage() {
       await apiClient.delete(`/parties/${partyId}`);
       clearCurrentParty();
       clearPartyState(); // Clear party UI state
-      router.push("/party");
+      router.push("/");
     } catch (error) {
       alert(error.response?.data?.error || "Failed to end party");
+      // Even on error, redirect to home
+      clearCurrentParty();
+      clearPartyState();
+      router.push("/");
     }
   };
 
@@ -739,7 +746,9 @@ export default function PartyRoomPage() {
     },
     onParticipantRemoved: (data) => {
       if (data.userId === user?._id?.toString()) {
-        router.push("/party");
+        clearCurrentParty();
+        clearPartyState();
+        router.push("/");
       } else {
         loadParty();
       }
