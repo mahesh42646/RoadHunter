@@ -452,7 +452,7 @@ export default function PartyRoomPage() {
       await apiClient.post(`/parties/${partyId}/leave`);
       clearCurrentParty();
       clearPartyState(); // Clear party UI state
-      router.push("/party");
+      router.push("/");
     } catch (error) {
       console.error("Failed to leave party", error);
       
@@ -460,7 +460,7 @@ export default function PartyRoomPage() {
       if (error.response?.status === 404 || error.response?.data?.message === 'Not in party') {
         clearCurrentParty();
         clearPartyState(); // Clear party UI state
-        router.push("/party");
+        router.push("/");
         return;
       }
 
@@ -469,7 +469,7 @@ export default function PartyRoomPage() {
       // Even on error, try to clear store and navigate
       clearCurrentParty();
       clearPartyState(); // Clear party UI state
-      router.push("/party");
+      router.push("/");
     }
   };
 
@@ -730,7 +730,9 @@ export default function PartyRoomPage() {
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     },
     onPartyEnded: () => {
-      router.push("/party");
+      clearCurrentParty();
+      clearPartyState();
+      router.push("/");
     },
     onHostTransferred: (data) => {
       loadParty();
