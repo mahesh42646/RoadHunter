@@ -169,26 +169,27 @@ export default function HomePage() {
   return (
     <div
       style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: "100vh",
-        width: "100vw",
-        overflowY: "auto",
-        padding: "1rem 0.5rem",
+        minHeight: "100vh",
+        paddingTop: "70px", // Space for fixed header
+        paddingBottom: "100px", // Space for footer
         background: "radial-gradient(ellipse at top, #0f1624 0%, #0a0e1a 50%, #050810 100%)",
       }}
     >
-      <div className="d-flex justify-content-between align-items-center mb-3 px-2">
-        <h4 className="fw-bold mb-0" style={{ color: "var(--text-secondary)" }}>
-          Party Rooms
-        </h4>
-        <Button variant="primary" size="sm" onClick={() => setShowCreateModal(true)}>
-          + Create
-        </Button>
-      </div>
+      <div className="container-fluid px-3 py-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h4 className="fw-bold mb-0" style={{ color: "var(--text-secondary)" }}>
+            Party Rooms
+          </h4>
+          <Button variant="primary" size="sm" onClick={() => {
+            if (!isAuthenticated) {
+              setShowLoginModal(true);
+            } else {
+              setShowCreateModal(true);
+            }
+          }}>
+            + Create
+          </Button>
+        </div>
 
       <div className="row g-2">
         {parties.length === 0 ? (

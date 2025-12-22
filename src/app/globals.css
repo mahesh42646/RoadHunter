@@ -5,17 +5,17 @@
   --bg-card: #141b2d;
   --text-primary: #ffffff;
   --text-secondary: #e0e6ff;
-  --text-muted: #a8b3d0;
+  --text-muted: #bcc3d4;
   --text-dim: #7a85a3;
-  --accent: #ca0000;
+  --accent: #4700ca;
   --accent-secondary: #00f5ff;
-  --accent-tertiary: #ce0000;
+  --accent-tertiary: #1500ce;
   --glow-pink: rgba(200, 0, 100, 0.4);
   --glow-cyan: rgba(0, 245, 255, 0.4);
   --glow-orange: rgba(192, 80, 0, 0.3);
-  --shadow-soft: 0 15px 40px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 30px rgba(161, 0, 81, 0.3);
-  --shadow-glow-cyan: 0 0 30px rgba(0, 245, 255, 0.3);
+  --shadow-soft: 0 15px 40px rgba(0, 0, 0, 0.337);
+  --shadow-glow: 0 0 30px rgba(74, 42, 58, 0.3);
+  --shadow-glow-cyan: 0 0 30px rgba(35, 60, 61, 0.3);
 }
 
 html,
@@ -88,7 +88,7 @@ a {
 
 /* Rainbow Gradient Text */
 .rainbow-text {
-  background: linear-gradient(135deg, #ff2d95 0%, #ff7a18 50%, #00f5ff 100%);
+  background: linear-gradient(135deg, #7c6eb1 0%, #1827ff 50%, #54abae 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

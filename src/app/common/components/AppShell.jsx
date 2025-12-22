@@ -17,15 +17,16 @@ export default function AppShell({ children }) {
     [pathname],
   );
 
-  const mainClass = hideChrome ? "" : "pt-5 mt-5";
-
   return (
     <>
       {!hideChrome && <Header />}
       <main 
-        className={mainClass} 
         style={{ 
-          paddingBottom: hideChrome ? "0" : "80px",
+          paddingTop: hideChrome ? "0" : "70px", // Space for fixed header
+          paddingBottom: hideChrome ? "0" : "80px", // Space for bottom nav
+          minHeight: hideChrome ? "100vh" : "calc(100vh - 70px)", // Full height minus header
+          display: hideChrome ? "block" : "flex",
+          flexDirection: hideChrome ? "block" : "column",
           // For chrome-free routes (like /game), ensure full viewport
           ...(hideChrome ? {
             height: "100dvh",
@@ -37,8 +38,8 @@ export default function AppShell({ children }) {
         }}
       >
         {children}
+        {!hideChrome && <Footer />}
       </main>
-      {!hideChrome && <Footer />}
       {!hideChrome && <FloatingHelp />}
       {/* Hide bottom nav on chrome-free routes (party, game) */}
       {!hideChrome && <MobileBottomNav />}

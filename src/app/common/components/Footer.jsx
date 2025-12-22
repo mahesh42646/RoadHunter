@@ -6,11 +6,13 @@ import { Container, Row, Col } from "react-bootstrap";
 export default function Footer() {
   return (
     <footer 
-      className="mt-5 py-4"
+      className="py-4"
       style={{
         borderTop: "1px solid rgba(255, 255, 255, 0.1)",
         background: "rgba(10, 14, 26, 0.5)",
-        backdropFilter: "blur(10px)"
+        backdropFilter: "blur(10px)",
+        marginTop: "auto",
+        minHeight: "auto",
       }}
     >
       <Container>
