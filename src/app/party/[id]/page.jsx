@@ -67,7 +67,7 @@ export default function PartyRoomPage() {
   const [sendingChat, setSendingChat] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(partyRoomState.showTransferModal || false);
   const [showParticipantMenu, setShowParticipantMenu] = useState(partyRoomState.showParticipantMenu || null);
-  const [activeBottomNav, setActiveBottomNav] = useState(partyRoomState.activeBottomNav || "chat");
+  const [activeBottomNav, setActiveBottomNav] = useState(partyRoomState.activeBottomNav || "games");
   const [wallet, setWallet] = useState(null);
   const [giftAnimations, setGiftAnimations] = useState([]);
   const [participantRelationship, setParticipantRelationship] = useState(null);
@@ -182,26 +182,30 @@ export default function PartyRoomPage() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Tab became hidden - start 1 minute timer to mark as offline
+        // Tab became hidden - start 30 second timer to mark as offline and remove
         isTabVisibleRef.current = false;
         offlineTimerRef.current = setTimeout(async () => {
-          // After 1 minute, mark user as offline
+          // After 30 seconds, mark user as offline and remove from party
           try {
             await apiClient.post(`/parties/${partyId}/mark-offline`);
-            // After marking offline, start 5 minute timer to remove from party
-            removeTimerRef.current = setTimeout(async () => {
-              try {
-                await apiClient.post(`/parties/${partyId}/leave`);
-                clearCurrentParty();
-                router.push("/party");
-              } catch (error) {
-                console.error("Failed to leave party after offline timer", error);
-              }
-            }, 300000); // 5 minutes (300000ms)
+            // Immediately remove from party after 30 seconds offline
+            try {
+              await apiClient.post(`/parties/${partyId}/leave`);
+              clearCurrentParty();
+              router.push("/");
+            } catch (error) {
+              console.error("Failed to leave party after offline timer", error);
+              // Still redirect even if API call fails
+              clearCurrentParty();
+              router.push("/");
+            }
           } catch (error) {
             console.error("Failed to mark as offline", error);
+            // Still redirect even if API call fails
+            clearCurrentParty();
+            router.push("/");
           }
-        }, 60000); // 1 minute
+        }, 30000); // 30 seconds
       } else {
         // Tab became visible again - clear timers and mark as active
         isTabVisibleRef.current = true;
@@ -322,7 +326,7 @@ export default function PartyRoomPage() {
         clearCurrentParty();
         clearPartyState();
         setLoading(false);
-        router.replace("/party");
+        router.replace("/");
         return;
       }
 
