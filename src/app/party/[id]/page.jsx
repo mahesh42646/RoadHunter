@@ -981,11 +981,6 @@ export default function PartyRoomPage() {
             </div>
           </div>
           <div className="d-flex gap-1  flex-shrink-0 align-items-center p-0">
-            {!isParticipant && (
-              <Button variant="primary" size="sm" onClick={handleJoin} disabled={joining} style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}>
-                {joining ? "..." : "Join"}
-              </Button>
-            )}
             {isParticipant && (
               <>
                 {isHost && (
