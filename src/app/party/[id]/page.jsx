@@ -1453,12 +1453,13 @@ export default function PartyRoomPage() {
             }}>
               <GiftSelector
                 show={true}
-                onHide={() => setActiveBottomNav("chat")}
+                onHide={() => setActiveBottomNav("games")}
                 partyId={partyId}
                 wallet={wallet}
                 onGiftSent={() => {
                   loadWallet();
-                  setActiveBottomNav("chat");
+                  // Stay on gifts after sending, or go back to games
+                  // setActiveBottomNav("games");
                 }}
                 participants={participants}
                 hostId={party?.hostId}
@@ -1470,7 +1471,7 @@ export default function PartyRoomPage() {
               <PredictionRaceGame
                 socket={socket}
                 wallet={wallet}
-                onClose={() => setActiveBottomNav("chat")}
+                onClose={() => setActiveBottomNav("games")}
                 partyId={partyId}
               />
             </div>
