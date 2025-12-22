@@ -832,7 +832,6 @@ export default function PartyRoomPage() {
         
         const requestStream = () => {
           if (socket && retryCount < maxRetries) {
-            console.log(`[Party] 📞 Requesting stream (attempt ${retryCount + 1}/${maxRetries})`);
             socket.emit('webrtc:request-stream', {
               partyId,
               hostId: data.hostId,
@@ -874,7 +873,6 @@ export default function PartyRoomPage() {
         console.log("[Party] Backup stream request - mic:", hostMicEnabled, "cam:", hostCameraEnabled);
         setTimeout(() => {
           if (socket) {
-            console.log("[Party] Emitting backup webrtc:request-stream");
             socket.emit('webrtc:request-stream', {
               partyId,
               hostId: hostId,
