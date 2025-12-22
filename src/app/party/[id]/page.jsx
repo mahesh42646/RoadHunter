@@ -101,11 +101,11 @@ export default function PartyRoomPage() {
   const chatMessages = party?.chatMessages || [];
   const recentMessages = chatMessages.slice(-50);
 
-  // Restore UI state from persisted store
+  // Restore UI state from persisted store, but always default to games when joining
   useEffect(() => {
-    if (partyRoomState.activeBottomNav) {
-      setActiveBottomNav(partyRoomState.activeBottomNav);
-    }
+    // Always start with games when joining a party (ignore persisted state)
+    setActiveBottomNav("games");
+    updatePartyRoomState({ activeBottomNav: "games" });
     if (partyRoomState.hostMicEnabled !== undefined) {
       setHostMicEnabled(partyRoomState.hostMicEnabled);
     }
