@@ -274,7 +274,7 @@ export default function PartyRoomPage() {
           } catch (error) {
             console.error("Failed to leave party", error);
             clearCurrentParty();
-            router.push("/party");
+            router.push("/");
           }
         } else {
           // User cancelled - prevent navigation by pushing state back
@@ -707,7 +707,9 @@ export default function PartyRoomPage() {
         ),
       }));
       if (data.userId === user?._id?.toString()) {
-        router.push("/party");
+        clearCurrentParty();
+        clearPartyState();
+        router.push("/");
       }
     },
     onParticipantOffline: (data) => {
