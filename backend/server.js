@@ -738,71 +738,116 @@ process.on('SIGTERM', async () => {
 
 init();
 
-// Cleanup job: Remove offline participants after 30 seconds
+// Cleanup job: Remove offline/stale participants and end empty parties
 // This runs independently of the server startup
 setInterval(async () => {
   try {
     const Party = require('./schemas/party');
+    // Get all active parties
     const parties = await Party.find({
       isActive: true,
-      'participants.status': 'offline',
     });
+    
+    const now = new Date();
+    const OFFLINE_THRESHOLD = 30000; // 30 seconds
+    const STALE_ACTIVE_THRESHOLD = 5 * 60 * 1000; // 5 minutes - if active but no socket connection
     
     for (const party of parties) {
       let updated = false;
-      const now = new Date();
+      let removedParticipants = [];
       
-      // Check each offline participant
+      // Check each participant
       for (let i = party.participants.length - 1; i >= 0; i--) {
         const participant = party.participants[i];
         
-        if (participant.status === 'offline' && participant.userId) {
-          // Check if participant has been offline for more than 30 seconds
+        if (!participant.userId) continue;
+        
+        let shouldRemove = false;
+        const isHost = party.hostId && party.hostId.toString() === participant.userId.toString();
+        
+        // Check if participant is offline and has been offline for more than 30 seconds
+        if (participant.status === 'offline') {
           if (participant.offlineAt) {
             const offlineDuration = now - new Date(participant.offlineAt);
-            if (offlineDuration < 30000) {
-              // Less than 30 seconds, skip
-              continue;
+            if (offlineDuration >= OFFLINE_THRESHOLD) {
+              shouldRemove = true;
+            }
+          } else {
+            // Old data - offline but no timestamp, remove immediately
+            shouldRemove = true;
+          }
+        }
+        // Check if participant is marked as active but hasn't been seen in a while
+        // This catches cases where socket disconnect didn't properly mark them as offline
+        else if (participant.status === 'active' || participant.status === 'muted') {
+          // Check if user has an active socket connection
+          const userId = participant.userId.toString();
+          const hasActiveSocket = onlineUsers.has(userId);
+          
+          if (!hasActiveSocket) {
+            // No active socket - check how long they've been inactive
+            // Use joinedAt as a proxy for last activity (not perfect but better than nothing)
+            if (participant.joinedAt) {
+              const inactiveDuration = now - new Date(participant.joinedAt);
+              // If they joined more than 5 minutes ago and have no socket, they're likely stale
+              if (inactiveDuration >= STALE_ACTIVE_THRESHOLD) {
+                shouldRemove = true;
+              }
+            } else {
+              // No joinedAt timestamp - very old data, remove
+              shouldRemove = true;
             }
           }
+        }
+        
+        if (shouldRemove) {
+          removedParticipants.push({
+            userId: participant.userId.toString(),
+            isHost: isHost,
+          });
           
-          const isHost = party.hostId && party.hostId.toString() === participant.userId.toString();
-          
-          // Remove offline participant
+          // Remove participant
           party.participants.splice(i, 1);
           updated = true;
+        }
+      }
+      
+      // Check if party should be ended (no active participants)
+      if (updated || party.participants.length === 0) {
+        const activeParticipants = party.participants.filter(
+          (p) => p.userId && (p.status === 'active' || p.status === 'muted')
+        );
+        
+        // If no active participants, end the party
+        if (activeParticipants.length === 0) {
+          party.isActive = false;
+          party.endedAt = new Date();
+          updated = true;
           
-          // If host was removed and no active participants, end party
-          if (isHost) {
-            const activeParticipants = party.participants.filter(
-              (p) => p.userId && (p.status === 'active' || p.status === 'muted')
-            );
-            
-            if (activeParticipants.length === 0) {
-              party.isActive = false;
-              if (io) {
-                io.emit('party:ended', { partyId: party._id.toString() });
-              }
-            }
-          }
-          
-          // Emit socket event
           if (io) {
-            io.to(`party:${party._id}`).emit('party:participantLeft', {
-              partyId: party._id.toString(),
-              userId: participant.userId.toString(),
-              isHost: isHost,
-            });
+            io.emit('party:ended', { partyId: party._id.toString() });
           }
         }
       }
       
+      // Save changes and emit events
       if (updated) {
         await party.save();
+        
+        // Emit socket events for removed participants
+        if (io && removedParticipants.length > 0) {
+          for (const removed of removedParticipants) {
+            io.to(`party:${party._id}`).emit('party:participantLeft', {
+              partyId: party._id.toString(),
+              userId: removed.userId,
+              isHost: removed.isHost,
+            });
+          }
+        }
       }
     }
   } catch (error) {
-    console.error('[Cleanup Job] Error removing offline participants:', error);
+    console.error('[Cleanup Job] Error removing offline/stale participants:', error);
   }
 }, 10000); // Run every 10 seconds
 
