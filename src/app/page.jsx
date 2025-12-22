@@ -57,7 +57,7 @@ export default function HomePage() {
       setParties(response.data.parties || []);
       setLoading(false);
     } catch (error) {
-      console.error("Failed to load parties", error);
+      // Error handled silently - show empty state
       setLoading(false);
       setParties([]);
     }
@@ -126,7 +126,6 @@ export default function HomePage() {
       setPosterPreview(null);
       router.push(`/party/${response.data.party._id}`);
     } catch (error) {
-      console.error("Failed to create party", error);
       alert(error.response?.data?.error || "Failed to create party");
     } finally {
       setCreating(false);
@@ -203,7 +202,13 @@ export default function HomePage() {
                 <p className="small mb-3" style={{ color: "var(--text-muted)" }}>
                   Be the first to create a party room!
                 </p>
-                <Button variant="primary" size="sm" onClick={() => setShowCreateModal(true)}>
+                <Button variant="primary" size="sm" onClick={() => {
+                  if (!isAuthenticated) {
+                    setShowLoginModal(true);
+                  } else {
+                    setShowCreateModal(true);
+                  }
+                }}>
                   Create Party
                 </Button>
               </Card.Body>

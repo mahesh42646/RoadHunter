@@ -809,9 +809,6 @@ export default function PartyRoomPage() {
     },
     onStreamState: (data) => {
       // Update host stream state when joining/rejoining
-      console.log("[Party] Stream state received:", data);
-      console.log("[Party] Current isHost:", isHost, "user._id:", user?._id, "party.hostId:", party?.hostId);
-      
       setHostMicEnabled(data.hostMicEnabled);
       setHostCameraEnabled(data.hostCameraEnabled);
       setParty((prev) => ({ 
@@ -825,11 +822,8 @@ export default function PartyRoomPage() {
       const hostUserId = data.hostId?.toString();
       const amIHost = currentUserId && hostUserId && currentUserId === hostUserId;
       
-      console.log("[Party] Am I host?", amIHost, "- my ID:", currentUserId, "host ID:", hostUserId);
-      
       // If host has active stream and we're not the host, request connection
       if (!amIHost && (data.hostMicEnabled || data.hostCameraEnabled) && data.hostId && socket) {
-        console.log("[Party] ✅ Host has active stream - I will request connection");
         
         // Request stream with retry mechanism
         let retryCount = 0;
@@ -850,14 +844,14 @@ export default function PartyRoomPage() {
               setTimeout(requestStream, requestInterval);
             }
           } else if (!socket) {
-            console.error("[Party] ❌ Cannot request stream - socket not available");
+            // Cannot request stream - socket not available
           }
         };
         
         // Start requesting after short delay
         setTimeout(requestStream, 500);
       } else {
-        console.log("[Party] ⏭️ Skipping stream request - amIHost:", amIHost, "hasStream:", (data.hostMicEnabled || data.hostCameraEnabled), "hasHostId:", !!data.hostId, "hasSocket:", !!socket);
+        // Skipping stream request
       }
     },
   });
@@ -1177,16 +1171,12 @@ export default function PartyRoomPage() {
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
-                            console.log("[Video] Can play - video playing (muted for autoplay)");
-                            
                             // Ensure video continues playing
                             if (video.paused) {
-                              video.play().catch(err => console.log("Play retry:", err.name));
+                              video.play().catch(() => {});
                             }
                           }}
-                          onLoadedMetadata={(e) => {
-                            const video = e.target;
-                            console.log("[Video] Metadata loaded - tracks:", video.srcObject?.getTracks().length);
+                          onLoadedMetadata={() => {
                             
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {

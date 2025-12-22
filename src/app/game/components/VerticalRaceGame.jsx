@@ -473,7 +473,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     
     // Optional: Wait for critical images (top view) before starting game
     Promise.allSettled(loadPromises).then(() => {
-      console.log("[VerticalRaceGame] Car images preloading completed");
+      // Images preloaded
     });
     
     // Cleanup preload links on unmount
@@ -741,8 +741,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     };
 
     const handleRaceStart = (data) => {
-      // Exact same logic as party game
-      console.log('[Game] Race start event received:', data);
       // Update game status FIRST before processing race progress
       setGameStatus("racing");
       setRaceProgress({}); // Reset progress when race starts
@@ -766,7 +764,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         // If we receive race progress but status is not racing, update status to racing
         // This handles race progress arriving before race start event
         if (gameStatus !== "racing") {
-          console.log('[Game] Race progress received but status is not racing, updating to racing:', gameStatus);
           setGameStatus("racing");
         }
         
@@ -794,8 +791,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         setRaceProgress(carPositions);
         // Force re-render to update car positions
         setGame(prev => prev ? { ...prev } : prev);
-      } else {
-        console.log('[Game] Race progress received for different game:', data.gameId, 'current:', currentGameId);
       }
     };
 
@@ -1009,7 +1004,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           return;
         }
 
-        console.log("[RaceCanvas] Canvas initialized successfully");
         retryCount = 0; // Reset retry count on success
 
         // Canvas is ready, proceed with setup (inside try block so canvas and ctx are in scope)
