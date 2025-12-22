@@ -9,7 +9,7 @@ import { BsList, BsX, BsCoin, BsPerson, BsHouse, BsGear } from "react-icons/bs";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 import useAuthActions from "@/app/user/hooks/useAuthActions";
 import apiClient from "@/lib/apiClient";
-import AuthPanel from "@/app/components/AuthPanel";
+import AuthPanel from "../../components/AuthPanel";
 
 export default function Header() {
   const pathname = usePathname();
