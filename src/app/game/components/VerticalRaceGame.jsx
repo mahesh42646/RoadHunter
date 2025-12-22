@@ -2669,28 +2669,43 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <span style={{ color: "var(--text-muted, #a8b3d0)" }}>Gift Percentage:</span>
                     <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                      {giftPercentage}% ({formatNumber(Math.floor(totalPayout * giftPercentage / 100))} coins)
+                      {giftPercentage}%
                     </span>
                   </div>
                   
-                  <div className="d-flex gap-2 justify-content-center">
-                    {[10, 20, 30].map((percent) => (
-                      <Button
-                        key={percent}
-                        variant={giftPercentage === percent ? "primary" : "outline-light"}
-                        size="sm"
-                        onClick={() => setGiftPercentage(percent)}
-                        style={{
-                          minWidth: "80px",
-                          background: giftPercentage === percent
-                            ? "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)"
-                            : "transparent",
-                          border: giftPercentage === percent ? "none" : "1px solid rgba(255, 255, 255, 0.2)",
-                        }}
-                      >
-                        {percent}%
-                      </Button>
-                    ))}
+                  <div className="d-flex gap-2 justify-content-center mb-3">
+                    {[10, 20, 30].map((percent) => {
+                      const amount = Math.floor(totalPayout * percent / 100);
+                      return (
+                        <Button
+                          key={percent}
+                          variant={giftPercentage === percent ? "primary" : "outline-light"}
+                          size="sm"
+                          onClick={() => setGiftPercentage(percent)}
+                          style={{
+                            minWidth: "80px",
+                            background: giftPercentage === percent
+                              ? "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)"
+                              : "transparent",
+                            border: giftPercentage === percent ? "none" : "1px solid rgba(255, 255, 255, 0.2)",
+                          }}
+                        >
+                          {percent}%
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="text-center p-2 rounded" style={{ background: "rgba(0, 245, 255, 0.1)", border: "1px solid rgba(0, 245, 255, 0.3)" }}>
+                    <div className="small mb-1" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                      Gift Amount:
+                    </div>
+                    <div className="fw-bold fs-5" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                      {formatNumber(Math.floor(totalPayout * giftPercentage / 100))} coins
+                    </div>
+                    <div className="small mt-1" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                      Will be distributed to all party participants
+                    </div>
                   </div>
                 </div>
 

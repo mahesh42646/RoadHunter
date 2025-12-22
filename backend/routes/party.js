@@ -655,6 +655,168 @@ module.exports = function createPartyRouter(io) {
     }
   });
 
+  // Distribute coins to all party participants (from game winnings)
+  router.post('/:id/gifts/distribute-coins', authenticate, async (req, res, next) => {
+    try {
+      const { amount, gameId } = req.body;
+      
+      if (!amount || amount <= 0) {
+        res.status(400).json({ error: 'Valid amount is required' });
+        return;
+      }
+
+      const party = await Party.findById(req.params.id);
+      if (!party) {
+        res.status(404).json({ error: 'Party not found' });
+        return;
+      }
+
+      // Check if user is a participant
+      const isParticipant = party.participants.some(
+        (p) => p.userId?.toString() === req.user._id.toString() && p.status === 'active'
+      );
+      if (!isParticipant) {
+        res.status(403).json({ error: 'You must be a party participant to distribute coins' });
+        return;
+      }
+
+      // Get all active participants (excluding the sender)
+      const recipients = party.participants.filter(
+        (p) => p.userId?.toString() !== req.user._id.toString() && p.status === 'active'
+      );
+
+      if (recipients.length === 0) {
+        res.status(400).json({ error: 'No recipients found' });
+        return;
+      }
+
+      // Calculate coins per recipient (distribute evenly)
+      const coinsPerRecipient = Math.floor(amount / recipients.length);
+      const totalDistributed = coinsPerRecipient * recipients.length;
+      const remainder = amount - totalDistributed; // Keep remainder with sender
+
+      const sender = await User.findById(req.user._id);
+      if (!sender.wallet || !sender.wallet.walletId) {
+        sender.wallet = {
+          walletId: User.generateWalletId(),
+          balanceUsd: 0,
+          partyCoins: 0,
+        };
+      }
+
+      if (typeof sender.wallet.partyCoins !== 'number') {
+        sender.wallet.partyCoins = 0;
+      }
+
+      // Deduct the distributed amount from sender
+      sender.wallet.partyCoins -= totalDistributed;
+      sender.wallet.balanceUsd = Number((sender.wallet.partyCoins / User.partyCoinsFromUsd(1)).toFixed(2));
+      sender.wallet.lastTransactionAt = new Date();
+
+      // Add transaction for sender
+      const senderTransaction = {
+        type: 'gift_sent',
+        amountUsd: totalDistributed / User.partyCoinsFromUsd(1),
+        partyCoins: -totalDistributed,
+        status: 'completed',
+        metadata: {
+          giftType: 'coin_distribution',
+          recipientCount: recipients.length,
+          partyId: party._id.toString(),
+          gameId: gameId || null,
+          coinsPerRecipient,
+        },
+        processedAt: new Date(),
+      };
+      sender.transactions.push(senderTransaction);
+      await sender.save();
+
+      // Get recipient user IDs
+      const recipientIds = recipients
+        .map((r) => r.userId?.toString())
+        .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+
+      const recipientUsers = await User.find({ _id: { $in: recipientIds } });
+
+      // Distribute coins to each recipient
+      for (const recipientUser of recipientUsers) {
+        // Ensure wallet is initialized
+        if (!recipientUser.wallet || !recipientUser.wallet.walletId) {
+          recipientUser.wallet = {
+            walletId: User.generateWalletId(),
+            balanceUsd: 0,
+            partyCoins: 0,
+          };
+        }
+
+        if (typeof recipientUser.wallet.partyCoins !== 'number') {
+          recipientUser.wallet.partyCoins = 0;
+        }
+
+        recipientUser.wallet.partyCoins += coinsPerRecipient;
+        recipientUser.wallet.balanceUsd = Number((recipientUser.wallet.partyCoins / User.partyCoinsFromUsd(1)).toFixed(2));
+        recipientUser.wallet.lastTransactionAt = new Date();
+
+        // Add transaction for recipient
+        const recipientTransaction = {
+          type: 'gift_received',
+          amountUsd: coinsPerRecipient / User.partyCoinsFromUsd(1),
+          partyCoins: coinsPerRecipient,
+          status: 'completed',
+          metadata: {
+            giftType: 'coin_distribution',
+            senderId: req.user._id.toString(),
+            senderUsername: req.user.account?.displayName || req.user.account?.email || 'Anonymous',
+            partyId: party._id.toString(),
+            gameId: gameId || null,
+          },
+          processedAt: new Date(),
+        };
+        recipientUser.transactions.push(recipientTransaction);
+        await recipientUser.save();
+
+        // Emit wallet update for recipient
+        io.emit('wallet:updated', {
+          userId: recipientUser._id.toString(),
+          wallet: recipientUser.wallet,
+        });
+      }
+
+      // Emit wallet update for sender
+      io.emit('wallet:updated', {
+        userId: req.user._id.toString(),
+        wallet: sender.wallet,
+      });
+
+      // Emit party event for gift distribution
+      io.to(`party:${party._id}`).emit('party:coinsDistributed', {
+        partyId: party._id.toString(),
+        senderId: req.user._id.toString(),
+        senderUsername: req.user.account?.displayName || req.user.account?.email || 'Anonymous',
+        totalAmount: totalDistributed,
+        coinsPerRecipient,
+        recipientCount: recipients.length,
+        gameId: gameId || null,
+      });
+
+      res.json({
+        message: 'Coins distributed successfully',
+        distributed: totalDistributed,
+        coinsPerRecipient,
+        recipientCount: recipients.length,
+        remainder,
+        wallet: {
+          walletId: sender.wallet.walletId,
+          balanceUsd: sender.wallet.balanceUsd,
+          partyCoins: sender.wallet.partyCoins,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post('/:id/remove/:userId', authenticate, async (req, res, next) => {
     try {
       const party = await Party.findById(req.params.id);
