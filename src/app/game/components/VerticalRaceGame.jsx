@@ -221,6 +221,7 @@ class Particle {
 
 export default function VerticalRaceGame({ socket: externalSocket, wallet, onClose, partyId }) {
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
 
   const [socket, setSocket] = useState(externalSocket || null);
   const [game, setGame] = useState(null);
@@ -238,6 +239,9 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const [resultCountdown, setResultCountdown] = useState(0);
   const [userBalance, setUserBalance] = useState(0);
   const [showCarInfo, setShowCarInfo] = useState(null); // Track which car's info modal is open
+  const [showWinModal, setShowWinModal] = useState(false); // Show win modal with gift options
+  const [giftPercentage, setGiftPercentage] = useState(10); // Default 10% gift
+  const [gifting, setGifting] = useState(false); // Loading state for gifting
 
   const timerIntervalRef = useRef(null);
   const predictionCountIntervalRef = useRef(null);
@@ -837,6 +841,16 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           params: { gameId: data.game._id },
         });
         setMyPredictions(predResponse.data.predictions || []);
+        
+        // Check if user won
+        const userPredictions = predResponse.data.predictions || [];
+        const winnerCarIdNormalized = data.game.winnerCarId ? normalizeCarId(data.game.winnerCarId) : null;
+        const userWon = userPredictions.some(p => normalizeCarId(p.predictedCarId) === winnerCarIdNormalized);
+        
+        if (userWon) {
+          // Show win modal instead of regular results
+          setShowWinModal(true);
+        }
       } catch {
         setMyPredictions([]);
       }
@@ -891,6 +905,23 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
   const makePrediction = async (carId, action = "add") => {
     if (!game?._id || predicting) return;
     if (gameStatus !== "predictions" || timeRemaining <= 0) return;
+
+    // Check profile completion
+    if (!user?.account?.profileCompleted) {
+      setError("Please complete your profile before making predictions.");
+      setTimeout(() => setError(null), 5000);
+      return;
+    }
+
+    // Check balance for add action
+    if (action === "add") {
+      const requiredBalance = (myPredictions.length + 1) * 100;
+      if (userBalance < requiredBalance) {
+        setError(`Insufficient balance. You need ${requiredBalance} coins but have ${userBalance} coins.`);
+        setTimeout(() => setError(null), 5000);
+        return;
+      }
+    }
 
     setPredicting(true);
     setError(null);
@@ -2589,8 +2620,178 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         </div>
       )}
 
-      {/* Results Modal - Custom positioned within container */}
-      {gameStatus === "finished" && raceResults && raceResults.length > 0 && (
+      {/* Win Modal with Gift Options */}
+      {showWinModal && isWinner && (
+        <div
+          className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 2000,
+            background: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            className="glass-card rounded p-4"
+            style={{
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              maxWidth: "90%",
+              width: "100%",
+              maxWidth: "500px",
+              maxHeight: "90%",
+              overflowY: "auto",
+            }}
+          >
+            <div className="text-center mb-4">
+              <div className="fs-1 mb-3">🎉</div>
+              <h3 className="fw-bold mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                Congratulations!
+              </h3>
+              <p className="mb-2" style={{ color: "var(--text-primary, #ffffff)" }}>
+                The car you selected got win!
+              </p>
+              <p className="fw-bold fs-4 mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                You won {formatNumber(totalPayout)} coins for {winningSelections.length} selection{winningSelections.length > 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {/* Gift Section */}
+            {partyId && (
+              <div className="mb-4 p-3 rounded" style={{ background: "rgba(10, 14, 26, 0.6)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <h5 className="mb-3 text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
+                  Gift to your party participants
+                </h5>
+                
+                <div className="mb-3">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span style={{ color: "var(--text-muted, #a8b3d0)" }}>Gift Percentage:</span>
+                    <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                      {giftPercentage}% ({formatNumber(Math.floor(totalPayout * giftPercentage / 100))} coins)
+                    </span>
+                  </div>
+                  
+                  <div className="d-flex gap-2 justify-content-center">
+                    {[10, 20, 30].map((percent) => (
+                      <Button
+                        key={percent}
+                        variant={giftPercentage === percent ? "primary" : "outline-light"}
+                        size="sm"
+                        onClick={() => setGiftPercentage(percent)}
+                        style={{
+                          minWidth: "80px",
+                          background: giftPercentage === percent
+                            ? "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)"
+                            : "transparent",
+                          border: giftPercentage === percent ? "none" : "1px solid rgba(255, 255, 255, 0.2)",
+                        }}
+                      >
+                        {percent}%
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Calculation */}
+                <div className="small mb-3" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span>Total Winnings:</span>
+                    <span>{formatNumber(totalPayout)} coins</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-1">
+                    <span>Platform Fee (10%):</span>
+                    <span>-{formatNumber(Math.floor(totalPayout * 0.1))} coins</span>
+                  </div>
+                  {giftPercentage > 0 && (
+                    <div className="d-flex justify-content-between mb-1">
+                      <span>Gift ({giftPercentage}%):</span>
+                      <span>-{formatNumber(Math.floor(totalPayout * giftPercentage / 100))} coins</span>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between pt-2 border-top border-secondary">
+                    <span className="fw-bold" style={{ color: "var(--text-primary, #ffffff)" }}>Final Amount:</span>
+                    <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                      {formatNumber(totalPayout - Math.floor(totalPayout * 0.1) - Math.floor(totalPayout * giftPercentage / 100))} coins
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  variant="primary"
+                  className="w-100"
+                  size="lg"
+                  disabled={gifting}
+                  onClick={async () => {
+                    setGifting(true);
+                    try {
+                      const giftAmount = Math.floor(totalPayout * giftPercentage / 100);
+                      // Use gift API to send coins to all participants
+                      // Note: This might need a backend endpoint for direct coin distribution
+                      // For now, using a placeholder - backend should implement /parties/:partyId/gifts/distribute-coins
+                      await apiClient.post(`/parties/${partyId}/gifts/distribute-coins`, {
+                        amount: giftAmount,
+                        gameId: game._id,
+                      });
+                      setShowWinModal(false);
+                      // Refresh balance
+                      if (wallet?.partyCoins !== undefined) {
+                        // Balance will be updated via wallet prop
+                      } else {
+                        const response = await apiClient.get("/wallet/balance");
+                        setUserBalance(response.data.partyCoins || 0);
+                      }
+                    } catch (error) {
+                      console.error("Failed to send gift:", error);
+                      // If endpoint doesn't exist, just close modal (backend can implement later)
+                      if (error.response?.status === 404) {
+                        alert("Gift feature coming soon!");
+                        setShowWinModal(false);
+                      } else {
+                        alert(error.response?.data?.error || "Failed to send gift");
+                      }
+                    } finally {
+                      setGifting(false);
+                    }
+                  }}
+                  style={{
+                    background: "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)",
+                    border: "none",
+                    padding: "0.75rem",
+                    fontSize: "1rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {gifting ? "Sending..." : "Gift to All"}
+                </Button>
+              </div>
+            )}
+
+            {!partyId && (
+              <div className="mb-4 p-3 rounded text-center" style={{ background: "rgba(10, 14, 26, 0.6)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <p className="small mb-0" style={{ color: "var(--text-muted, #a8b3d0)" }}>
+                  Join a party to gift your winnings to participants
+                </p>
+              </div>
+            )}
+
+            <Button
+              variant="outline-light"
+              className="w-100"
+              onClick={() => {
+                setShowWinModal(false);
+              }}
+              disabled={gifting}
+            >
+              {giftPercentage === 0 || !partyId ? "Continue" : "Skip Gift"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Results Modal - Custom positioned within container (for loss) */}
+      {gameStatus === "finished" && raceResults && raceResults.length > 0 && !showWinModal && (
         <div
           className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
@@ -2749,24 +2950,21 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                   )}
                 </div>
 
-                {/* Win/Loss Message */}
-                <div className="text-center">
-                  {isWinner && winningSelections.length > 0 && (
-                    <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
-                      🎉 You won {formatNumber(totalPayout)} coins!
+                {/* Loss Message - Simple display */}
+                {!isWinner && myPredictions.length > 0 && (
+                  <div className="text-center">
+                    <div className="fw-bold fs-4 mb-3" style={{ color: "var(--accent, #ca0000)" }}>
+                      Better luck next time!
                     </div>
-                  )}
-                  {!isWinner && myPredictions.length > 0 && (
-                    <div className="fw-bold fs-4 mb-2" style={{ color: "var(--accent, #ca0000)" }}>
-                      You lost {formatNumber(totalInvested)} coins
-                    </div>
-                  )}
-                  {myPredictions.length === 0 && (
+                  </div>
+                )}
+                {myPredictions.length === 0 && (
+                  <div className="text-center">
                     <div className="fw-semibold fs-5" style={{ color: "var(--text-muted, #a8b3d0)" }}>
                       Better luck next time!
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 
