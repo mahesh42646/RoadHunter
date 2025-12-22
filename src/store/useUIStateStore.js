@@ -72,7 +72,7 @@ const useUIStateStore = create(
       clearUIState: () =>
         set({
           partyRoomState: {
-            activeBottomNav: "chat",
+            activeBottomNav: "games",
             showTransferModal: false,
             showParticipantMenu: null,
             hostMicEnabled: false,
