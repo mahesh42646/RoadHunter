@@ -274,7 +274,7 @@ export default function PartyRoomPage() {
             } else {
               await apiClient.post(`/parties/${partyId}/leave`);
               clearCurrentParty();
-              router.push("/party");
+              router.push("/");
             }
           } catch (error) {
             console.error("Failed to leave party", error);
@@ -394,7 +394,7 @@ export default function PartyRoomPage() {
       if (error.response?.status === 404) {
         clearCurrentParty();
         clearPartyState();
-        router.replace("/party");
+        router.replace("/");
         return;
       }
       // For other errors, still set loading to false and try to keep user on page

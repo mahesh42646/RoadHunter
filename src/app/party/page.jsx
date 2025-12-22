@@ -31,25 +31,16 @@ export default function PartyListPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    
-    if (!isAuthenticated) {
-      router.replace("/user/login");
-      return;
-    }
 
     // If user is already in a party, redirect to that party immediately
-    // This ensures refresh on party page keeps user in party
     if (currentPartyId) {
       router.replace(`/party/${currentPartyId}`);
       return;
     }
 
-    // Always load parties first
-    loadParties();
-
-    const interval = setInterval(loadParties, 5000);
-    return () => clearInterval(interval);
-  }, [hydrated, isAuthenticated, router, currentPartyId]);
+    // Redirect to home (root) where party list is now
+    router.replace("/");
+  }, [hydrated, router, currentPartyId]);
 
   const checkAndRejoinHostParty = async () => {
     try {
