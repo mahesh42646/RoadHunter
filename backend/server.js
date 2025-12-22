@@ -782,7 +782,7 @@ setInterval(async () => {
         else if (participant.status === 'active' || participant.status === 'muted') {
           // Check if user has an active socket connection
           const userId = participant.userId.toString();
-          const hasActiveSocket = onlineUsers.has(userId);
+          const hasActiveSocket = onlineUsers.has(userId) && onlineUsers.get(userId);
           
           if (!hasActiveSocket) {
             // No active socket - check how long they've been inactive
