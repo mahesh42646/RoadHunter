@@ -738,3 +738,71 @@ process.on('SIGTERM', async () => {
 
 init();
 
+// Cleanup job: Remove offline participants after 30 seconds
+// This runs independently of the server startup
+setInterval(async () => {
+  try {
+    const Party = require('./schemas/party');
+    const parties = await Party.find({
+      isActive: true,
+      'participants.status': 'offline',
+    });
+    
+    for (const party of parties) {
+      let updated = false;
+      const now = new Date();
+      
+      // Check each offline participant
+      for (let i = party.participants.length - 1; i >= 0; i--) {
+        const participant = party.participants[i];
+        
+        if (participant.status === 'offline' && participant.userId) {
+          // Check if participant has been offline for more than 30 seconds
+          if (participant.offlineAt) {
+            const offlineDuration = now - new Date(participant.offlineAt);
+            if (offlineDuration < 30000) {
+              // Less than 30 seconds, skip
+              continue;
+            }
+          }
+          
+          const isHost = party.hostId && party.hostId.toString() === participant.userId.toString();
+          
+          // Remove offline participant
+          party.participants.splice(i, 1);
+          updated = true;
+          
+          // If host was removed and no active participants, end party
+          if (isHost) {
+            const activeParticipants = party.participants.filter(
+              (p) => p.userId && (p.status === 'active' || p.status === 'muted')
+            );
+            
+            if (activeParticipants.length === 0) {
+              party.isActive = false;
+              if (io) {
+                io.emit('party:ended', { partyId: party._id.toString() });
+              }
+            }
+          }
+          
+          // Emit socket event
+          if (io) {
+            io.to(`party:${party._id}`).emit('party:participantLeft', {
+              partyId: party._id.toString(),
+              userId: participant.userId.toString(),
+              isHost: isHost,
+            });
+          }
+        }
+      }
+      
+      if (updated) {
+        await party.save();
+      }
+    }
+  } catch (error) {
+    console.error('[Cleanup Job] Error removing offline participants:', error);
+  }
+}, 10000); // Run every 10 seconds
+
