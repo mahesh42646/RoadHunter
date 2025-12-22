@@ -294,9 +294,63 @@ module.exports = function createPartyRouter(io) {
         return;
       }
 
-      // Mark as offline
+      // Mark as offline and store timestamp
       participant.status = 'offline';
+      participant.offlineAt = new Date();
       await party.save();
+
+      // Schedule removal after 30 seconds
+      setTimeout(async () => {
+        try {
+          const updatedParty = await Party.findById(req.params.id);
+          if (!updatedParty) return;
+          
+          const updatedParticipant = updatedParty.participants.find(
+            (p) => p.userId && p.userId.toString() === req.user._id.toString()
+          );
+          
+          // Only remove if still offline (user didn't come back)
+          if (updatedParticipant && updatedParticipant.status === 'offline') {
+            const isHost = updatedParty.hostId && updatedParty.hostId.toString() === req.user._id.toString();
+            
+            // Remove participant
+            const participantIndex = updatedParty.participants.findIndex(
+              (p) => p.userId && p.userId.toString() === req.user._id.toString()
+            );
+            
+            if (participantIndex !== -1) {
+              updatedParty.participants.splice(participantIndex, 1);
+            }
+            
+            // If host left and no active participants, end party
+            if (isHost) {
+              const activeParticipants = updatedParty.participants.filter(
+                (p) => p.userId && (p.status === 'active' || p.status === 'muted')
+              );
+              
+              if (activeParticipants.length === 0) {
+                updatedParty.isActive = false;
+                if (io) {
+                  io.emit('party:ended', { partyId: updatedParty._id.toString() });
+                }
+              }
+            }
+            
+            await updatedParty.save();
+            
+            // Emit socket event
+            if (io) {
+              io.to(`party:${updatedParty._id}`).emit('party:participantLeft', {
+                partyId: updatedParty._id.toString(),
+                userId: req.user._id.toString(),
+                isHost: isHost,
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error removing offline participant after 30s:', error);
+        }
+      }, 30000); // 30 seconds
 
       // Emit socket event
       if (io) {
