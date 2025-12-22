@@ -237,6 +237,23 @@ export default function PartyRoomPage() {
       return e.returnValue;
     };
 
+    // Immediate removal on tab close/navigation (more reliable than beforeunload)
+    const handlePageHide = async () => {
+      if (isParticipant && !isTabClosingRef.current) {
+        // User is navigating away or closing tab - immediately remove
+        try {
+          if (isHost) {
+            // Host should end party or transfer, but if tab is closing, just leave
+            await apiClient.post(`/parties/${partyId}/leave`).catch(() => {});
+          } else {
+            await apiClient.post(`/parties/${partyId}/leave`).catch(() => {});
+          }
+        } catch (error) {
+          // Ignore errors - user is leaving anyway
+        }
+      }
+    };
+
     // Handle browser back/forward - ask confirmation for all users
     let isHandlingPopState = false; // Prevent infinite loops
     const handlePopState = async (e) => {
@@ -291,6 +308,7 @@ export default function PartyRoomPage() {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handlePageHide);
     
     // Only push state once on mount, not repeatedly
     if (window.history.state === null) {
@@ -302,6 +320,7 @@ export default function PartyRoomPage() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("popstate", handlePopState);
       if (offlineTimerRef.current) {
         clearTimeout(offlineTimerRef.current);

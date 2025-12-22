@@ -222,7 +222,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`[Socket.IO] ❌ Client disconnected: ${socket.id}`);
     
     // Mark user as offline
@@ -231,6 +231,58 @@ io.on('connection', (socket) => {
       // Notify others that user is offline
       io.emit('user:offline', { userId });
       console.log(`[Socket.IO] User ${userId} marked as offline`);
+      
+      // Immediately remove user from all parties they're in
+      try {
+        const Party = require('./schemas/party');
+        const parties = await Party.find({
+          'participants.userId': userId,
+          'participants.status': { $in: ['active', 'muted', 'offline'] },
+          isActive: true,
+        });
+        
+        for (const party of parties) {
+          const participant = party.participants.find(
+            (p) => p.userId && p.userId.toString() === userId.toString()
+          );
+          
+          if (participant) {
+            const isHost = party.hostId && party.hostId.toString() === userId.toString();
+            
+            // Remove participant
+            const participantIndex = party.participants.findIndex(
+              (p) => p.userId && p.userId.toString() === userId.toString()
+            );
+            
+            if (participantIndex !== -1) {
+              party.participants.splice(participantIndex, 1);
+            }
+            
+            // If host left and no active participants, end party
+            if (isHost) {
+              const activeParticipants = party.participants.filter(
+                (p) => p.userId && (p.status === 'active' || p.status === 'muted')
+              );
+              
+              if (activeParticipants.length === 0) {
+                party.isActive = false;
+                io.emit('party:ended', { partyId: party._id.toString() });
+              }
+            }
+            
+            await party.save();
+            
+            // Emit socket event
+            io.to(`party:${party._id}`).emit('party:participantLeft', {
+              partyId: party._id.toString(),
+              userId: userId,
+              isHost: isHost,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('[Socket.IO] Error removing user from parties on disconnect:', error);
+      }
     }
     
     // Remove client from game engine

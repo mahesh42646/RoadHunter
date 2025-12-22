@@ -57,7 +57,15 @@ module.exports = function createPartyRouter(io) {
         .populate('hostId', 'account.displayName account.photoUrl')
         .lean();
 
-      res.json({ parties, total: parties.length });
+      // Filter out parties with only offline participants
+      const activeParties = parties.filter((party) => {
+        const activeParticipants = party.participants.filter(
+          (p) => p.userId && (p.status === 'active' || p.status === 'muted')
+        );
+        return activeParticipants.length > 0;
+      });
+
+      res.json({ parties: activeParties, total: activeParties.length });
     } catch (error) {
       next(error);
     }
