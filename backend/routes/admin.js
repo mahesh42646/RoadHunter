@@ -1030,7 +1030,10 @@ router.put('/payment-admins/:id', authenticateAdmin, async (req, res, next) => {
       if (password.length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
-      updateData.password = password; // Will be hashed by schema pre-save hook
+      // Hash password manually before updating
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
     }
     if (isActive !== undefined) updateData.isActive = isActive;
 
