@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
 const Admin = require('../schemas/admin');
+const PaymentAdmin = require('../schemas/paymentAdmin');
 const Car = require('../schemas/car');
 const Game = require('../schemas/game');
 const Prediction = require('../schemas/prediction');
@@ -878,6 +879,143 @@ router.get('/games', authenticateAdmin, async (req, res, next) => {
     const total = await Game.countDocuments();
 
     res.json({ games: gamesWithValidCars, total, page, limit, totalPages: Math.ceil(total / limit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Payment Admin Management Routes
+
+// Get all payment admins
+router.get('/payment-admins', authenticateAdmin, async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || '';
+
+    const query = {};
+    if (search) {
+      query.$or = [
+        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const paymentAdmins = await PaymentAdmin.find(query)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await PaymentAdmin.countDocuments(query);
+
+    res.json({
+      paymentAdmins,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create payment admin
+router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
+  try {
+    const { email, password, name } = req.body;
+
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Email, password, and name are required' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if payment admin already exists
+    const existingPaymentAdmin = await PaymentAdmin.findOne({ email: email.toLowerCase().trim() });
+    if (existingPaymentAdmin) {
+      return res.status(400).json({ error: 'Payment administrator with this email already exists' });
+    }
+
+    // Create payment admin (password will be hashed by schema pre-save hook)
+    const paymentAdmin = await PaymentAdmin.create({
+      email: email.toLowerCase().trim(),
+      password: password,
+      name: name.trim(),
+      isActive: true,
+    });
+
+    // Return payment admin without password
+    const paymentAdminData = paymentAdmin.toObject();
+    delete paymentAdminData.password;
+
+    res.json({
+      message: 'Payment administrator created successfully',
+      paymentAdmin: paymentAdminData,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ error: 'Payment administrator with this email already exists' });
+    }
+    next(error);
+  }
+});
+
+// Update payment admin
+router.put('/payment-admins/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const { name, password, isActive } = req.body;
+
+    const updateData = {};
+    if (name) updateData.name = name.trim();
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      updateData.password = password; // Will be hashed by schema pre-save hook
+    }
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const paymentAdmin = await PaymentAdmin.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!paymentAdmin) {
+      return res.status(404).json({ error: 'Payment administrator not found' });
+    }
+
+    res.json({
+      message: 'Payment administrator updated successfully',
+      paymentAdmin,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete payment admin
+router.delete('/payment-admins/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const paymentAdmin = await PaymentAdmin.findByIdAndDelete(req.params.id);
+
+    if (!paymentAdmin) {
+      return res.status(404).json({ error: 'Payment administrator not found' });
+    }
+
+    res.json({ message: 'Payment administrator deleted successfully' });
   } catch (error) {
     next(error);
   }

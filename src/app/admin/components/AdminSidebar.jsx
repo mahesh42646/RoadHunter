@@ -1,12 +1,13 @@
 "use client";
 
-import { BsBarChart, BsPeople, BsCashCoin, BsTrophy, BsGear, BsPersonCheck, BsBoxArrowRight } from "react-icons/bs";
+import { BsBarChart, BsPeople, BsCashCoin, BsTrophy, BsGear, BsPersonCheck, BsBoxArrowRight, BsShieldLock } from "react-icons/bs";
 
 export default function AdminSidebar({ activeTab, setActiveTab, onLogout }) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: BsBarChart },
     { id: "users", label: "Users", icon: BsPeople },
     { id: "transactions", label: "Transactions", icon: BsCashCoin },
+    { id: "payment-admins", label: "Payment Admins", icon: BsShieldLock },
     { id: "cars", label: "Game Management", icon: BsTrophy },
     { id: "games", label: "Games History", icon: BsTrophy },
     { id: "referrals", label: "Referrals", icon: BsPersonCheck },

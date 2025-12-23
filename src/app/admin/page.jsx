@@ -10,6 +10,7 @@ import AdminTopBar from "./components/AdminTopBar";
 import AdminDashboard from "./components/AdminDashboard";
 import UsersManagement from "./components/UsersManagement";
 import TransactionsManagement from "./components/TransactionsManagement";
+import PaymentAdminsManagement from "./components/PaymentAdminsManagement";
 import GameManagement from "./components/GameManagement";
 import GamesHistory from "./components/GamesHistory";
 import ReferralsManagement from "./components/ReferralsManagement";
@@ -118,6 +119,7 @@ export default function AdminPage() {
           {activeTab === "dashboard" && <AdminDashboard adminToken={adminToken} />}
           {activeTab === "users" && <UsersManagement adminToken={adminToken} />}
           {activeTab === "transactions" && <TransactionsManagement adminToken={adminToken} />}
+          {activeTab === "payment-admins" && <PaymentAdminsManagement adminToken={adminToken} />}
           {activeTab === "cars" && <GameManagement adminToken={adminToken} />}
           {activeTab === "games" && <GamesHistory adminToken={adminToken} />}
           {activeTab === "referrals" && <ReferralsManagement adminToken={adminToken} />}
