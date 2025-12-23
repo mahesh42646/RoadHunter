@@ -965,8 +965,17 @@ router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
       paymentAdmin: paymentAdminData,
     });
   } catch (error) {
+    console.error('[Admin Routes] Error creating payment admin:', {
+      message: error.message,
+      code: error.code,
+      name: error.name,
+      stack: error.stack,
+    });
     if (error.code === 11000) {
       return res.status(400).json({ error: 'Payment administrator with this email already exists' });
+    }
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
     }
     next(error);
   }

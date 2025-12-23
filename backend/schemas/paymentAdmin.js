@@ -36,13 +36,26 @@ const paymentAdminSchema = new mongoose.Schema(
 
 // Hash password before saving
 paymentAdminSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) {
+    return next();
+  }
   
   try {
+    // Only hash if password is a string and not already hashed
+    if (typeof this.password !== 'string') {
+      return next(new Error('Password must be a string'));
+    }
+    
+    // Check if password is already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
+    if (this.password.startsWith('$2')) {
+      return next();
+    }
+    
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
+    console.error('[PaymentAdmin Schema] Error hashing password:', error);
     next(error);
   }
 });
@@ -59,5 +72,6 @@ paymentAdminSchema.methods.toJSON = function () {
   return obj;
 };
 
-module.exports = mongoose.model('PaymentAdmin', paymentAdminSchema);
+// Export model, but check if it already exists to avoid overwriting
+module.exports = mongoose.models.PaymentAdmin || mongoose.model('PaymentAdmin', paymentAdminSchema);
 
