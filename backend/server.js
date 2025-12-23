@@ -662,6 +662,7 @@ app.use('/api/calls', createCallsRouter(io));
 app.use('/api/games', gamesRouter);
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/payment-admin', require('./routes/paymentAdmin'));
+app.use('/api/deposits', require('./routes/deposits'));
 
 app.use((err, req, res, _next) => {
   const status = err.status || 500;

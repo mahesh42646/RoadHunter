@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const Admin = require('../schemas/admin');
 const PaymentAdmin = require('../schemas/paymentAdmin');
+const PaymentMethod = require('../schemas/paymentMethod');
 const Car = require('../schemas/car');
 const Game = require('../schemas/game');
 const Prediction = require('../schemas/prediction');
@@ -1066,6 +1067,90 @@ router.delete('/payment-admins/:id', authenticateAdmin, async (req, res, next) =
     }
 
     res.json({ message: 'Payment administrator deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Payment Methods Management
+
+// Get all payment methods
+router.get('/payment-methods', authenticateAdmin, async (req, res, next) => {
+  try {
+    const paymentMethods = await PaymentMethod.find()
+      .sort({ createdAt: -1 });
+    res.json({ paymentMethods });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create payment method
+router.post('/payment-methods', authenticateAdmin, async (req, res, next) => {
+  try {
+    const { name, type, details, isActive } = req.body;
+
+    if (!name || !type) {
+      return res.status(400).json({ error: 'Name and type are required' });
+    }
+
+    const paymentMethod = await PaymentMethod.create({
+      name: name.trim(),
+      type,
+      details: details || {},
+      isActive: isActive !== false,
+      addedBy: req.adminId,
+    });
+
+    res.json({
+      message: 'Payment method created successfully',
+      paymentMethod,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update payment method
+router.put('/payment-methods/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const { name, type, details, isActive } = req.body;
+
+    const updateData = {};
+    if (name) updateData.name = name.trim();
+    if (type) updateData.type = type;
+    if (details) updateData.details = details;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const paymentMethod = await PaymentMethod.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!paymentMethod) {
+      return res.status(404).json({ error: 'Payment method not found' });
+    }
+
+    res.json({
+      message: 'Payment method updated successfully',
+      paymentMethod,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete payment method
+router.delete('/payment-methods/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const paymentMethod = await PaymentMethod.findByIdAndDelete(req.params.id);
+
+    if (!paymentMethod) {
+      return res.status(404).json({ error: 'Payment method not found' });
+    }
+
+    res.json({ message: 'Payment method deleted successfully' });
   } catch (error) {
     next(error);
   }
