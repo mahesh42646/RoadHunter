@@ -5,7 +5,7 @@ import { BsBarChart, BsCashCoin, BsBoxArrowRight, BsCreditCard, BsWallet2, BsRec
 export default function PaymentAdminSidebar({ activeTab, setActiveTab, onLogout }) {
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: BsBarChart },
-    { id: "transactions", label: "Transactions", icon: BsCashCoin },
+    { id: "transactions", label: "Deposit Requests", icon: BsCashCoin },
     { id: "payments", label: "Payments", icon: BsCreditCard },
     { id: "wallets", label: "Wallets", icon: BsWallet2 },
     { id: "reports", label: "Reports", icon: BsReceipt },

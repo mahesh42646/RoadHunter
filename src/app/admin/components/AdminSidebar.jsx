@@ -8,6 +8,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onLogout }) {
     { id: "users", label: "Users", icon: BsPeople },
     { id: "transactions", label: "Transactions", icon: BsCashCoin },
     { id: "payment-admins", label: "Payment Admins", icon: BsShieldLock },
+    { id: "payment-methods", label: "Payment Methods", icon: BsCashCoin },
     { id: "cars", label: "Game Management", icon: BsTrophy },
     { id: "games", label: "Games History", icon: BsTrophy },
     { id: "referrals", label: "Referrals", icon: BsPersonCheck },

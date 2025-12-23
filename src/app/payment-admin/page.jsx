@@ -8,6 +8,7 @@ import PaymentAdminLogin from "./components/PaymentAdminLogin";
 import PaymentAdminSidebar from "./components/PaymentAdminSidebar";
 import PaymentAdminTopBar from "./components/PaymentAdminTopBar";
 import PaymentAdminDashboard from "./components/PaymentAdminDashboard";
+import DepositRequestsManagement from "./components/DepositRequestsManagement";
 
 export default function PaymentAdminPage() {
   const router = useRouter();
@@ -107,10 +108,7 @@ export default function PaymentAdminPage() {
         <div style={{ marginTop: "70px", padding: "2rem", flex: 1, overflowY: "auto" }}>
           {activeTab === "dashboard" && <PaymentAdminDashboard paymentAdminToken={paymentAdminToken} />}
           {activeTab === "transactions" && (
-            <div>
-              <h3 style={{ color: "var(--text-primary)" }}>Transactions</h3>
-              <p style={{ color: "var(--text-muted)" }}>Transaction management will be implemented here.</p>
-            </div>
+            <DepositRequestsManagement paymentAdminToken={paymentAdminToken} />
           )}
           {activeTab === "payments" && (
             <div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, ListGroup, Button, Form, Modal, Badge } from "react-bootstrap";
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
+import DepositChatPanel from "@/components/DepositChatPanel";
 
 export default function WalletPage() {
   const user = useAuthStore((state) => state.user);
@@ -11,8 +12,10 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddCoinsModal, setShowAddCoinsModal] = useState(false);
-  const [coinsToAdd, setCoinsToAdd] = useState(1000);
-  const [adding, setAdding] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [activeRequestId, setActiveRequestId] = useState(null);
+  const [depositAmount, setDepositAmount] = useState(10);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     loadWallet();
@@ -39,20 +42,39 @@ export default function WalletPage() {
     }
   };
 
-  const handleAddCoins = async (e) => {
+  const handleCreateDepositRequest = async (e) => {
     e.preventDefault();
-    setAdding(true);
-    try {
-      await apiClient.post("/wallet/add-coins", { partyCoins: coinsToAdd });
-      await loadWallet();
-      await loadTransactions();
-      setShowAddCoinsModal(false);
-      setCoinsToAdd(1000);
-    } catch (error) {
-      alert(error.response?.data?.error || "Failed to add coins");
-    } finally {
-      setAdding(false);
+    if (depositAmount < 10) {
+      alert("Minimum deposit amount is $10");
+      return;
     }
+
+    setCreating(true);
+    try {
+      const response = await apiClient.post("/deposits/request", {
+        amount: depositAmount,
+      });
+      setActiveRequestId(response.data.depositRequest._id);
+      setShowAddCoinsModal(false);
+      setShowChatPanel(true);
+      await loadTransactions();
+    } catch (error) {
+      alert(error.response?.data?.error || "Failed to create deposit request");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleChatClose = () => {
+    setShowChatPanel(false);
+    setActiveRequestId(null);
+    loadWallet();
+    loadTransactions();
+  };
+
+  const handleRequestCreated = () => {
+    loadWallet();
+    loadTransactions();
   };
 
   if (loading) {
@@ -70,22 +92,30 @@ export default function WalletPage() {
 
   return (
     <div className="d-flex flex-column gap-4">
-      <Card className="glass-card border-0">
-        <Card.Body className="p-4">
-          <div className="d-flex justify-content-between align-items-start mb-4">
-            <div>
-              <Card.Title className="fw-bold mb-2" style={{ color: "var(--text-secondary)" }}>
-                My Wallet
-              </Card.Title>
-              <p className="small mb-1" style={{ color: "var(--text-muted)" }}>Wallet ID</p>
-              <p className="fw-semibold mb-3" style={{ color: "var(--text-primary)" }}>
-                {wallet?.walletId || "Pending profile completion"}
-              </p>
-            </div>
-            <Button variant="primary" size="sm" onClick={() => setShowAddCoinsModal(true)}>
-              + Add Coins
-            </Button>
-          </div>
+      {showChatPanel && activeRequestId ? (
+        <DepositChatPanel
+          requestId={activeRequestId}
+          onClose={handleChatClose}
+          onRequestCreated={handleRequestCreated}
+        />
+      ) : (
+        <>
+          <Card className="glass-card border-0">
+            <Card.Body className="p-4">
+              <div className="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                  <Card.Title className="fw-bold mb-2" style={{ color: "var(--text-secondary)" }}>
+                    My Wallet
+                  </Card.Title>
+                  <p className="small mb-1" style={{ color: "var(--text-muted)" }}>Wallet ID</p>
+                  <p className="fw-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+                    {wallet?.walletId || "Pending profile completion"}
+                  </p>
+                </div>
+                <Button variant="primary" size="sm" onClick={() => setShowAddCoinsModal(true)}>
+                  + Add Coins
+                </Button>
+              </div>
           <div className="d-flex align-items-center gap-3">
             <div style={{ fontSize: "3rem" }}>💎</div>
             <div>
@@ -203,47 +233,59 @@ export default function WalletPage() {
         </ListGroup>
       </Card>
 
-      <Modal
-        show={showAddCoinsModal}
-        onHide={() => setShowAddCoinsModal(false)}
-        centered
-        contentClassName="glass-card border-0"
-      >
-        <Modal.Header
-          closeButton
-          style={{
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-            color: "var(--text-primary)",
-          }}
-        >
-          <Modal.Title style={{ color: "var(--text-secondary)" }}>Add Coins</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleAddCoins}>
-          <Modal.Body style={{ color: "var(--text-primary)" }}>
-            <Form.Group className="mb-3">
-              <Form.Label>Amount (Party Coins)</Form.Label>
-              <Form.Control
-                type="number"
-                min="1"
-                value={coinsToAdd}
-                onChange={(e) => setCoinsToAdd(Math.max(1, parseInt(e.target.value) || 1))}
-                placeholder="Enter amount"
-              />
-              <Form.Text style={{ color: "var(--text-muted)" }}>
-                You can add coins for free during development
-              </Form.Text>
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
-            <Button variant="outline-light" onClick={() => setShowAddCoinsModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" disabled={adding}>
-              {adding ? "Adding..." : "Add Coins"}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+          <Modal
+            show={showAddCoinsModal}
+            onHide={() => setShowAddCoinsModal(false)}
+            centered
+            contentClassName="glass-card border-0"
+          >
+            <Modal.Header
+              closeButton
+              style={{
+                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                color: "var(--text-primary)",
+              }}
+            >
+              <Modal.Title style={{ color: "var(--text-secondary)" }}>Add Coins</Modal.Title>
+            </Modal.Header>
+            <Form onSubmit={handleCreateDepositRequest}>
+              <Modal.Body style={{ color: "var(--text-primary)" }}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Deposit Amount (USD)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="10"
+                    step="0.01"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(Math.max(10, parseFloat(e.target.value) || 10))}
+                    placeholder="Enter amount in USD"
+                  />
+                  <Form.Text style={{ color: "var(--text-muted)" }}>
+                    Minimum deposit: $10
+                  </Form.Text>
+                </Form.Group>
+                <Alert variant="info" className="mb-0">
+                  <strong>Pricing:</strong>
+                  <ul className="mb-0 small">
+                    <li>$10 = 1,000 coins</li>
+                    <li>$100 = 10,000 coins</li>
+                    <li>$200 = 22,000 coins</li>
+                    <li>Above $200 = 20% extra coins</li>
+                  </ul>
+                </Alert>
+              </Modal.Body>
+              <Modal.Footer style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                <Button variant="outline-light" onClick={() => setShowAddCoinsModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" disabled={creating}>
+                  {creating ? "Creating..." : "Create Deposit Request"}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal>
+        </>
+      )}
     </div>
   );
 }
