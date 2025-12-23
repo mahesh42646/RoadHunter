@@ -951,12 +951,17 @@ router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
     // Store plain password before hashing (to return in response)
     const plainPassword = password;
 
-    // Create payment admin (password will be hashed by schema pre-save hook)
+    // Hash password manually before saving (simple approach)
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(plainPassword, salt);
+
+    // Create payment admin with hashed password
     let paymentAdmin;
     try {
       paymentAdmin = await PaymentAdmin.create({
         email: email.toLowerCase().trim(),
-        password: plainPassword,
+        password: hashedPassword,
         name: name.trim(),
         isActive: true,
       });
