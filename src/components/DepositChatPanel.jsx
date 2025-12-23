@@ -30,18 +30,17 @@ export default function DepositChatPanel({ requestId, onClose, onRequestCreated 
   };
 
   const loadChat = async () => {
+    if (!requestId) return;
     try {
-      const [chatRes, requestRes] = await Promise.all([
+      const [chatRes, requestsRes] = await Promise.all([
         apiClient.get(`/deposits/${requestId}/chat`),
-        apiClient.get("/deposits/my-requests").then((res) => {
-          const req = res.data.requests.find((r) => r._id === requestId);
-          return { data: req };
-        }),
+        apiClient.get("/deposits/my-requests"),
       ]);
       setMessages(chatRes.data.messages || []);
-      if (requestRes.data) {
-        setRequest(requestRes.data);
-        if (requestRes.data.status === "approved") {
+      const req = requestsRes.data.requests?.find((r) => r._id === requestId);
+      if (req) {
+        setRequest(req);
+        if (req.status === "approved") {
           onRequestCreated?.(); // Refresh wallet
         }
       }
