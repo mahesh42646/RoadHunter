@@ -47,11 +47,20 @@ export default function PaymentAdminsManagement({ adminToken }) {
         formData,
         { headers: { Authorization: `Bearer ${adminToken}` } }
       );
-      setSuccess(`Payment administrator created successfully! Email: ${formData.email}, Password: ${formData.password}`);
+      
+      // Use credentials from response if available, otherwise use formData
+      const credentials = response.data?.credentials || {
+        email: formData.email,
+        password: formData.password,
+      };
+      
+      setSuccess(
+        `Payment administrator created successfully! Email: ${credentials.email}, Password: ${credentials.password}`
+      );
       setFormData({ email: "", password: "", name: "" });
       setShowCreateModal(false);
       await loadPaymentAdmins();
-      setTimeout(() => setSuccess(""), 5000);
+      setTimeout(() => setSuccess(""), 10000); // Show for 10 seconds so admin can copy
     } catch (error) {
       setError(error.response?.data?.error || "Failed to create payment administrator");
     }

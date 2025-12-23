@@ -948,12 +948,15 @@ router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
       return res.status(400).json({ error: 'Payment administrator with this email already exists' });
     }
 
+    // Store plain password before hashing (to return in response)
+    const plainPassword = password;
+
     // Create payment admin (password will be hashed by schema pre-save hook)
     let paymentAdmin;
     try {
       paymentAdmin = await PaymentAdmin.create({
         email: email.toLowerCase().trim(),
-        password: password,
+        password: plainPassword,
         name: name.trim(),
         isActive: true,
       });
@@ -976,13 +979,18 @@ router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
       throw createError;
     }
 
-    // Return payment admin without password
+    // Return payment admin data with plain password (for admin to share)
     const paymentAdminData = paymentAdmin.toObject();
     delete paymentAdminData.password;
-
+    
+    // Add plain password to response so admin can share it
     res.json({
       message: 'Payment administrator created successfully',
       paymentAdmin: paymentAdminData,
+      credentials: {
+        email: email.toLowerCase().trim(),
+        password: plainPassword, // Return plain password for sharing
+      },
     });
   } catch (error) {
     console.error('[Admin Routes] Error creating payment admin:', {
