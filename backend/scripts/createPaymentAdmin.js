@@ -11,8 +11,8 @@ async function createPaymentAdmin() {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB');
 
-    const paymentAdminEmail = 'payment@darkunde.in';
-    const paymentAdminPassword = 'payment@123';
+    const paymentAdminEmail = 'mahesh@darkunde.in';
+    const paymentAdminPassword = 'mahesh@890';
     const paymentAdminName = 'Payment Administrator';
 
     const existingPaymentAdmin = await PaymentAdmin.findOne({ email: paymentAdminEmail.toLowerCase().trim() });
