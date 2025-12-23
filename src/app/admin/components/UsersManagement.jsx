@@ -73,50 +73,59 @@ export default function UsersManagement({ adminToken }) {
             style={{ width: "300px" }}
           />
         </Card.Header>
-        <Card.Body>
-          <Table responsive>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Balance</th>
-                <th>Predictions</th>
-                <th>Wins</th>
-                <th>Admin</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user._id}>
-                  <td>{user.account?.displayName || "N/A"}</td>
-                  <td>{user.account?.email || "N/A"}</td>
-                  <td>{user.wallet?.partyCoins?.toLocaleString() || 0}</td>
-                  <td>{user.stats?.totalPredictions || 0}</td>
-                  <td>{user.stats?.wins || 0}</td>
-                  <td>{user.isAdmin ? <Badge bg="success">Yes</Badge> : <Badge bg="secondary">No</Badge>}</td>
-                  <td>
-                    {user.isBanned ? (
-                      <Badge bg="danger">Banned</Badge>
-                    ) : (
-                      <Badge bg="success">Active</Badge>
-                    )}
-                  </td>
-                  <td>
-                    <Button
-                      size="sm"
-                      variant={user.isBanned ? "success" : "danger"}
-                      onClick={() => handleBanToggle(user._id, user.isBanned)}
-                    >
-                      {user.isBanned ? "Unban" : "Ban"}
-                    </Button>
-                  </td>
+        <Card.Body className="p-0 glass-card">
+          <div className="table-responsive">
+            <Table
+              responsive
+              hover
+              striped
+              bordered
+              variant="dark"
+              className="mb-0 text-white"
+            >
+              <thead className="text-uppercase small">
+                <tr className="text-center">
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Balance</th>
+                  <th>Predictions</th>
+                  <th>Wins</th>
+                  <th>Admin</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-          <div className="d-flex justify-content-between align-items-center mt-3">
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user._id} className="text-center">
+                    <td className="fw-semibold">{user.account?.displayName || "N/A"}</td>
+                    <td>{user.account?.email || "N/A"}</td>
+                    <td>{user.wallet?.partyCoins?.toLocaleString() || 0}</td>
+                    <td>{user.stats?.totalPredictions || 0}</td>
+                    <td>{user.stats?.wins || 0}</td>
+                    <td>{user.isAdmin ? <Badge bg="success">Yes</Badge> : <Badge bg="secondary">No</Badge>}</td>
+                    <td>
+                      {user.isBanned ? (
+                        <Badge bg="danger">Banned</Badge>
+                      ) : (
+                        <Badge bg="success">Active</Badge>
+                      )}
+                    </td>
+                    <td>
+                      <Button
+                        size="sm"
+                        variant={user.isBanned ? "success" : "danger"}
+                        onClick={() => handleBanToggle(user._id, user.isBanned)}
+                      >
+                        {user.isBanned ? "Unban" : "Ban"}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+          <div className="d-flex justify-content-between align-items-center mt-3 p-3 text-white">
             <div>Page {page} of {totalPages}</div>
             <div>
               <Button

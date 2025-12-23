@@ -49,42 +49,51 @@ export default function TransactionsManagement({ adminToken }) {
         <Card.Header>
           <h5>All Transactions</h5>
         </Card.Header>
-        <Card.Body>
-          <Table responsive>
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Game #</th>
-                <th>Car</th>
-                <th>Bet</th>
-                <th>Result</th>
-                <th>Payout</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx._id}>
-                  <td>{tx.userId?.account?.displayName || "Unknown"}</td>
-                  <td>{tx.gameId?.gameNumber || "N/A"}</td>
-                  <td>{tx.predictedCarId?.name || "N/A"}</td>
-                  <td>{tx.betAmount}</td>
-                  <td>
-                    {tx.isCorrect === true ? (
-                      <Badge bg="success">Win</Badge>
-                    ) : tx.isCorrect === false ? (
-                      <Badge bg="danger">Loss</Badge>
-                    ) : (
-                      <Badge bg="secondary">Pending</Badge>
-                    )}
-                  </td>
-                  <td>{tx.payout?.toLocaleString() || 0}</td>
-                  <td>{new Date(tx.timestamp).toLocaleString()}</td>
+        <Card.Body className="p-0 glass-card">
+          <div className="table-responsive">
+            <Table
+              responsive
+              hover
+              striped
+              bordered
+              variant="dark"
+              className="mb-0 text-white"
+            >
+              <thead className="text-uppercase small">
+                <tr className="text-center">
+                  <th>User</th>
+                  <th>Game #</th>
+                  <th>Car</th>
+                  <th>Bet</th>
+                  <th>Result</th>
+                  <th>Payout</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-          <div className="d-flex justify-content-between align-items-center mt-3">
+              </thead>
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr key={tx._id} className="text-center">
+                    <td className="fw-semibold">{tx.userId?.account?.displayName || "Unknown"}</td>
+                    <td>{tx.gameId?.gameNumber || "N/A"}</td>
+                    <td>{tx.predictedCarId?.name || "N/A"}</td>
+                    <td>{tx.betAmount}</td>
+                    <td>
+                      {tx.isCorrect === true ? (
+                        <Badge bg="success">Win</Badge>
+                      ) : tx.isCorrect === false ? (
+                        <Badge bg="danger">Loss</Badge>
+                      ) : (
+                        <Badge bg="secondary">Pending</Badge>
+                      )}
+                    </td>
+                    <td className="text-success fw-bold">{tx.payout?.toLocaleString() || 0}</td>
+                    <td className="text-muted small">{new Date(tx.timestamp).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+          <div className="d-flex justify-content-between align-items-center mt-3 p-3 text-white">
             <div>Page {page} of {totalPages}</div>
             <div>
               <Button

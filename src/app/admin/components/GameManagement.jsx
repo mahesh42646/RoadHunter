@@ -375,7 +375,7 @@ export default function GameManagement({ adminToken }) {
             return (
               <Col key={car._id} xs={12} md={6} lg={4}>
                 <Card className="glass-card h-100" style={{ border: "1px solid rgba(255, 255, 255, 0.1)" }}>
-                  <div className="position-relative" style={{ height: "200px", background: "var(--bg-darker, #050810)", overflow: "hidden" }}>
+                  <div className="position-relative" style={{ height: "200px", borderRadius: "30px", background: "var(--bg-darker, #050810)", overflow: "hidden" }}>
                     {sideViewUrl ? (
                       <Image
                         src={sideViewUrl}

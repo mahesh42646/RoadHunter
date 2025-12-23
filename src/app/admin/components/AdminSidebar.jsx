@@ -10,7 +10,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onLogout }) {
     { id: "cars", label: "Game Management", icon: BsTrophy },
     { id: "games", label: "Games History", icon: BsTrophy },
     { id: "referrals", label: "Referrals", icon: BsPersonCheck },
-    { id: "settings", label: "Settings", icon: BsGear },
+    // { id: "settings", label: "Settings", icon: BsGear },
   ];
 
   return (
@@ -51,27 +51,19 @@ export default function AdminSidebar({ activeTab, setActiveTab, onLogout }) {
               style={{
                 width: "100%",
                 padding: "0.75rem 1.5rem",
-                background: isActive ? "rgba(255, 45, 149, 0.2)" : "transparent",
+                background: isActive ? "rgba(242, 236, 238, 0.22)" : "transparent",
                 border: "none",
                 borderLeft: isActive ? "3px solid var(--accent)" : "3px solid transparent",
-                color: isActive ? "var(--accent)" : "var(--text-primary)",
+                color: isActive ? "#ff2d95" : "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 gap: "0.75rem",
                 cursor: "pointer",
-                transition: "all 0.2s",
+              
                 textAlign: "left",
               }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.target.style.background = "rgba(255, 255, 255, 0.05)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.target.style.background = "transparent";
-                }
-              }}
+           
+           
             >
               <Icon size={20} />
               <span style={{ fontWeight: isActive ? "600" : "400" }}>{item.label}</span>

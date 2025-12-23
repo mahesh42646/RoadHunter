@@ -82,58 +82,82 @@ export default function AdminDashboard({ adminToken }) {
 
       <div className="row g-3 mb-4">
         <div className="col-md-6">
-          <Card className="glass-card">
-            <Card.Header>
-              <h5>Recent Games</h5>
-            </Card.Header>
-            <Card.Body>
-              <Table responsive size="sm">
-                <thead>
-                  <tr>
-                    <th>Game #</th>
-                    <th>Pot</th>
-                    <th>Predictions</th>
-                    <th>Winner</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analytics.recentGames.map((game) => (
-                    <tr key={game._id}>
-                      <td>{game.gameNumber}</td>
-                      <td>{game.totalPot.toLocaleString()}</td>
-                      <td>{game.totalPredictions}</td>
-                      <td>{game.winnerCarId?.name || "N/A"}</td>
-                      <td>{new Date(game.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
+        <Card className="glass-card">
+  <Card.Header>
+    <h5>Recent Games</h5>
+  </Card.Header>
+  <Card.Body className="p-0 glass-card">
+    <div className="table-responsive">
+      <Table
+        responsive
+        hover
+        striped
+        bordered
+        size="sm"
+        variant="dark"
+        className="mb-0 text-white"
+      >
+        <thead className="text-uppercase small">
+          <tr className="text-center">
+            <th>Game #</th>
+            <th>Pot</th>
+            <th>Predictions</th>
+            <th>Winner</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {analytics.recentGames.map((game) => (
+            <tr key={game._id} className="text-center">
+              <td className="fw-semibold">{game.gameNumber}</td>
+              <td className="text-success fw-bold">{game.totalPot.toLocaleString()}</td>
+              <td>{game.totalPredictions}</td>
+              <td>
+                <span className="badge bg-info text-dark">{game.winnerCarId?.name || "N/A"}</span>
+              </td>
+              <td className="text-muted small">{new Date(game.createdAt).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  </Card.Body>
+</Card>
+
+
         </div>
         <div className="col-md-6">
-          <Card className="glass-card">
+        <Card className="glass-card">
             <Card.Header>
               <h5>Car Win Statistics</h5>
             </Card.Header>
-            <Card.Body>
-              <Table responsive size="sm">
-                <thead>
-                  <tr>
-                    <th>Car</th>
-                    <th>Wins</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analytics.carStats.map((stat) => (
-                    <tr key={stat.carId}>
-                      <td>{stat.carName}</td>
-                      <td>{stat.wins}</td>
+            <Card.Body className="p-0 glass-card">
+              <div className="table-responsive">
+                <Table
+                  responsive
+                  hover
+                  striped
+                  bordered
+                  size="sm"
+                  variant="dark"
+                  className="mb-0 text-white"
+                >
+                  <thead className="text-uppercase small">
+                    <tr className="text-center">
+                      <th>Car</th>
+                      <th>Wins</th>
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
+                  </thead>
+                  <tbody>
+                    {analytics.carStats.map((stat) => (
+                      <tr key={stat.carId} className="text-center">
+                        <td className="fw-semibold">{stat.carName}</td>
+                        <td>{stat.wins}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
             </Card.Body>
           </Card>
         </div>
@@ -143,35 +167,44 @@ export default function AdminDashboard({ adminToken }) {
         <Card.Header>
           <h5>Top Users</h5>
         </Card.Header>
-        <Card.Body>
-          <Table responsive>
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Predictions</th>
-                <th>Wins</th>
-                <th>Win Rate</th>
-                <th>Virtual Coins Used</th>
-                <th>Won</th>
-                <th>Net Profit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {analytics.topUsers.map((user) => (
-                <tr key={user.userId}>
-                  <td>{user.username}</td>
-                  <td>{user.totalPredictions}</td>
-                  <td>{user.wins}</td>
-                  <td>{user.winRate}%</td>
-                  <td>{user.totalWagered.toLocaleString()} (Virtual)</td>
-                  <td>{user.totalWon.toLocaleString()}</td>
-                  <td className={user.netProfit >= 0 ? "text-success" : "text-danger"}>
-                    {user.netProfit >= 0 ? "+" : ""}{user.netProfit.toLocaleString()}
-                  </td>
+        <Card.Body className="p-0 glass-card">
+          <div className="table-responsive">
+            <Table
+              responsive
+              hover
+              striped
+              bordered
+              variant="dark"
+              className="mb-0 text-white"
+            >
+              <thead className="text-uppercase small">
+                <tr className="text-center">
+                  <th>User</th>
+                  <th>Predictions</th>
+                  <th>Wins</th>
+                  <th>Win Rate</th>
+                  <th>Virtual Coins Used</th>
+                  <th>Won</th>
+                  <th>Net Profit</th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+              {analytics.topUsers.map((user) => (
+                  <tr key={user.userId} className="text-center">
+                    <td className="fw-semibold">{user.username}</td>
+                    <td>{user.totalPredictions}</td>
+                    <td>{user.wins}</td>
+                    <td>{user.winRate}%</td>
+                    <td>{user.totalWagered.toLocaleString()} (Virtual)</td>
+                    <td>{user.totalWon.toLocaleString()}</td>
+                    <td className={user.netProfit >= 0 ? "text-success" : "text-danger"}>
+                      {user.netProfit >= 0 ? "+" : ""}{user.netProfit.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
         </Card.Body>
       </Card>
     </div>
