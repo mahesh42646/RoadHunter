@@ -60,11 +60,18 @@ async function authenticatePaymentAdmin(req, res, next) {
 // Calculate coins based on amount
 function calculateCoins(amount) {
   if (amount >= 200) {
-    return Math.floor(amount * 110 * 1.2); // 20% extra above $200
+    // Above $200: 20% extra coins
+    // Base: $200 = 22,000 coins, so rate is 110 coins per dollar
+    // Above $200: 110 * 1.2 = 132 coins per dollar
+    const baseCoins = 22000; // For first $200
+    const extraAmount = amount - 200;
+    return baseCoins + Math.floor(extraAmount * 110 * 1.2);
   } else if (amount >= 100) {
-    return Math.floor(amount * 100); // $100 = 10000 coins
+    // $100 = 10,000 coins (100 coins per dollar)
+    return Math.floor(amount * 100);
   } else {
-    return Math.floor(amount * 100); // $10 = 1000 coins
+    // $10 = 1,000 coins (100 coins per dollar)
+    return Math.floor(amount * 100);
   }
 }
 
@@ -138,7 +145,7 @@ router.post('/request', authenticateUser, async (req, res, next) => {
     });
 
     // Send automated pricing message
-    const pricingMessage = `💰 Deposit Request Created!\n\nAmount: $${amount}\nCoins to be added: ${coinsToAdd.toLocaleString()}\n\nPricing:\n• $10 = 1,000 coins\n• $100 = 10,000 coins\n• $200 = 22,000 coins\n• Above $200 = 20% extra coins\n\nA payment administrator will assist you shortly.`;
+    const pricingMessage = `💰 Deposit Request Created!\n\nAmount: $${amount}\nCoins to be added: ${coinsToAdd.toLocaleString()}\n\n📋 Pricing:\n• $10 = 1,000 coins\n• $100 = 10,000 coins\n• $200 = 22,000 coins\n• Above $200 = 20% extra coins\n\nA payment administrator will assist you shortly.`;
 
     await DepositChat.create({
       depositRequestId: depositRequest._id,

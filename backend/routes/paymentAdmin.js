@@ -108,18 +108,63 @@ async function authenticatePaymentAdmin(req, res, next) {
   }
 }
 
-// Get dashboard overview (placeholder for now)
+// Get dashboard overview
 router.get('/dashboard', authenticatePaymentAdmin, async (req, res, next) => {
   try {
+    const DepositRequest = require('../schemas/depositRequest');
+    
+    const totalRequests = await DepositRequest.countDocuments({
+      paymentAdminId: req.paymentAdminId,
+    });
+    
+    const pendingRequests = await DepositRequest.countDocuments({
+      paymentAdminId: req.paymentAdminId,
+      status: { $in: ['pending', 'payment_details_sent', 'payment_pending'] },
+    });
+    
+    const completedRequests = await DepositRequest.countDocuments({
+      paymentAdminId: req.paymentAdminId,
+      status: 'approved',
+    });
+    
+    const totalRevenue = await DepositRequest.aggregate([
+      {
+        $match: {
+          paymentAdminId: req.paymentAdminId,
+          status: 'approved',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$requestedAmount' },
+        },
+      },
+    ]);
+    
     res.json({
       message: 'Payment Administrator Dashboard',
       overview: {
-        totalTransactions: 0,
-        pendingPayments: 0,
-        completedPayments: 0,
-        totalRevenue: 0,
+        totalTransactions: totalRequests,
+        pendingPayments: pendingRequests,
+        completedPayments: completedRequests,
+        totalRevenue: totalRevenue[0]?.total || 0,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get available payment methods
+router.get('/payment-methods', authenticatePaymentAdmin, async (req, res, next) => {
+  try {
+    const PaymentMethod = require('../schemas/paymentMethod');
+    const paymentMethods = await PaymentMethod.find({ isActive: true })
+      .select('-addedBy')
+      .sort({ createdAt: -1 });
+    
+    res.json({ paymentMethods });
   } catch (error) {
     next(error);
   }
