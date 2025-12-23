@@ -16,6 +16,12 @@ export default function AppShell({ children }) {
     () => chromeFreeRoutes.some((route) => pathname.startsWith(route)),
     [pathname],
   );
+  
+  // Hide only bottom nav on root route (party list page)
+  const hideBottomNav = useMemo(
+    () => pathname === "/" || hideChrome,
+    [pathname, hideChrome],
+  );
 
   return (
     <>
@@ -23,7 +29,7 @@ export default function AppShell({ children }) {
       <main 
         style={{ 
           paddingTop: hideChrome ? "0" : "70px", // Space for fixed header
-          paddingBottom: hideChrome ? "0" : "80px", // Space for bottom nav
+          paddingBottom: hideBottomNav ? "0" : "80px", // Space for bottom nav
           minHeight: hideChrome ? "100vh" : "calc(100vh - 70px)", // Full height minus header
           display: hideChrome ? "block" : "flex",
           flexDirection: hideChrome ? "block" : "column",
@@ -41,8 +47,8 @@ export default function AppShell({ children }) {
         {!hideChrome && <Footer />}
       </main>
       {!hideChrome && <FloatingHelp />}
-      {/* Hide bottom nav on chrome-free routes (party, game) */}
-      {!hideChrome && <MobileBottomNav />}
+      {/* Hide bottom nav on chrome-free routes (party, game) and root route */}
+      {!hideBottomNav && <MobileBottomNav />}
     </>
   );
 }
