@@ -949,12 +949,32 @@ router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
     }
 
     // Create payment admin (password will be hashed by schema pre-save hook)
-    const paymentAdmin = await PaymentAdmin.create({
-      email: email.toLowerCase().trim(),
-      password: password,
-      name: name.trim(),
-      isActive: true,
-    });
+    let paymentAdmin;
+    try {
+      paymentAdmin = await PaymentAdmin.create({
+        email: email.toLowerCase().trim(),
+        password: password,
+        name: name.trim(),
+        isActive: true,
+      });
+    } catch (createError) {
+      console.error('[Admin Routes] PaymentAdmin.create() error:', {
+        message: createError.message,
+        code: createError.code,
+        name: createError.name,
+        errors: createError.errors,
+        stack: createError.stack,
+      });
+      
+      if (createError.code === 11000) {
+        return res.status(400).json({ error: 'Payment administrator with this email already exists' });
+      }
+      if (createError.name === 'ValidationError') {
+        const validationErrors = Object.values(createError.errors || {}).map(err => err.message).join(', ');
+        return res.status(400).json({ error: validationErrors || createError.message });
+      }
+      throw createError;
+    }
 
     // Return payment admin without password
     const paymentAdminData = paymentAdmin.toObject();
@@ -975,9 +995,14 @@ router.post('/payment-admins', authenticateAdmin, async (req, res, next) => {
       return res.status(400).json({ error: 'Payment administrator with this email already exists' });
     }
     if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: error.message });
+      const validationErrors = Object.values(error.errors || {}).map(err => err.message).join(', ');
+      return res.status(400).json({ error: validationErrors || error.message });
     }
-    next(error);
+    // Return a more user-friendly error message
+    return res.status(500).json({ 
+      error: 'Failed to create payment administrator. Please check server logs for details.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
