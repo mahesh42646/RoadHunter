@@ -8,12 +8,16 @@ import Footer from "./Footer";
 import Header from "./Header";
 import MobileBottomNav from "./MobileBottomNav";
 
-const chromeFreeRoutes = ["/party", "/game", "/"];
+const chromeFreeRoutes = ["/party", "/game"];
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const hideChrome = useMemo(
-    () => chromeFreeRoutes.some((route) => pathname.startsWith(route)),
+    () => {
+      // Hide chrome on party/game routes or exact root route
+      if (pathname === "/") return true;
+      return chromeFreeRoutes.some((route) => pathname.startsWith(route));
+    },
     [pathname],
   );
 
