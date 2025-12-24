@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, ListGroup, Button, Form, Modal, Badge } from "react-bootstrap";
+import { Card, ListGroup, Button, Form, Modal, Badge, Alert } from "react-bootstrap";
 import apiClient from "@/lib/apiClient";
 import useAuthStore from "@/store/useAuthStore";
 import DepositChatPanel from "@/components/DepositChatPanel";
