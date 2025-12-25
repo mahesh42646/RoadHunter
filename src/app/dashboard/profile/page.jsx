@@ -1482,13 +1482,99 @@ export default function ProfilePage() {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    value={user?.account?.email || ""}
-                    readOnly
-                    disabled
-                  />
-                  <Form.Text className="text-muted">Email from your account</Form.Text>
+                  {user?.account?.email ? (
+                    <>
+                      <Form.Control
+                        type="email"
+                        value={user?.account?.email || ""}
+                        readOnly
+                        disabled
+                      />
+                      <Form.Text className="text-muted">Email cannot be changed once added</Form.Text>
+                    </>
+                  ) : (
+                    <>
+                      <Form.Control
+                        type="email"
+                        value="Not set"
+                        readOnly
+                        disabled
+                        style={{ backgroundColor: "var(--bg-secondary)" }}
+                      />
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => setShowAddEmailModal(true)}
+                      >
+                        Add Email
+                      </Button>
+                      <Form.Text className="text-muted d-block mt-1">
+                        Add email to secure your account (can only be added once)
+                      </Form.Text>
+                    </>
+                  )}
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Password</Form.Label>
+                  {(() => {
+                    const hasPasswordProvider = user?.account?.providers?.some(
+                      p => p.providerId === 'password'
+                    );
+                    
+                    if (hasPasswordProvider) {
+                      return (
+                        <>
+                          <Form.Control
+                            type="text"
+                            value="••••••••"
+                            readOnly
+                            disabled
+                          />
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setShowChangePasswordModal(true)}
+                          >
+                            Change Password
+                          </Button>
+                          <Form.Text className="text-muted d-block mt-1">
+                            Change your account password
+                          </Form.Text>
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <Form.Control
+                            type="text"
+                            value="Not set"
+                            readOnly
+                            disabled
+                            style={{ backgroundColor: "var(--bg-secondary)" }}
+                          />
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setShowSetPasswordModal(true)}
+                            disabled={!user?.account?.email}
+                          >
+                            Set Password
+                          </Button>
+                          <Form.Text className="text-muted d-block mt-1">
+                            {user?.account?.email 
+                              ? "Set a password to login with email and password"
+                              : "Add email first to set a password"}
+                          </Form.Text>
+                        </>
+                      );
+                    }
+                  })()}
                 </Form.Group>
               </Col>
 
