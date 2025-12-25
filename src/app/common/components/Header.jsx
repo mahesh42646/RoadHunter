@@ -289,9 +289,9 @@ export default function Header() {
           onClick={() => setShowLoginModal(false)}
         >
           <div
-            className="glass-card rounded p-4"
+            className="glass-card rounded p-4 p-md-5"
             style={{
-              maxWidth: "400px",
+              maxWidth: "500px",
               width: "100%",
               border: "1px solid rgba(255, 255, 255, 0.1)",
             }}
