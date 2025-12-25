@@ -31,12 +31,26 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
   }, [searchParams]);
 
   // Auto-login quick user if cached quickLoginId exists (only on mount, not every render)
+  // But don't auto-login if user just logged out
   useEffect(() => {
+    // Check if user just logged out - if so, don't auto-login
+    const justLoggedOut = sessionStorage.getItem("justLoggedOut");
+    if (justLoggedOut === "true") {
+      sessionStorage.removeItem("justLoggedOut");
+      return; // Don't auto-login after logout
+    }
+
     const cachedQuickLoginId = localStorage.getItem("quickLoginId");
     const authState = useAuthStore.getState();
     const isAuthenticated = authState.token && !hasSessionExpired(authState.lastActiveAt);
     
-    if (cachedQuickLoginId && !isAuthenticated && activeTab === "login" && !quickLoginLoading) {
+    // Only auto-login if:
+    // 1. User is on login tab (not register)
+    // 2. Not already authenticated
+    // 3. Has cached quickLoginId
+    // 4. Not currently loading
+    // 5. Not in a modal (only auto-login on login page, not in popup)
+    if (cachedQuickLoginId && !isAuthenticated && activeTab === "login" && !quickLoginLoading && !isModal) {
       // Try to auto-login with cached ID (silently, no name needed)
       const autoLogin = async () => {
         try {
@@ -47,7 +61,6 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
           useAuthStore.getState().setSession({ token, user });
           useAuthStore.getState().markActive();
           if (onLoginSuccess) onLoginSuccess();
-          if (isModal && onClose) onClose();
           if (!isModal) {
             router.push("/dashboard");
           }

@@ -94,8 +94,23 @@ export default function useAuthActions() {
   }, [handleSession, router]);
 
   const logout = useCallback(async () => {
-    await signOut(auth);
+    // Clear Firebase auth
+    try {
+      await signOut(auth);
+    } catch (error) {
+      // Ignore Firebase signOut errors (user might not have Firebase account)
+      console.log('[Logout] Firebase signOut:', error.message);
+    }
+    
+    // Clear auth session
     clearSession();
+    
+    // Clear quick login cache (for quick login users)
+    localStorage.removeItem("quickLoginId");
+    
+    // Set a flag to prevent immediate auto-login
+    sessionStorage.setItem("justLoggedOut", "true");
+    
     router.push("/");
   }, [clearSession, router]);
 
