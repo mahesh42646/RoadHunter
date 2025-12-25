@@ -1715,6 +1715,211 @@ export default function ProfilePage() {
           </div>
         </Modal.Body>
       </Modal>
+
+      {/* Add Email Modal */}
+      <Modal
+        show={showAddEmailModal}
+        onHide={() => {
+          setShowAddEmailModal(false);
+          setEmailForm({ email: "" });
+          setMessage("");
+        }}
+        centered
+        contentClassName="bg-dark border-light"
+      >
+        <Modal.Header closeButton className="border-light">
+          <Modal.Title className="text-light">Add Email</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {message && (
+            <Alert variant={message.includes("success") ? "success" : "danger"} className="mb-3">
+              {message}
+            </Alert>
+          )}
+          <Form onSubmit={handleAddEmail}>
+            <Form.Group className="mb-3">
+              <Form.Label>Email Address</Form.Label>
+              <Form.Control
+                type="email"
+                value={emailForm.email}
+                onChange={(e) => setEmailForm({ email: e.target.value })}
+                placeholder="Enter your email"
+                required
+              />
+              <Form.Text className="text-muted">
+                You can only add an email once. It cannot be changed later.
+              </Form.Text>
+            </Form.Group>
+            <div className="d-flex gap-2">
+              <Button
+                variant="outline-light"
+                className="flex-grow-1"
+                onClick={() => {
+                  setShowAddEmailModal(false);
+                  setEmailForm({ email: "" });
+                  setMessage("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                className="flex-grow-1"
+                disabled={emailLoading || !emailForm.email.trim()}
+              >
+                {emailLoading ? "Adding..." : "Add Email"}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Set Password Modal */}
+      <Modal
+        show={showSetPasswordModal}
+        onHide={() => {
+          setShowSetPasswordModal(false);
+          setPasswordForm({ password: "", confirmPassword: "" });
+          setMessage("");
+        }}
+        centered
+        contentClassName="bg-dark border-light"
+      >
+        <Modal.Header closeButton className="border-light">
+          <Modal.Title className="text-light">Set Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {message && (
+            <Alert variant={message.includes("success") ? "success" : "danger"} className="mb-3">
+              {message}
+            </Alert>
+          )}
+          <Form onSubmit={handleSetPassword}>
+            <Form.Group className="mb-3">
+              <Form.Label>New Password</Form.Label>
+              <Form.Control
+                type="password"
+                value={passwordForm.password}
+                onChange={(e) => setPasswordForm({ ...passwordForm, password: e.target.value })}
+                placeholder="Enter password (min 8 characters)"
+                required
+                minLength={8}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Confirm Password</Form.Label>
+              <Form.Control
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                placeholder="Confirm password"
+                required
+                minLength={8}
+              />
+            </Form.Group>
+            <div className="d-flex gap-2">
+              <Button
+                variant="outline-light"
+                className="flex-grow-1"
+                onClick={() => {
+                  setShowSetPasswordModal(false);
+                  setPasswordForm({ password: "", confirmPassword: "" });
+                  setMessage("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                className="flex-grow-1"
+                disabled={passwordLoading || !passwordForm.password || passwordForm.password !== passwordForm.confirmPassword}
+              >
+                {passwordLoading ? "Setting..." : "Set Password"}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal
+        show={showChangePasswordModal}
+        onHide={() => {
+          setShowChangePasswordModal(false);
+          setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+          setMessage("");
+        }}
+        centered
+        contentClassName="bg-dark border-light"
+      >
+        <Modal.Header closeButton className="border-light">
+          <Modal.Title className="text-light">Change Password</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {message && (
+            <Alert variant={message.includes("success") ? "success" : "danger"} className="mb-3">
+              {message}
+            </Alert>
+          )}
+          <Form onSubmit={handleChangePassword}>
+            <Form.Group className="mb-3">
+              <Form.Label>Current Password</Form.Label>
+              <Form.Control
+                type="password"
+                value={changePasswordForm.currentPassword}
+                onChange={(e) => setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value })}
+                placeholder="Enter current password"
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>New Password</Form.Label>
+              <Form.Control
+                type="password"
+                value={changePasswordForm.newPassword}
+                onChange={(e) => setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value })}
+                placeholder="Enter new password (min 8 characters)"
+                required
+                minLength={8}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Confirm New Password</Form.Label>
+              <Form.Control
+                type="password"
+                value={changePasswordForm.confirmPassword}
+                onChange={(e) => setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value })}
+                placeholder="Confirm new password"
+                required
+                minLength={8}
+              />
+            </Form.Group>
+            <div className="d-flex gap-2">
+              <Button
+                variant="outline-light"
+                className="flex-grow-1"
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                  setMessage("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                className="flex-grow-1"
+                disabled={changePasswordLoading || !changePasswordForm.currentPassword || !changePasswordForm.newPassword || changePasswordForm.newPassword !== changePasswordForm.confirmPassword}
+              >
+                {changePasswordLoading ? "Changing..." : "Change Password"}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </div>
   );
 }
