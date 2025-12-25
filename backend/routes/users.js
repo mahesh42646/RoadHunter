@@ -674,11 +674,16 @@ module.exports = function createUserRouter(io) {
         });
       }
 
-      // Check if Firebase Admin is configured
-      if (!FIREBASE_SERVICE_ACCOUNT) {
-        console.error('[Set Password] Firebase Admin not configured - FIREBASE_SERVICE_ACCOUNT missing');
+      // Check if Firebase Admin is configured (try loading service account from env var or file)
+      const serviceAccount = loadServiceAccount();
+      if (!serviceAccount) {
+        console.error('[Set Password] Firebase Admin not configured - Service account not found');
+        console.error('[Set Password] Checked:');
+        console.error('[Set Password]   1. FIREBASE_SERVICE_ACCOUNT environment variable');
+        console.error('[Set Password]   2. partyngame-vo-firebase-adminsdk-fbsvc-2426f0a018.json in project root');
+        console.error('[Set Password]   3. firebase-service-account.json in project root or backend directory');
         return res.status(503).json({ 
-          error: 'Password management is currently unavailable. Please contact support.' 
+          error: 'Password management requires Firebase Admin SDK configuration. Please ensure the service account file exists or set FIREBASE_SERVICE_ACCOUNT environment variable.'
         });
       }
 
