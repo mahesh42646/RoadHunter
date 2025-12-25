@@ -152,6 +152,16 @@ async function authenticate(req, res, next) {
 module.exports = function createUserRouter(io) {
   const router = express.Router();
 
+  // Helper function to generate random name
+  function generateRandomName() {
+    const adjectives = ['Cool', 'Swift', 'Brave', 'Smart', 'Bold', 'Fast', 'Bright', 'Sharp', 'Wild', 'Calm', 'Bold', 'Quick', 'Strong', 'Wise', 'Fierce'];
+    const nouns = ['Player', 'Gamer', 'Hunter', 'Warrior', 'Racer', 'Champion', 'Hero', 'Legend', 'Master', 'Pro', 'Ace', 'Star', 'Elite', 'Ninja', 'Beast'];
+    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+    const randomNumber = Math.floor(Math.random() * 9999) + 1;
+    return `${randomAdjective}${randomNoun}${randomNumber}`;
+  }
+
   // Quick login route - no Firebase required
   router.post('/quick-login', async (req, res, next) => {
     try {
@@ -175,10 +185,8 @@ module.exports = function createUserRouter(io) {
         }
       }
 
-      // If no quickLoginId or user not found, name is required for new account
-      if (!name || !name.trim()) {
-        return res.status(400).json({ error: 'Name is required to create a new account' });
-      }
+      // Generate random name if not provided
+      const displayName = (name && name.trim()) ? name.trim() : generateRandomName();
 
       // Create new quick login user
       const newQuickLoginId = crypto.randomBytes(16).toString('hex');
@@ -194,7 +202,7 @@ module.exports = function createUserRouter(io) {
 
       user = await User.create({
         account: {
-          displayName: name.trim(),
+          displayName: displayName,
           profileCompleted: true, // Quick users have 100% profile complete
           gender: 'prefer-not-to-say',
           status: 'active',

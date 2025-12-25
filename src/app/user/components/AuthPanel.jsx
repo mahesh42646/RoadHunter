@@ -79,11 +79,6 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
   };
 
   const handleQuickLogin = async () => {
-    if (!quickLoginName.trim()) {
-      setError("Please enter your name");
-      return;
-    }
-
     setQuickLoginLoading(true);
     setError(null);
 
@@ -92,7 +87,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
       const cachedQuickLoginId = localStorage.getItem("quickLoginId");
       
       const response = await apiClient.post("/users/quick-login", {
-        name: quickLoginName.trim(),
+        name: quickLoginName.trim() || null, // Name is optional, will be generated randomly if not provided
         quickLoginId: cachedQuickLoginId || null,
         referralCode: referralCode || null,
       });
@@ -158,18 +153,18 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
           <Form.Group className="mb-3">
             <Form.Control
               type="text"
-              placeholder="Enter your name"
+              placeholder="Enter your name (optional - random name will be generated)"
               value={quickLoginName}
               onChange={(e) => setQuickLoginName(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === "Enter" && quickLoginName.trim()) {
+                if (e.key === "Enter") {
                   handleQuickLogin();
                 }
               }}
               disabled={quickLoginLoading}
             />
             <Form.Text className="text-light-50 small">
-              One-click login. No email or password needed. Account stored in browser cache.
+              One-click login. No email or password needed. Name is optional - random name will be generated if left empty. Account stored in browser cache.
             </Form.Text>
           </Form.Group>
         )}
