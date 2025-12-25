@@ -628,6 +628,14 @@ module.exports = function createUserRouter(io) {
         });
       }
 
+      // Check if Firebase Admin is configured
+      if (!FIREBASE_SERVICE_ACCOUNT) {
+        console.error('[Set Password] Firebase Admin not configured - FIREBASE_SERVICE_ACCOUNT missing');
+        return res.status(503).json({ 
+          error: 'Password management is currently unavailable. Please contact support.' 
+        });
+      }
+
       try {
         const app = ensureFirebaseApp();
         
@@ -671,6 +679,15 @@ module.exports = function createUserRouter(io) {
         });
       } catch (firebaseError) {
         console.error('[Firebase] Error setting password:', firebaseError);
+        const errorMessage = firebaseError.message || 'Failed to set password';
+        
+        // Provide more specific error messages
+        if (errorMessage.includes('email-already-exists')) {
+          return res.status(400).json({ 
+            error: 'This email is already registered with another account.' 
+          });
+        }
+        
         return res.status(500).json({ 
           error: 'Failed to set password. Please try again later.' 
         });
@@ -707,6 +724,14 @@ module.exports = function createUserRouter(io) {
 
       if (!req.user.account.email) {
         return res.status(400).json({ error: 'Email is required to change password' });
+      }
+
+      // Check if Firebase Admin is configured
+      if (!FIREBASE_SERVICE_ACCOUNT) {
+        console.error('[Change Password] Firebase Admin not configured - FIREBASE_SERVICE_ACCOUNT missing');
+        return res.status(503).json({ 
+          error: 'Password management is currently unavailable. Please contact support.' 
+        });
       }
 
       try {
