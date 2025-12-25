@@ -14,7 +14,24 @@ const {
   JWT_EXPIRE = '1h',
   FIREBASE_SERVICE_ACCOUNT,
   FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  FIREBASE_PROJECT_ID = 'partyngame-vo', // From google-services.json
 } = process.env;
+
+// Try to load google-services.json for additional config
+let googleServicesConfig = null;
+try {
+  const googleServicesPath = path.join(__dirname, '../../google-services.json');
+  if (require('fs').existsSync(googleServicesPath)) {
+    googleServicesConfig = require(googleServicesPath);
+    // Extract API key from google-services.json if not set
+    if (!FIREBASE_WEB_API_KEY && googleServicesConfig?.client?.[0]?.api_key?.[0]?.current_key) {
+      process.env.FIREBASE_WEB_API_KEY = googleServicesConfig.client[0].api_key[0].current_key;
+    }
+  }
+} catch (error) {
+  // Ignore if file doesn't exist
+  console.log('[Firebase Config] google-services.json not found, using env vars only');
+}
 
 function loadServiceAccount() {
   if (!FIREBASE_SERVICE_ACCOUNT) {
