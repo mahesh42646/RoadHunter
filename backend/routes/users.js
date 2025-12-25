@@ -92,15 +92,17 @@ async function verifyFirebaseIdToken(idToken) {
 }
 
 function createToken(user) {
-  return jwt.sign(
-    {
-      sub: user._id.toString(),
-      firebaseUid: user.account.firebaseUid,
-      level: user.progress.level,
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRE },
-  );
+  const payload = {
+    sub: user._id.toString(),
+    level: user.progress?.level || 1,
+  };
+  
+  // Only include firebaseUid if it exists (not for quick login users)
+  if (user.account?.firebaseUid) {
+    payload.firebaseUid = user.account.firebaseUid;
+  }
+  
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRE });
 }
 
 function sanitizeUser(user) {
@@ -150,6 +152,140 @@ async function authenticate(req, res, next) {
 module.exports = function createUserRouter(io) {
   const router = express.Router();
 
+  // Quick login route - no Firebase required
+  router.post('/quick-login', async (req, res, next) => {
+    try {
+      const { name, quickLoginId, referralCode } = req.body;
+
+      const now = new Date();
+      let user;
+
+      // If quickLoginId provided, try to find existing user (auto-login)
+      if (quickLoginId) {
+        user = await User.findOne({ quickLoginId });
+        if (user) {
+          // Update last login
+          user.auth.lastLoginAt = now;
+          user.auth.lastIp = req.ip;
+          await user.save();
+
+          const token = createToken(user);
+          res.json({ token, user: sanitizeUser(user) });
+          return;
+        }
+      }
+
+      // If no quickLoginId or user not found, name is required for new account
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Name is required to create a new account' });
+      }
+
+      // Create new quick login user
+      const newQuickLoginId = crypto.randomBytes(16).toString('hex');
+
+      // Check for referral
+      let referredBy = null;
+      if (referralCode) {
+        const referrer = await User.findOne({ referralCode: referralCode.trim() });
+        if (referrer && referrer._id) {
+          referredBy = referrer._id;
+        }
+      }
+
+      user = await User.create({
+        account: {
+          displayName: name.trim(),
+          profileCompleted: true, // Quick users have 100% profile complete
+          gender: 'prefer-not-to-say',
+          status: 'active',
+          isQuickLogin: true,
+        },
+        quickLoginId: newQuickLoginId,
+        auth: {
+          lastLoginAt: now,
+          lastIp: req.ip,
+        },
+        wallet: {
+          walletId: User.generateWalletId(),
+          balanceUsd: 0,
+          partyCoins: 0,
+        },
+        progress: {
+          level: 1,
+          xp: 0,
+          nextLevelAt: 100,
+        },
+        social: {
+          profilePrivacy: 'public',
+          friends: [],
+          friendRequests: { sent: [], received: [] },
+          followRequests: { sent: [], received: [] },
+          removedFriends: [],
+          removedBy: [],
+          followers: [],
+          following: [],
+          blockedUsers: [],
+        },
+        referredBy: referredBy,
+        referral: {
+          pending: 0,
+          completed: 0,
+          referralWallet: {
+            partyCoins: 0,
+            totalEarned: 0,
+            totalWithdrawn: 0,
+          },
+          referrals: [],
+        },
+      });
+
+      // Handle referral if applicable
+      if (referredBy) {
+        const referrer = await User.findById(referredBy);
+        if (referrer) {
+          if (!referrer.referral) {
+            referrer.referral = {
+              pending: 0,
+              completed: 0,
+              referralWallet: {
+                partyCoins: 0,
+                totalEarned: 0,
+                totalWithdrawn: 0,
+              },
+              referrals: [],
+            };
+          }
+          referrer.referral.pending = (referrer.referral.pending || 0) + 1;
+          referrer.referral.referrals.push({
+            userId: user._id,
+            status: 'pending',
+            bonusEarned: 0,
+            firstDepositAmount: 0,
+            referredAt: now,
+          });
+          await referrer.save();
+
+          io.emit('referral:new', {
+            referrerId: referrer._id.toString(),
+            referredUserId: user._id.toString(),
+          });
+        }
+      }
+
+      io.emit('user:joined', { userId: user._id, name: user.account.displayName });
+
+      const token = createToken(user);
+      res.json({
+        token,
+        user: sanitizeUser(user),
+        quickLoginId: newQuickLoginId, // Return for caching
+      });
+    } catch (error) {
+      console.error('[Quick Login] Error:', error);
+      next(error);
+    }
+  });
+
   router.post('/session', async (req, res, next) => {
     try {
       const { idToken, referralCode } = req.body;
@@ -185,6 +321,7 @@ module.exports = function createUserRouter(io) {
             providers: providerId ? [{ providerId, providerUid: firebaseUid }] : [],
             profileCompleted: false,
             status: 'active',
+            isQuickLogin: false,
           },
           auth: {
             lastLoginAt: now,
@@ -245,6 +382,11 @@ module.exports = function createUserRouter(io) {
 
         io.emit('user:joined', { userId: user._id, email: user.account.email });
       } else {
+        // Update last login for existing users
+        user.auth.lastLoginAt = now;
+        user.auth.lastIp = req.ip;
+        await user.save();
+
         // Ensure existing users have wallets initialized
         if (!user.wallet || !user.wallet.walletId) {
           user.wallet = {

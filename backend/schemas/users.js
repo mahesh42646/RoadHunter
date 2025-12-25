@@ -50,10 +50,9 @@ const transactionSchema = new mongoose.Schema(
 const userSchema = new mongoose.Schema(
   {
     account: {
-      firebaseUid: { type: String, required: true, trim: true },
+      firebaseUid: { type: String, trim: true },
       email: {
         type: String,
-        required: true,
         lowercase: true,
         trim: true,
         match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -75,6 +74,13 @@ const userSchema = new mongoose.Schema(
         ],
         default: [],
       },
+      isQuickLogin: { type: Boolean, default: false },
+    },
+    quickLoginId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
     },
     auth: {
       lastLoginAt: Date,

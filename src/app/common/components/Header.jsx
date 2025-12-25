@@ -311,10 +311,12 @@ export default function Header() {
             </div>
             <AuthPanel
               initialTab="login"
+              isModal={true}
               onLoginSuccess={() => {
                 setShowLoginModal(false);
                 loadBalance();
               }}
+              onClose={() => setShowLoginModal(false)}
             />
           </div>
         </div>
