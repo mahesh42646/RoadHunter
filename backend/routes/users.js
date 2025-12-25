@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const admin = require('firebase-admin');
 const path = require('path');
+const crypto = require('crypto');
 
 const User = require('../schemas/users');
 const uploadUser = require('../middleware/uploadUser');
