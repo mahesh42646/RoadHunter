@@ -53,6 +53,21 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.account?.photoUrl || "");
   const fileInputRef = useRef(null);
+  
+  // Email and password management
+  const [showAddEmailModal, setShowAddEmailModal] = useState(false);
+  const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [emailForm, setEmailForm] = useState({ email: "" });
+  const [passwordForm, setPasswordForm] = useState({ password: "", confirmPassword: "" });
+  const [changePasswordForm, setChangePasswordForm] = useState({ 
+    currentPassword: "", 
+    newPassword: "", 
+    confirmPassword: "" 
+  });
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
 
   const isProfileComplete = user?.account?.profileCompleted;
 
@@ -157,6 +172,136 @@ export default function ProfilePage() {
       setPreviewUrl(reader.result);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAddEmail = async (e) => {
+    e.preventDefault();
+    setEmailLoading(true);
+    setMessage("");
+
+    if (!emailForm.email.trim()) {
+      setMessage("Email is required");
+      setEmailLoading(false);
+      return;
+    }
+
+    try {
+      const response = await apiClient.post("/users/account/add-email", {
+        email: emailForm.email.trim(),
+      });
+      updateUser(response.data.user);
+      setMessage("Email added successfully!");
+      setEmailForm({ email: "" });
+      
+      const meResponse = await apiClient.get("/users/me");
+      updateUser(meResponse.data.user);
+      
+      setTimeout(() => {
+        setShowAddEmailModal(false);
+        setMessage("");
+      }, 2000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || "Failed to add email");
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handleSetPassword = async (e) => {
+    e.preventDefault();
+    setPasswordLoading(true);
+    setMessage("");
+
+    if (!passwordForm.password || passwordForm.password.length < 8) {
+      setMessage("Password must be at least 8 characters");
+      setPasswordLoading(false);
+      return;
+    }
+
+    if (passwordForm.password !== passwordForm.confirmPassword) {
+      setMessage("Passwords do not match");
+      setPasswordLoading(false);
+      return;
+    }
+
+    try {
+      const response = await apiClient.post("/users/account/set-password", {
+        password: passwordForm.password,
+      });
+      updateUser(response.data.user);
+      setMessage("Password set successfully!");
+      setPasswordForm({ password: "", confirmPassword: "" });
+      
+      const meResponse = await apiClient.get("/users/me");
+      updateUser(meResponse.data.user);
+      
+      setTimeout(() => {
+        setShowSetPasswordModal(false);
+        setMessage("");
+      }, 2000);
+    } catch (error) {
+      setMessage(error.response?.data?.error || "Failed to set password");
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangePasswordLoading(true);
+    setMessage("");
+
+    if (!changePasswordForm.currentPassword || !changePasswordForm.newPassword) {
+      setMessage("All fields are required");
+      setChangePasswordLoading(false);
+      return;
+    }
+
+    if (changePasswordForm.newPassword.length < 8) {
+      setMessage("New password must be at least 8 characters");
+      setChangePasswordLoading(false);
+      return;
+    }
+
+    if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+      setMessage("New passwords do not match");
+      setChangePasswordLoading(false);
+      return;
+    }
+
+    try {
+      // First verify current password by attempting to sign in
+      const { signInWithEmailAndPassword } = await import("firebase/auth");
+      const { auth } = await import("@/firebase");
+      
+      await signInWithEmailAndPassword(
+        auth,
+        user.account.email,
+        changePasswordForm.currentPassword
+      );
+
+      // If sign in successful, update password
+      const response = await apiClient.post("/users/account/change-password", {
+        currentPassword: changePasswordForm.currentPassword,
+        newPassword: changePasswordForm.newPassword,
+      });
+      
+      setMessage("Password changed successfully!");
+      setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      
+      setTimeout(() => {
+        setShowChangePasswordModal(false);
+        setMessage("");
+      }, 2000);
+    } catch (error) {
+      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        setMessage("Current password is incorrect");
+      } else {
+        setMessage(error.response?.data?.error || error.message || "Failed to change password");
+      }
+    } finally {
+      setChangePasswordLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {

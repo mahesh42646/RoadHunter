@@ -560,6 +560,180 @@ module.exports = function createUserRouter(io) {
     }
   });
 
+  // Add email to account (only if email is missing, only once)
+  router.post('/account/add-email', authenticate, async (req, res, next) => {
+    try {
+      const { email } = req.body;
+
+      if (!email || !email.trim()) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Check if user already has an email
+      if (req.user.account.email) {
+        return res.status(400).json({ error: 'Email already exists. Cannot add email again.' });
+      }
+
+      // Check if email is already taken by another user
+      const existingUser = await User.findOne({ 'account.email': email.toLowerCase().trim() });
+      if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
+        return res.status(400).json({ error: 'This email is already registered' });
+      }
+
+      // Update user email
+      req.user.account.email = email.toLowerCase().trim();
+      req.user.account.emailVerified = false; // Email needs to be verified
+      await req.user.save();
+
+      res.json({ 
+        message: 'Email added successfully. Please verify your email.',
+        user: sanitizeUser(req.user)
+      });
+    } catch (error) {
+      console.error('[Add Email] Error:', error);
+      next(error);
+    }
+  });
+
+  // Set password for account (for quick login users and Google users without password)
+  router.post('/account/set-password', authenticate, async (req, res, next) => {
+    try {
+      const { password } = req.body;
+
+      if (!password || password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
+
+      // Check if user already has a password (has firebaseUid and email/password provider)
+      const hasPasswordProvider = req.user.account.providers?.some(
+        p => p.providerId === 'password'
+      );
+
+      if (hasPasswordProvider && req.user.account.firebaseUid) {
+        return res.status(400).json({ 
+          error: 'Password already set. Use change password instead.' 
+        });
+      }
+
+      // For quick login users or Google users, we need to create Firebase account
+      // This requires Firebase Admin SDK
+      if (!req.user.account.email) {
+        return res.status(400).json({ 
+          error: 'Please add an email first before setting a password' 
+        });
+      }
+
+      try {
+        const app = ensureFirebaseApp();
+        
+        let firebaseUid = req.user.account.firebaseUid;
+        
+        if (!firebaseUid) {
+          // Create new Firebase user
+          const firebaseUser = await app.auth().createUser({
+            email: req.user.account.email,
+            password: password,
+            displayName: req.user.account.displayName,
+            emailVerified: req.user.account.emailVerified || false,
+          });
+          firebaseUid = firebaseUser.uid;
+        } else {
+          // Update existing Firebase user with password
+          await app.auth().updateUser(firebaseUid, {
+            password: password,
+          });
+        }
+
+        // Update user account
+        req.user.account.firebaseUid = firebaseUid;
+        if (!req.user.account.providers) {
+          req.user.account.providers = [];
+        }
+        
+        // Add password provider if not exists
+        if (!req.user.account.providers.some(p => p.providerId === 'password')) {
+          req.user.account.providers.push({
+            providerId: 'password',
+            providerUid: firebaseUid,
+          });
+        }
+
+        await req.user.save();
+
+        res.json({ 
+          message: 'Password set successfully. You can now login with email and password.',
+          user: sanitizeUser(req.user)
+        });
+      } catch (firebaseError) {
+        console.error('[Firebase] Error setting password:', firebaseError);
+        return res.status(500).json({ 
+          error: 'Failed to set password. Please try again later.' 
+        });
+      }
+    } catch (error) {
+      console.error('[Set Password] Error:', error);
+      next(error);
+    }
+  });
+
+  // Change password (for users who already have password)
+  router.post('/account/change-password', authenticate, async (req, res, next) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current password and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: 'New password must be at least 8 characters' });
+      }
+
+      // Check if user has password provider
+      const hasPasswordProvider = req.user.account.providers?.some(
+        p => p.providerId === 'password'
+      );
+
+      if (!hasPasswordProvider || !req.user.account.firebaseUid) {
+        return res.status(400).json({ 
+          error: 'Password not set. Use set password instead.' 
+        });
+      }
+
+      if (!req.user.account.email) {
+        return res.status(400).json({ error: 'Email is required to change password' });
+      }
+
+      try {
+        // Update password using Firebase Admin SDK
+        // Note: We trust the user is authenticated via JWT, but frontend should verify current password first
+        const app = ensureFirebaseApp();
+        
+        // Update password using Admin SDK
+        await app.auth().updateUser(req.user.account.firebaseUid, {
+          password: newPassword,
+        });
+
+        res.json({ 
+          message: 'Password changed successfully' 
+        });
+      } catch (firebaseError) {
+        console.error('[Firebase] Error changing password:', firebaseError);
+        return res.status(500).json({ 
+          error: 'Failed to change password. Please verify your current password is correct.' 
+        });
+      }
+    } catch (error) {
+      console.error('[Change Password] Error:', error);
+      next(error);
+    }
+  });
+
   router.get('/me', authenticate, async (req, res) => {
     try {
       const user = await User.findById(req.user._id);
