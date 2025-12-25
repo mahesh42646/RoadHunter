@@ -772,11 +772,12 @@ module.exports = function createUserRouter(io) {
         return res.status(400).json({ error: 'Email is required to change password' });
       }
 
-      // Check if Firebase Admin is configured
-      if (!FIREBASE_SERVICE_ACCOUNT) {
-        console.error('[Change Password] Firebase Admin not configured - FIREBASE_SERVICE_ACCOUNT missing');
+      // Check if Firebase Admin is configured (try loading service account from env var or file)
+      const serviceAccount = loadServiceAccount();
+      if (!serviceAccount) {
+        console.error('[Change Password] Firebase Admin not configured - Service account not found');
         return res.status(503).json({ 
-          error: 'Password management is currently unavailable. Please contact support.' 
+          error: 'Password management requires Firebase Admin SDK configuration. Please ensure the service account file exists or set FIREBASE_SERVICE_ACCOUNT environment variable.'
         });
       }
 
