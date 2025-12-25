@@ -50,24 +50,27 @@ function loadServiceAccount() {
   }
 
   // Second, try to load from service account JSON file in project root
+  // __dirname is backend/routes, so ../../ goes to project root
   const serviceAccountPaths = [
-    path.join(__dirname, '../../partyngame-vo-firebase-adminsdk-fbsvc-2426f0a018.json'),
-    path.join(__dirname, '../../firebase-service-account.json'),
-    path.join(__dirname, '../firebase-service-account.json'),
+    path.join(__dirname, '../../partyngame-vo-firebase-adminsdk-fbsvc-2426f0a018.json'), // Project root
+    path.join(__dirname, '../../firebase-service-account.json'), // Project root (generic name)
+    path.join(__dirname, '../firebase-service-account.json'), // Backend directory
+    path.join(__dirname, '../../backend/firebase-service-account.json'), // Alternative backend path
   ];
 
   for (const serviceAccountPath of serviceAccountPaths) {
     try {
       if (fs.existsSync(serviceAccountPath)) {
         const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-        console.log(`[Firebase] Loaded service account from: ${serviceAccountPath}`);
+        console.log(`[Firebase] ✅ Loaded service account from: ${serviceAccountPath}`);
         return serviceAccount;
       }
     } catch (error) {
-      console.error(`[Firebase] Error loading service account from ${serviceAccountPath}:`, error.message);
+      console.error(`[Firebase] ❌ Error loading service account from ${serviceAccountPath}:`, error.message);
     }
   }
 
+  console.log('[Firebase] ⚠️  Service account not found. Tried paths:', serviceAccountPaths);
   return null;
 }
 
