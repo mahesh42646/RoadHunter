@@ -104,5 +104,10 @@ backend/uploads/partys/*
 !backend/uploads/partys/.gitkeep
 backend/uploads/users/*
 !backend/uploads/users/.gitkeep
+
+# Firebase service account keys (contains sensitive credentials)
+*-firebase-adminsdk-*.json
+partyngame-vo-firebase-adminsdk-*.json
+firebase-service-account.json
 # End of Selection
 ```

@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const admin = require('firebase-admin');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const User = require('../schemas/users');
 const uploadUser = require('../middleware/uploadUser');
@@ -21,8 +22,8 @@ const {
 let googleServicesConfig = null;
 try {
   const googleServicesPath = path.join(__dirname, '../../google-services.json');
-  if (require('fs').existsSync(googleServicesPath)) {
-    googleServicesConfig = require(googleServicesPath);
+  if (fs.existsSync(googleServicesPath)) {
+    googleServicesConfig = JSON.parse(fs.readFileSync(googleServicesPath, 'utf8'));
     // Extract API key from google-services.json if not set
     if (!FIREBASE_WEB_API_KEY && googleServicesConfig?.client?.[0]?.api_key?.[0]?.current_key) {
       process.env.FIREBASE_WEB_API_KEY = googleServicesConfig.client[0].api_key[0].current_key;
@@ -34,15 +35,40 @@ try {
 }
 
 function loadServiceAccount() {
-  if (!FIREBASE_SERVICE_ACCOUNT) {
-    return null;
+  // First, try environment variable
+  if (FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const decoded = Buffer.from(FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8');
+      return JSON.parse(decoded);
+    } catch (error) {
+      try {
+        return JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+      } catch (parseError) {
+        console.error('[Firebase] Failed to parse FIREBASE_SERVICE_ACCOUNT from env var');
+      }
+    }
   }
-  try {
-    const decoded = Buffer.from(FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8');
-    return JSON.parse(decoded);
-  } catch (error) {
-    return JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+
+  // Second, try to load from service account JSON file in project root
+  const serviceAccountPaths = [
+    path.join(__dirname, '../../partyngame-vo-firebase-adminsdk-fbsvc-2426f0a018.json'),
+    path.join(__dirname, '../../firebase-service-account.json'),
+    path.join(__dirname, '../firebase-service-account.json'),
+  ];
+
+  for (const serviceAccountPath of serviceAccountPaths) {
+    try {
+      if (fs.existsSync(serviceAccountPath)) {
+        const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        console.log(`[Firebase] Loaded service account from: ${serviceAccountPath}`);
+        return serviceAccount;
+      }
+    } catch (error) {
+      console.error(`[Firebase] Error loading service account from ${serviceAccountPath}:`, error.message);
+    }
   }
+
+  return null;
 }
 
 function ensureFirebaseApp() {
