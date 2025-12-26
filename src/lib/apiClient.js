@@ -38,7 +38,7 @@ apiClient.interceptors.response.use(
           errorMessage.includes('Authentication')) {
         // Only clear if it's a persistent auth error, not a one-time failure
         console.warn('[API Client] Authentication error detected, clearing session');
-        useAuthStore.getState().clearSession();
+      useAuthStore.getState().clearSession();
       }
     }
     return Promise.reject(error);

@@ -100,22 +100,22 @@ export default function WalletPage() {
         />
       ) : (
         <>
-          <Card className="glass-card border-0">
-            <Card.Body className="p-4">
-              <div className="d-flex justify-content-between align-items-start mb-4">
-                <div>
-                  <Card.Title className="fw-bold mb-2" style={{ color: "var(--text-secondary)" }}>
-                    My Wallet
-                  </Card.Title>
-                  <p className="small mb-1" style={{ color: "var(--text-muted)" }}>Wallet ID</p>
-                  <p className="fw-semibold mb-3" style={{ color: "var(--text-primary)" }}>
-                    {wallet?.walletId || "Pending profile completion"}
-                  </p>
-                </div>
-                <Button variant="primary" size="sm" onClick={() => setShowAddCoinsModal(true)}>
-                  + Add Coins
-                </Button>
-              </div>
+      <Card className="glass-card border-0">
+        <Card.Body className="p-4">
+          <div className="d-flex justify-content-between align-items-start mb-4">
+            <div>
+              <Card.Title className="fw-bold mb-2" style={{ color: "var(--text-secondary)" }}>
+                My Wallet
+              </Card.Title>
+              <p className="small mb-1" style={{ color: "var(--text-muted)" }}>Wallet ID</p>
+              <p className="fw-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+                {wallet?.walletId || "Pending profile completion"}
+              </p>
+            </div>
+            <Button variant="primary" size="sm" onClick={() => setShowAddCoinsModal(true)}>
+              + Add Coins
+            </Button>
+          </div>
           <div className="d-flex align-items-center gap-3">
             <div style={{ fontSize: "3rem" }}>💎</div>
             <div>
@@ -233,37 +233,37 @@ export default function WalletPage() {
         </ListGroup>
       </Card>
 
-          <Modal
-            show={showAddCoinsModal}
-            onHide={() => setShowAddCoinsModal(false)}
-            centered
-            contentClassName="glass-card border-0"
-          >
-            <Modal.Header
-              closeButton
-              style={{
-                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                color: "var(--text-primary)",
-              }}
-            >
-              <Modal.Title style={{ color: "var(--text-secondary)" }}>Add Coins</Modal.Title>
-            </Modal.Header>
+      <Modal
+        show={showAddCoinsModal}
+        onHide={() => setShowAddCoinsModal(false)}
+        centered
+        contentClassName="glass-card border-0"
+      >
+        <Modal.Header
+          closeButton
+          style={{
+            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "var(--text-primary)",
+          }}
+        >
+          <Modal.Title style={{ color: "var(--text-secondary)" }}>Add Coins</Modal.Title>
+        </Modal.Header>
             <Form onSubmit={handleCreateDepositRequest}>
-              <Modal.Body style={{ color: "var(--text-primary)" }}>
-                <Form.Group className="mb-3">
+          <Modal.Body style={{ color: "var(--text-primary)" }}>
+            <Form.Group className="mb-3">
                   <Form.Label>Deposit Amount (USD)</Form.Label>
-                  <Form.Control
-                    type="number"
+              <Form.Control
+                type="number"
                     min="10"
                     step="0.01"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(Math.max(10, parseFloat(e.target.value) || 10))}
                     placeholder="Enter amount in USD"
-                  />
-                  <Form.Text style={{ color: "var(--text-muted)" }}>
+              />
+              <Form.Text style={{ color: "var(--text-muted)" }}>
                     Minimum deposit: $10
-                  </Form.Text>
-                </Form.Group>
+              </Form.Text>
+            </Form.Group>
                 <Alert variant="info" className="mb-0">
                   <strong>Pricing:</strong>
                   <ul className="mb-0 small">
@@ -273,17 +273,17 @@ export default function WalletPage() {
                     <li>Above $200 = 20% extra coins</li>
                   </ul>
                 </Alert>
-              </Modal.Body>
-              <Modal.Footer style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
-                <Button variant="outline-light" onClick={() => setShowAddCoinsModal(false)}>
-                  Cancel
-                </Button>
+          </Modal.Body>
+          <Modal.Footer style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+            <Button variant="outline-light" onClick={() => setShowAddCoinsModal(false)}>
+              Cancel
+            </Button>
                 <Button type="submit" variant="primary" disabled={creating}>
                   {creating ? "Creating..." : "Create Deposit Request"}
-                </Button>
-              </Modal.Footer>
-            </Form>
-          </Modal>
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
         </>
       )}
     </div>

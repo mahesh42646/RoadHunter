@@ -557,9 +557,9 @@ io.on('connection', (socket) => {
         }
       } else {
         // Regular friend call - verify they are friends
-        if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
-          socket.emit('friend:call:error', { error: 'Can only call friends' });
-          return;
+      if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
+        socket.emit('friend:call:error', { error: 'Can only call friends' });
+        return;
         }
       }
 
@@ -583,13 +583,13 @@ io.on('connection', (socket) => {
 
       // Check if friend is busy (hosting a party) - but allow if calling from same party
       if (!fromParty) {
-        const activeParty = await Party.findOne({
-          hostId: friendId,
-          isActive: true,
-        });
-        if (activeParty) {
-          socket.emit('friend:call:error', { error: 'User is busy (in a party)' });
-          return;
+      const activeParty = await Party.findOne({
+        hostId: friendId,
+        isActive: true,
+      });
+      if (activeParty) {
+        socket.emit('friend:call:error', { error: 'User is busy (in a party)' });
+        return;
         }
       }
 

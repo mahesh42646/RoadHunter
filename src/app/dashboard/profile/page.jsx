@@ -53,7 +53,7 @@ export default function ProfilePage() {
   const [photoFile, setPhotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.account?.photoUrl || "");
   const fileInputRef = useRef(null);
-  
+
   // Email and password management
   const [showAddEmailModal, setShowAddEmailModal] = useState(false);
   const [showSetPasswordModal, setShowSetPasswordModal] = useState(false);
@@ -1484,12 +1484,12 @@ export default function ProfilePage() {
                   <Form.Label>Email</Form.Label>
                   {user?.account?.email ? (
                     <>
-                      <Form.Control
-                        type="email"
-                        value={user?.account?.email || ""}
-                        readOnly
-                        disabled
-                      />
+                  <Form.Control
+                    type="email"
+                    value={user?.account?.email || ""}
+                    readOnly
+                    disabled
+                  />
                       <Form.Text className="text-muted">Email cannot be changed once added</Form.Text>
                     </>
                   ) : (

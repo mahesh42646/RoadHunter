@@ -27,17 +27,35 @@ export default function PartyVideoCallModal({
   const peerRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Initialize peer connection
+  // Initialize peer connection - only for caller, receiver waits for accept
   useEffect(() => {
     if (!show || !socket || !otherUser) return;
 
+    // Only initialize peer connection if caller OR if call is already accepted
+    if (!isCaller && callStatus !== "connected") {
+      // Receiver should wait for accept before initializing
+      return;
+    }
+
     const initializeCall = async () => {
       try {
-        // Get user media
+        // Get user media with optimized settings
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30, max: 30 },
+            facingMode: "user",
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 48000,
+            channelCount: 2,
+          },
         });
+        
         streamRef.current = stream;
         setLocalStream(stream);
 
@@ -46,11 +64,17 @@ export default function PartyVideoCallModal({
           localVideoRef.current.srcObject = stream;
         }
 
-        // Create peer connection
+        // Create peer connection with optimized settings
         const peer = new Peer({
           initiator: isCaller,
           trickle: false,
           stream: stream,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+            ],
+          },
         });
 
         peer.on("signal", (signal) => {
@@ -64,23 +88,33 @@ export default function PartyVideoCallModal({
         });
 
         peer.on("stream", (remoteStream) => {
+          console.log("[Call] Received remote stream");
           setRemoteStream(remoteStream);
           if (remoteVideoRef.current) {
             remoteVideoRef.current.srcObject = remoteStream;
           }
+          // Only update status if we're in calling/ringing state
           if (callStatus === "ringing" || callStatus === "calling") {
             setCallStatus("connected");
           }
         });
 
         peer.on("error", (err) => {
-          console.error("Peer error:", err);
+          console.error("[Call] Peer error:", err);
           setError(err.message || "Connection error");
+          // Don't auto-end on error, let user decide
         });
 
         peer.on("close", () => {
-          console.log("Peer connection closed");
-          endCall();
+          console.log("[Call] Peer connection closed");
+          // Only end if not already ended
+          if (callStatus !== "ended") {
+            endCall();
+          }
+        });
+
+        peer.on("connect", () => {
+          console.log("[Call] Peer connected");
         });
 
         peerRef.current = peer;
@@ -90,8 +124,9 @@ export default function PartyVideoCallModal({
           setCallStatus("calling");
         }
       } catch (err) {
-        console.error("Error initializing call:", err);
+        console.error("[Call] Error initializing call:", err);
         setError(err.message || "Failed to access camera/microphone");
+        // Don't auto-close on error
       }
     };
 
@@ -133,9 +168,17 @@ export default function PartyVideoCallModal({
 
     // Listen for call ended
     const handleCallEnded = (data) => {
-      if (data.fromUserId === (otherUser._id || otherUser.userId)) {
-        endCall();
-        onClose();
+      const otherUserId = otherUser._id || otherUser.userId;
+      const currentUserId = userId;
+      
+      // If the other user ended the call
+      if (data.fromUserId === otherUserId || (data.toUserId === currentUserId && data.fromUserId === otherUserId)) {
+        console.log("[Call] Other user ended the call");
+        setError("Call ended by other user");
+        setTimeout(() => {
+          endCall();
+          onClose();
+        }, 1000);
       }
     };
 
@@ -149,23 +192,65 @@ export default function PartyVideoCallModal({
       socket.off("party:call:accepted", handleCallAccepted);
       socket.off("party:call:rejected", handleCallRejected);
       socket.off("party:call:ended", handleCallEnded);
+      
+      // Cleanup on unmount
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+        streamRef.current = null;
+      }
+      if (peerRef.current) {
+        try {
+          peerRef.current.destroy();
+        } catch (err) {
+          console.error("[Call] Error destroying peer on unmount:", err);
+        }
+        peerRef.current = null;
+      }
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
     };
-  }, [show, socket, otherUser, isCaller, partyId]);
+  }, [show, socket, otherUser, isCaller, partyId, callStatus, userId]);
 
   const endCall = () => {
-    // Stop all tracks
+    console.log("[Call] Ending call, cleaning up...");
+    
+    // Stop all local media tracks
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false;
+        console.log("[Call] Stopped track:", track.kind);
+      });
+      streamRef.current = null;
+    }
+
+    // Clear video elements
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
     }
 
     // Destroy peer connection
     if (peerRef.current) {
-      peerRef.current.destroy();
+      try {
+        peerRef.current.destroy();
+      } catch (err) {
+        console.error("[Call] Error destroying peer:", err);
+      }
       peerRef.current = null;
     }
 
     // Notify other user
-    if (socket && otherUser) {
+    if (socket && otherUser && callStatus !== "ended") {
       socket.emit("party:call:end", {
         partyId,
         toUserId: otherUser._id || otherUser.userId,
@@ -175,11 +260,16 @@ export default function PartyVideoCallModal({
     setLocalStream(null);
     setRemoteStream(null);
     setCallStatus("ended");
+    setError(null);
   };
 
   const handleClose = () => {
+    console.log("[Call] Modal closed by user");
     endCall();
-    onClose();
+    // Small delay to ensure cleanup completes
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
   const toggleMic = () => {
@@ -202,13 +292,95 @@ export default function PartyVideoCallModal({
     }
   };
 
-  const acceptCall = () => {
+  const acceptCall = async () => {
+    console.log("[Call] Accepting call...");
     setCallStatus("connected");
+    
     if (socket && otherUser) {
       socket.emit("party:call:accept", {
         partyId,
         toUserId: otherUser._id || otherUser.userId,
       });
+    }
+
+    // Now initialize peer connection for receiver
+    try {
+      // Get user media
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+          facingMode: "user",
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000,
+          channelCount: 2,
+        },
+      });
+      
+      streamRef.current = stream;
+      setLocalStream(stream);
+
+      // Set local video
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      // Create peer connection as receiver (not initiator)
+      const peer = new Peer({
+        initiator: false,
+        trickle: false,
+        stream: stream,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ],
+        },
+      });
+
+      peer.on("signal", (signal) => {
+        const targetUserId = otherUser._id || otherUser.userId;
+        socket.emit("party:call:signal", {
+          partyId,
+          toUserId: targetUserId,
+          signal: JSON.stringify(signal),
+        });
+      });
+
+      peer.on("stream", (remoteStream) => {
+        console.log("[Call] Receiver received remote stream");
+        setRemoteStream(remoteStream);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStream;
+        }
+      });
+
+      peer.on("error", (err) => {
+        console.error("[Call] Peer error:", err);
+        setError(err.message || "Connection error");
+      });
+
+      peer.on("close", () => {
+        console.log("[Call] Peer connection closed");
+        if (callStatus !== "ended") {
+          endCall();
+        }
+      });
+
+      peer.on("connect", () => {
+        console.log("[Call] Peer connected");
+      });
+
+      peerRef.current = peer;
+    } catch (err) {
+      console.error("[Call] Error accepting call:", err);
+      setError(err.message || "Failed to access camera/microphone");
+      setCallStatus("ringing"); // Reset status
     }
   };
 

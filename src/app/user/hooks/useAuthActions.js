@@ -96,7 +96,7 @@ export default function useAuthActions() {
   const logout = useCallback(async () => {
     // Clear Firebase auth
     try {
-      await signOut(auth);
+    await signOut(auth);
     } catch (error) {
       // Ignore Firebase signOut errors (user might not have Firebase account)
       console.log('[Logout] Firebase signOut:', error.message);

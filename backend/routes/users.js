@@ -32,17 +32,17 @@ try {
 } catch (error) {
   // Ignore if file doesn't exist
   console.log('[Firebase Config] google-services.json not found, using env vars only');
-}
+  }
 
 function loadServiceAccount() {
   // First, try environment variable
   if (FIREBASE_SERVICE_ACCOUNT) {
-    try {
-      const decoded = Buffer.from(FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8');
-      return JSON.parse(decoded);
-    } catch (error) {
+  try {
+    const decoded = Buffer.from(FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8');
+    return JSON.parse(decoded);
+  } catch (error) {
       try {
-        return JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+    return JSON.parse(FIREBASE_SERVICE_ACCOUNT);
       } catch (parseError) {
         console.error('[Firebase] Failed to parse FIREBASE_SERVICE_ACCOUNT from env var');
       }
@@ -140,7 +140,7 @@ async function verifyFirebaseIdToken(idToken) {
 
 function createToken(user) {
   const payload = {
-    sub: user._id.toString(),
+      sub: user._id.toString(),
     level: user.progress?.level || 1,
   };
   
