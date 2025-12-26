@@ -323,7 +323,8 @@ module.exports = function createPartyRouter(io) {
             }
             
             // If host left and no active participants, end party
-            if (isHost) {
+            // BUT: Never end default parties - they stay active forever
+            if (isHost && !updatedParty.isDefault) {
               const activeParticipants = updatedParty.participants.filter(
                 (p) => p.userId && (p.status === 'active' || p.status === 'muted')
               );
@@ -332,6 +333,21 @@ module.exports = function createPartyRouter(io) {
                 updatedParty.isActive = false;
                 if (io) {
                   io.emit('party:ended', { partyId: updatedParty._id.toString() });
+                }
+              }
+            } else if (isHost && updatedParty.isDefault) {
+              // For default parties, ensure bot host is always present
+              const botHostParticipant = updatedParty.participants.find(
+                (p) => p.userId && updatedParty.hostId && p.userId.toString() === updatedParty.hostId.toString()
+              );
+              
+              if (!botHostParticipant && updatedParty.hostId && updatedParty.botHostId) {
+                // Re-add bot host as active participant
+                const Bot = require('../schemas/bot');
+                const bot = await Bot.findById(updatedParty.botHostId).lean();
+                if (bot) {
+                  updatedParty.addParticipant(updatedParty.hostId, bot.name, bot.avatarUrl || null, 'host');
+                  console.log(`[Mark Offline] Re-added bot host to default party ${updatedParty.name}`);
                 }
               }
             }

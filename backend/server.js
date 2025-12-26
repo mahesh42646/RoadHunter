@@ -853,12 +853,13 @@ setInterval(async () => {
       }
       
       // Check if party should be ended (no active participants)
-      if (updated || party.participants.length === 0) {
+      // BUT: Never end default parties - they stay active forever
+      if ((updated || party.participants.length === 0) && !party.isDefault) {
         const activeParticipants = party.participants.filter(
           (p) => p.userId && (p.status === 'active' || p.status === 'muted')
         );
         
-        // If no active participants, end the party
+        // If no active participants, end the party (only for non-default parties)
         if (activeParticipants.length === 0) {
           party.isActive = false;
           party.endedAt = new Date();
@@ -866,6 +867,23 @@ setInterval(async () => {
           
           if (io) {
             io.emit('party:ended', { partyId: party._id.toString() });
+          }
+        }
+      } else if (party.isDefault) {
+        // For default parties, ensure bot host is always present as active participant
+        // If bot host participant was removed, re-add it
+        const botHostParticipant = party.participants.find(
+          (p) => p.userId && party.hostId && p.userId.toString() === party.hostId.toString()
+        );
+        
+        if (!botHostParticipant && party.hostId) {
+          // Re-add bot host as active participant
+          const Bot = require('./schemas/bot');
+          const bot = await Bot.findById(party.botHostId).lean();
+          if (bot) {
+            party.addParticipant(party.hostId, bot.name, bot.avatarUrl || null, 'host');
+            updated = true;
+            console.log(`[Cleanup Job] Re-added bot host to default party ${party.name}`);
           }
         }
       }
