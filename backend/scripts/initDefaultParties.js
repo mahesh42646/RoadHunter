@@ -162,12 +162,21 @@ async function initDefaultParties() {
     }
 
     console.log('[Init Default Parties] ✅ Default parties initialization complete');
-    await mongoose.connection.close();
-    process.exit(0);
+    
+    // Only close connection if called directly (not from server.js)
+    if (require.main === module) {
+      await mongoose.connection.close();
+      process.exit(0);
+    }
   } catch (error) {
     console.error('[Init Default Parties] ❌ Error:', error);
-    await mongoose.connection.close();
-    process.exit(1);
+    
+    // Only close connection if called directly (not from server.js)
+    if (require.main === module) {
+      await mongoose.connection.close();
+      process.exit(1);
+    }
+    throw error; // Re-throw if called from server.js
   }
 }
 
