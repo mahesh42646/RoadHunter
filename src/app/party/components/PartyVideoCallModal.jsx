@@ -27,15 +27,9 @@ export default function PartyVideoCallModal({
   const peerRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Initialize peer connection - only for caller, receiver waits for accept
+  // Initialize peer connection for caller immediately
   useEffect(() => {
-    if (!show || !socket || !otherUser) return;
-
-    // Only initialize peer connection if caller OR if call is already accepted
-    if (!isCaller && callStatus !== "connected") {
-      // Receiver should wait for accept before initializing
-      return;
-    }
+    if (!show || !socket || !otherUser || !isCaller) return;
 
     const initializeCall = async () => {
       try {
@@ -292,7 +286,7 @@ export default function PartyVideoCallModal({
     }
   };
 
-  const acceptCall = async () => {
+  const acceptCall = () => {
     console.log("[Call] Accepting call...");
     setCallStatus("connected");
     
@@ -302,86 +296,7 @@ export default function PartyVideoCallModal({
         toUserId: otherUser._id || otherUser.userId,
       });
     }
-
-    // Now initialize peer connection for receiver
-    try {
-      // Get user media
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          frameRate: { ideal: 30, max: 30 },
-          facingMode: "user",
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000,
-          channelCount: 2,
-        },
-      });
-      
-      streamRef.current = stream;
-      setLocalStream(stream);
-
-      // Set local video
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // Create peer connection as receiver (not initiator)
-      const peer = new Peer({
-        initiator: false,
-        trickle: false,
-        stream: stream,
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-          ],
-        },
-      });
-
-      peer.on("signal", (signal) => {
-        const targetUserId = otherUser._id || otherUser.userId;
-        socket.emit("party:call:signal", {
-          partyId,
-          toUserId: targetUserId,
-          signal: JSON.stringify(signal),
-        });
-      });
-
-      peer.on("stream", (remoteStream) => {
-        console.log("[Call] Receiver received remote stream");
-        setRemoteStream(remoteStream);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = remoteStream;
-        }
-      });
-
-      peer.on("error", (err) => {
-        console.error("[Call] Peer error:", err);
-        setError(err.message || "Connection error");
-      });
-
-      peer.on("close", () => {
-        console.log("[Call] Peer connection closed");
-        if (callStatus !== "ended") {
-          endCall();
-        }
-      });
-
-      peer.on("connect", () => {
-        console.log("[Call] Peer connected");
-      });
-
-      peerRef.current = peer;
-    } catch (err) {
-      console.error("[Call] Error accepting call:", err);
-      setError(err.message || "Failed to access camera/microphone");
-      setCallStatus("ringing"); // Reset status
-    }
+    // Peer connection will be initialized by the useEffect when callStatus becomes "connected"
   };
 
   const rejectCall = () => {
