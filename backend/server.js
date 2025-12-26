@@ -403,7 +403,7 @@ io.on('connection', (socket) => {
 
   // Friend-to-friend video call events
   socket.on('friend:call:initiate', async (data) => {
-    const { friendId, callType = 'video' } = data;
+    const { friendId, callType = 'video', fromParty = false } = data;
     const fromUserId = socket.data.user?.sub;
     
     if (!fromUserId) {
@@ -411,7 +411,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Verify they are friends
     try {
       const User = require('./schemas/users');
       const Party = require('./schemas/party');
@@ -419,9 +418,40 @@ io.on('connection', (socket) => {
       const user = await User.findById(fromUserId);
       const friend = await User.findById(friendId);
       
-      if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
-        socket.emit('friend:call:error', { error: 'Can only call friends' });
-        return;
+      // If calling from party, check profile privacy instead of friendship
+      if (fromParty) {
+        // Check if both users are in the same party
+        const userParty = await Party.findOne({
+          'participants.userId': fromUserId,
+          isActive: true,
+        });
+        const friendParty = await Party.findOne({
+          'participants.userId': friendId,
+          isActive: true,
+        });
+        
+        // Both must be in the same active party
+        if (!userParty || !friendParty || userParty._id.toString() !== friendParty._id.toString()) {
+          socket.emit('friend:call:error', { error: 'Both users must be in the same party' });
+          return;
+        }
+        
+        // Check profile privacy - only allow if profile is public
+        const friendSocial = friend.social || {};
+        const profilePrivacy = friendSocial.profilePrivacy || 'public';
+        const isFriend = user.social?.friends?.some((id) => id.toString() === friendId);
+        const isFollowing = user.social?.following?.some((id) => id.toString() === friendId);
+        
+        if (profilePrivacy === 'private' && !isFriend && !isFollowing) {
+          socket.emit('friend:call:error', { error: 'Cannot call user with private profile' });
+          return;
+        }
+      } else {
+        // Regular friend call - verify they are friends
+        if (!user.social?.friends?.some((id) => id.toString() === friendId)) {
+          socket.emit('friend:call:error', { error: 'Can only call friends' });
+          return;
+        }
       }
 
       // Check if user is blocked

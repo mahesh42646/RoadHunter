@@ -31,6 +31,7 @@ import {
   BsCameraVideoOff,
   BsVolumeUp,
   BsVolumeMute,
+  BsTelephoneForward,
 } from "react-icons/bs";
 import { HiSparkles } from "react-icons/hi";
 
@@ -39,6 +40,7 @@ import { getImageUrl, getInitials } from "@/lib/imageUtils";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 import usePartyStore from "@/store/usePartyStore";
 import useUIStateStore from "@/store/useUIStateStore";
+import useCallStore from "@/store/useCallStore";
 import usePartySocket from "@/hooks/usePartySocket";
 import useWebRTC from "@/hooks/useWebRTC";
 import GiftSelector from "../components/GiftSelector";
@@ -531,10 +533,47 @@ export default function PartyRoomPage() {
   const loadParticipantRelationship = async (userId) => {
     try {
       const response = await apiClient.get(`/friends/profile/${userId}`);
-      setParticipantRelationship(response.data.user?.relationship || {});
+      const userData = response.data.user || {};
+      setParticipantRelationship({
+        ...userData.relationship,
+        profilePrivacy: userData.relationship?.profilePrivacy || userData.social?.profilePrivacy || 'public',
+        canView: userData.relationship?.canView !== false,
+      });
     } catch (error) {
       console.error("Failed to load participant relationship:", error);
       setParticipantRelationship({});
+    }
+  };
+
+  const handleVideoCall = async (userId) => {
+    try {
+      // Check profile privacy
+      const relationship = participantRelationship || {};
+      const profilePrivacy = relationship.profilePrivacy || 'public';
+      const canView = relationship.canView !== false;
+
+      // Only allow calling if profile is public or user can view it
+      if (profilePrivacy === 'private' && !canView) {
+        alert("Cannot call this user. Their profile is private.");
+        return;
+      }
+
+      // Get participant user data
+      const response = await apiClient.get(`/friends/profile/${userId}`);
+      const participantUser = response.data.user;
+
+      // Start call using call store
+      const { startCall, setCallStatus } = useCallStore.getState();
+      startCall(userId, participantUser, true);
+      setCallStatus("calling");
+
+      setShowParticipantMenu(null);
+      
+      // Navigate to call page - it will handle the socket call initiation
+      router.push(`/dashboard/friends/call/${userId}?video=true&fromParty=true`);
+    } catch (error) {
+      console.error("Failed to initiate video call:", error);
+      alert(error.response?.data?.error || "Failed to start video call");
     }
   };
 
@@ -1762,9 +1801,31 @@ export default function PartyRoomPage() {
               const relationship = participantRelationship || {};
               const isFriend = relationship.isFriend || relationship.isFollowing || false;
               const participant = participants.find((p) => p.userId?.toString() === showParticipantMenu);
+              const profilePrivacy = relationship.profilePrivacy || 'public';
+              const canView = relationship.canView !== false;
+              const canCall = profilePrivacy === 'public' || canView;
+              const isCurrentUserHost = isHost;
+              const isTargetUserHost = participant?.role === 'host';
               
               return (
                 <>
+                  {/* Video Call - only show if profile is public and not calling host */}
+                  {canCall && !isCurrentUserHost && !isTargetUserHost && (
+                    <ListGroup.Item
+                      className="d-flex align-items-center gap-2"
+                      style={{
+                        background: "transparent",
+                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        cursor: "pointer",
+                        color: "var(--accent-secondary)",
+                      }}
+                      onClick={() => handleVideoCall(showParticipantMenu)}
+                    >
+                      <BsTelephoneForward style={{ color: "var(--accent-secondary)", fontSize: "1rem" }} />
+                      <span>Video Call</span>
+                    </ListGroup.Item>
+                  )}
+
                   {/* Follow option - only show if not a friend */}
                   {!isFriend && (
                     <ListGroup.Item

@@ -69,10 +69,15 @@ export default function FriendCallPage() {
           // Emit call initiation event (backend will create call record)
           const emitCall = () => {
             if (socketRef.current && socketRef.current.connected) {
-              console.log("[CallPage] Emitting friend:call:initiate to:", friendId);
+              // Check if call is from party (via URL param)
+              const urlParams = new URLSearchParams(window.location.search);
+              const fromParty = urlParams.get('fromParty') === 'true';
+              
+              console.log("[CallPage] Emitting friend:call:initiate to:", friendId, "fromParty:", fromParty);
               socketRef.current.emit("friend:call:initiate", { 
                 friendId, 
-                callType: "video"
+                callType: "video",
+                fromParty: fromParty || false
               });
             } else {
               console.log("[CallPage] Socket not connected, waiting...");
