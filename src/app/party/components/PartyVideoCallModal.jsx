@@ -55,9 +55,10 @@ export default function PartyVideoCallModal({
 
         peer.on("signal", (signal) => {
           // Send signal to other user via socket
+          const targetUserId = otherUser._id || otherUser.userId;
           socket.emit("party:call:signal", {
             partyId,
-            toUserId: otherUser._id || otherUser.userId,
+            toUserId: targetUserId,
             signal: JSON.stringify(signal),
           });
         });
@@ -98,7 +99,11 @@ export default function PartyVideoCallModal({
 
     // Listen for incoming signals
     const handleSignal = (data) => {
-      if (data.fromUserId === (otherUser._id || otherUser.userId) && peerRef.current) {
+      const otherUserId = otherUser._id || otherUser.userId;
+      const currentUserId = userId;
+      
+      // Only process signals meant for us (from the other user)
+      if (data.fromUserId === otherUserId && data.toUserId === currentUserId && peerRef.current) {
         try {
           const signal = JSON.parse(data.signal);
           peerRef.current.signal(signal);
