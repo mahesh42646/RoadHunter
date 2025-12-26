@@ -105,8 +105,9 @@ export default function useAuthActions() {
     // Clear auth session
     clearSession();
     
-    // Clear quick login cache (for quick login users)
-    localStorage.removeItem("quickLoginId");
+    // Keep quickLoginId in localStorage so user can log back in with same quick account
+    // Only clear it if user explicitly wants a new account or cache is cleared
+    // localStorage.removeItem("quickLoginId"); // REMOVED - keep quickLoginId for re-login
     
     // Set a flag to prevent immediate auto-login
     sessionStorage.setItem("justLoggedOut", "true");
