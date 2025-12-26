@@ -259,14 +259,31 @@ io.on('connection', (socket) => {
             }
             
             // If host left and no active participants, end party
-            if (isHost) {
+            // BUT: Never end default parties - they stay active forever
+            if (isHost && !party.isDefault) {
               const activeParticipants = party.participants.filter(
                 (p) => p.userId && (p.status === 'active' || p.status === 'muted')
               );
               
               if (activeParticipants.length === 0) {
                 party.isActive = false;
+                party.endedAt = new Date();
                 io.emit('party:ended', { partyId: party._id.toString() });
+              }
+            } else if (isHost && party.isDefault) {
+              // For default parties, ensure bot host is always present
+              const botHostParticipant = party.participants.find(
+                (p) => p.userId && party.hostId && p.userId.toString() === party.hostId.toString()
+              );
+              
+              if (!botHostParticipant && party.hostId && party.botHostId) {
+                // Re-add bot host as active participant
+                const Bot = require('./schemas/bot');
+                const bot = await Bot.findById(party.botHostId).lean();
+                if (bot) {
+                  party.addParticipant(party.hostId, bot.name, bot.avatarUrl || null, 'host');
+                  console.log(`[Socket Disconnect] Re-added bot host to default party ${party.name}`);
+                }
               }
             }
             
