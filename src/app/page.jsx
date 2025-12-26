@@ -239,17 +239,29 @@ export default function HomePage() {
     <div
       style={{
         minHeight: "90dvh",
-        paddingTop: "0px", // Space for fixed header
+        paddingTop: "10px", // Space for fixed header
         paddingBottom: "100px", // Space for footer
         background: "radial-gradient(ellipse at top, #0f1624 0%, #0a0e1a 50%, #050810 100%)",
       }}
     >
-      <div className="container-fluid px-3 py-4">
+      <div className="container-fluid ">
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h4 className="fw-bold mb-0" style={{ color: "var(--text-secondary)" }}>
-            Partys
-          </h4>
-          <Button variant="primary" size="sm" onClick={() => {
+          
+        
+       
+
+        {/* Tabs */}
+      <div className="d-flex justify-content-between align-items-center my-auto  p-0 m-0">
+      <Tabs
+          activeKey={activeTab}
+          onSelect={(k) => k && setActiveTab(k)}
+        >
+          <Tab eventKey="all" title="All Partys" />
+          <Tab eventKey="friends" title="Friends" disabled={!isAuthenticated} />
+        </Tabs>
+        </div>
+
+        <button className=" rounded-5 px-3 py-1 btn-primary text-white" onClick={() => {
             if (!isAuthenticated) {
               setShowLoginModal(true);
             } else {
@@ -257,19 +269,8 @@ export default function HomePage() {
             }
           }}>
             + Create
-          </Button>
+          </button>
         </div>
-
-        {/* Tabs */}
-        <Tabs
-          activeKey={activeTab}
-          onSelect={(k) => k && setActiveTab(k)}
-          className="mb-3"
-          style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}
-        >
-          <Tab eventKey="all" title="All Partys" />
-          <Tab eventKey="friends" title="Friends" disabled={!isAuthenticated} />
-        </Tabs>
 
       <div className="row g-2">
         {parties.length === 0 ? (

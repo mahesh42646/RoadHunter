@@ -1,14 +1,14 @@
-export const SESSION_TTL_HOURS = 100;
-export const SESSION_TTL_MS = SESSION_TTL_HOURS * 60 * 60 * 1000;
+// Session never expires - users stay logged in until manual logout or browser data cleared
+export const SESSION_TTL_HOURS = Infinity;
+export const SESSION_TTL_MS = Infinity;
 
 export function hasSessionExpired(lastActiveAt) {
-  if (!lastActiveAt) {
-    return true;
-  }
-  return Date.now() - lastActiveAt > SESSION_TTL_MS;
+  // Sessions never expire - always return false
+  return false;
 }
 
 export function getSessionExpiryTimestamp(from = Date.now()) {
-  return from + SESSION_TTL_MS;
+  // Return a very far future date (effectively never expires)
+  return from + (100 * 365 * 24 * 60 * 60 * 1000); // 100 years from now
 }
 

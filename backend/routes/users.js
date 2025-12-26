@@ -12,7 +12,7 @@ const { optimizeImage, getOptimizedPath } = require('../utils/imageOptimizer');
 
 const {
   JWT_SECRET = 'change-me',
-  JWT_EXPIRE = '1h',
+  JWT_EXPIRE = '10y', // 10 years - effectively never expires
   FIREBASE_SERVICE_ACCOUNT,
   FIREBASE_WEB_API_KEY = process.env.FIREBASE_WEB_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   FIREBASE_PROJECT_ID = 'partyngame-vo', // From google-services.json

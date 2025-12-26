@@ -62,7 +62,7 @@ router.post('/login', async (req, res, next) => {
           type: 'admin' // Distinguish admin tokens from user tokens
         },
         JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '10y' } // 10 years - effectively never expires
       );
     } catch (tokenError) {
       console.error('[Admin Login] Error generating token:', tokenError);

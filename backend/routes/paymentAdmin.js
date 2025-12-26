@@ -51,7 +51,7 @@ router.post('/login', async (req, res, next) => {
           type: 'payment-admin' // Distinguish payment admin tokens
         },
         JWT_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '10y' } // 10 years - effectively never expires
       );
     } catch (tokenError) {
       console.error('[Payment Admin Login] Error generating token:', tokenError);

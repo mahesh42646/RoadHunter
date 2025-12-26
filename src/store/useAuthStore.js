@@ -33,11 +33,7 @@ const useAuthStore = create(
         },
         setHydrated: (value) => set({ hydrated: value }),
         ensureFreshSession: () => {
-          const expired = hasSessionExpired(get().lastActiveAt);
-          if (expired) {
-            get().clearSession();
-            return false;
-          }
+          // Sessions never expire - always return true
           return true;
         },
         updateUser: (updates) => {
