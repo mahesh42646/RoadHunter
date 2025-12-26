@@ -1952,6 +1952,22 @@ export default function PartyRoomPage() {
         </Modal.Body>
       </Modal>
 
+      {/* Party Video Call Modal */}
+      {showVideoCall && videoCallUser && socket && (
+        <PartyVideoCallModal
+          show={showVideoCall}
+          onClose={() => {
+            setShowVideoCall(false);
+            setVideoCallUser(null);
+          }}
+          otherUser={videoCallUser}
+          isCaller={isVideoCallCaller}
+          socket={socket}
+          partyId={partyId}
+          userId={user?._id?.toString()}
+        />
+      )}
+
       {/* Gift Selector Modal for Individual User */}
       {showGiftSelector && giftRecipientId && (
         <Modal
