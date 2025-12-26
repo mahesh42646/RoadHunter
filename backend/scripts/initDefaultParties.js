@@ -32,13 +32,19 @@ const DEFAULT_PARTIES = [
 
 async function initDefaultParties() {
   try {
-    const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
-    if (!MONGO_URI) {
-      throw new Error('Missing MONGODB_URI in environment variables');
+    // Check if already connected (when called from server.js)
+    const isConnected = mongoose.connection.readyState === 1;
+    
+    if (!isConnected) {
+      const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+      if (!MONGO_URI) {
+        throw new Error('Missing MONGODB_URI in environment variables');
+      }
+      await mongoose.connect(MONGO_URI);
+      console.log('[Init Default Parties] Connected to MongoDB');
+    } else {
+      console.log('[Init Default Parties] Using existing MongoDB connection');
     }
-
-    await mongoose.connect(MONGO_URI);
-    console.log('[Init Default Parties] Connected to MongoDB');
 
     // Create or update bots
     const bots = [];
