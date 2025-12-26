@@ -276,22 +276,38 @@ export default function HomePage() {
           <div className="col-12">
             <Card className="glass-card border-0 text-center p-4">
               <Card.Body>
-                <div className="mb-3" style={{ fontSize: "3rem" }}>🎉</div>
+                <div className="mb-3" style={{ fontSize: "3rem" }}>
+                  {activeTab === "friends" ? "👥" : "🎉"}
+                </div>
                 <h5 className="mb-2" style={{ color: "var(--text-secondary)" }}>
-                  No active parties
+                  {activeTab === "friends" 
+                    ? (!isAuthenticated 
+                        ? "Login to see parties with friends" 
+                        : friends.length === 0 
+                          ? "No friends yet" 
+                          : "No parties with friends")
+                    : "No active parties"}
                 </h5>
                 <p className="small mb-3" style={{ color: "var(--text-muted)" }}>
-                  Be the first to create a party room!
+                  {activeTab === "friends" 
+                    ? (!isAuthenticated 
+                        ? "Login to see parties where your friends are participating"
+                        : friends.length === 0 
+                          ? "Add friends to see their parties here"
+                          : "Your friends haven't joined any parties yet")
+                    : "Be the first to create a party room!"}
                 </p>
-                <Button variant="primary" size="sm" onClick={() => {
-                  if (!isAuthenticated) {
-                    setShowLoginModal(true);
-                  } else {
-                    setShowCreateModal(true);
-                  }
-                }}>
-                  Create Party
-                </Button>
+                {activeTab === "all" && (
+                  <Button variant="primary" size="sm" onClick={() => {
+                    if (!isAuthenticated) {
+                      setShowLoginModal(true);
+                    } else {
+                      setShowCreateModal(true);
+                    }
+                  }}>
+                    Create Party
+                  </Button>
+                )}
               </Card.Body>
             </Card>
           </div>
