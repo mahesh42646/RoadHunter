@@ -736,21 +736,18 @@ async function init() {
       console.log(`API ready on port ${PORT}`);
     });
 
-    // Initialize default parties and bots
-    try {
-      const initDefaultParties = require('./scripts/initDefaultParties');
-      setTimeout(async () => {
-        try {
-          await initDefaultParties();
-          console.log('[Server] Default parties initialized');
-        } catch (initError) {
-          console.error('[Server] Error initializing default parties:', initError.message);
-          // Don't fail server startup if default parties fail to initialize
-        }
-      }, 2000); // Wait 2 seconds after MongoDB connection
-    } catch (initError) {
-      console.error('[Server] Error loading initDefaultParties script:', initError.message);
-    }
+    // Initialize default parties and bots (after MongoDB is connected)
+    // Note: initDefaultParties expects MongoDB to already be connected
+    setTimeout(async () => {
+      try {
+        const initDefaultParties = require('./scripts/initDefaultParties');
+        await initDefaultParties();
+        console.log('[Server] ✅ Default parties initialized');
+      } catch (initError) {
+        console.error('[Server] ❌ Error initializing default parties:', initError.message);
+        // Don't fail server startup if default parties fail to initialize
+      }
+    }, 2000); // Wait 2 seconds after MongoDB connection
 
       // Initialize game engine after server is ready
       // Only initialize if not already initialized (e.g., on hot reload)
