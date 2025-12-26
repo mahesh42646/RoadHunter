@@ -168,8 +168,8 @@ export default function HomePage() {
   return (
     <div
       style={{
-        minHeight: "100vh",
-        paddingTop: "70px", // Space for fixed header
+        minHeight: "90dvh",
+        paddingTop: "0px", // Space for fixed header
         paddingBottom: "100px", // Space for footer
         background: "radial-gradient(ellipse at top, #0f1624 0%, #0a0e1a 50%, #050810 100%)",
       }}
