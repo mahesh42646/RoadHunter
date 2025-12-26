@@ -401,6 +401,49 @@ export default function PartiesManagement({ adminToken }) {
               />
             </Form.Group>
 
+            <Form.Group className="mb-3">
+              <Form.Label>Party Poster</Form.Label>
+              <Form.Control
+                type="file"
+                accept="image/*"
+                onChange={handlePosterChange}
+              />
+              <Form.Text className="text-muted">
+                Upload a poster image for the party (max 5MB). Leave empty to keep current poster.
+              </Form.Text>
+              {posterPreview && (
+                <div className="mt-2">
+                  <img
+                    src={posterPreview}
+                    alt="Poster preview"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "200px",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                    }}
+                  />
+                </div>
+              )}
+              {editingParty?.avatarUrl && !posterPreview && (
+                <div className="mt-2">
+                  <p className="text-muted small">Current poster:</p>
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.darkunde.in'}${editingParty.avatarUrl}`}
+                    alt="Current poster"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "200px",
+                      objectFit: "contain",
+                      borderRadius: "8px",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                    }}
+                  />
+                </div>
+              )}
+            </Form.Group>
+
             {(editingParty?.isDefault || !editingParty) && (
               <>
                 <hr />
