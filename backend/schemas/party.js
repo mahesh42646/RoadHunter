@@ -66,6 +66,13 @@ const partySchema = new mongoose.Schema(
     endedAt: Date,
     hostMicEnabled: { type: Boolean, default: false },
     hostCameraEnabled: { type: Boolean, default: false },
+    // Default party and bot settings
+    isDefault: { type: Boolean, default: false }, // Marks default parties that never end
+    botHostId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bot' }, // Reference to bot if this is a default party
+    botVideoUrl: { type: String, trim: true }, // Pre-recorded video URL for bot camera
+    botAudioUrl: { type: String, trim: true }, // Pre-recorded audio URL for bot mic
+    botCameraEnabled: { type: Boolean, default: false }, // Toggle bot camera on/off
+    botMicEnabled: { type: Boolean, default: false }, // Toggle bot mic on/off
     stats: {
       totalViews: { type: Number, default: 0 },
       peakParticipants: { type: Number, default: 0 },

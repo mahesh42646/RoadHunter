@@ -16,6 +16,7 @@ import GameManagement from "./components/GameManagement";
 import GamesHistory from "./components/GamesHistory";
 import ReferralsManagement from "./components/ReferralsManagement";
 import ProjectSettings from "./components/ProjectSettings";
+import PartiesManagement from "./components/PartiesManagement";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -119,6 +120,7 @@ export default function AdminPage() {
         <div style={{ marginTop: "70px", padding: "2rem", flex: 1, overflowY: "auto" }}>
           {activeTab === "dashboard" && <AdminDashboard adminToken={adminToken} />}
           {activeTab === "users" && <UsersManagement adminToken={adminToken} />}
+          {activeTab === "parties" && <PartiesManagement adminToken={adminToken} />}
           {activeTab === "transactions" && <TransactionsManagement adminToken={adminToken} />}
           {activeTab === "payment-admins" && <PaymentAdminsManagement adminToken={adminToken} />}
           {activeTab === "payment-methods" && <PaymentMethodsManagement adminToken={adminToken} />}

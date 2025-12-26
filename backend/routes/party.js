@@ -479,7 +479,8 @@ module.exports = function createPartyRouter(io) {
       }
 
       // If host left, end the party (we already checked there are no other active participants)
-      if (wasHost) {
+      // BUT: Don't end default parties - they never end
+      if (wasHost && !party.isDefault) {
         party.isActive = false;
         party.endedAt = new Date();
         // Keep hostId for validation (required field)
@@ -487,6 +488,9 @@ module.exports = function createPartyRouter(io) {
           party.hostId = req.user._id;
           party.hostUsername = req.user.account?.displayName || req.user.account?.email || 'Anonymous';
         }
+      } else if (wasHost && party.isDefault) {
+        // Default parties never end - just log that host left
+        console.log(`[Party] Host left default party ${party._id}, but party remains active`);
       }
 
       // Ensure required fields are set before saving
@@ -655,6 +659,12 @@ module.exports = function createPartyRouter(io) {
       }
       if (party.hostId.toString() !== req.user._id.toString()) {
         res.status(403).json({ error: 'Only host can end party' });
+        return;
+      }
+
+      // Don't allow ending default parties - they never end
+      if (party.isDefault) {
+        res.status(403).json({ error: 'Default parties cannot be ended' });
         return;
       }
 

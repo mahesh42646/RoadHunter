@@ -1156,5 +1156,138 @@ router.delete('/payment-methods/:id', authenticateAdmin, async (req, res, next) 
   }
 });
 
+// ==================== PARTY MANAGEMENT ====================
+
+const Party = require('../schemas/party');
+const Bot = require('../schemas/bot');
+
+// Get all parties (default and user-generated, separately)
+router.get('/parties', authenticateAdmin, async (req, res, next) => {
+  try {
+    const { type = 'all' } = req.query; // 'default', 'user', or 'all'
+    
+    const query = {};
+    if (type === 'default') {
+      query.isDefault = true;
+    } else if (type === 'user') {
+      query.isDefault = { $ne: true };
+    }
+    // If type is 'all', no filter
+
+    const parties = await Party.find(query)
+      .populate('hostId', 'account.displayName account.photoUrl')
+      .populate('botHostId', 'name username avatarUrl')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ parties, total: parties.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single party details
+router.get('/parties/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const party = await Party.findById(req.params.id)
+      .populate('hostId', 'account.displayName account.photoUrl')
+      .populate('botHostId', 'name username avatarUrl description')
+      .lean();
+
+    if (!party) {
+      return res.status(404).json({ error: 'Party not found' });
+    }
+
+    res.json({ party });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update party (for default parties: bot settings, for user parties: general settings)
+router.put('/parties/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const party = await Party.findById(req.params.id);
+    if (!party) {
+      return res.status(404).json({ error: 'Party not found' });
+    }
+
+    const { name, description, botVideoUrl, botAudioUrl, botCameraEnabled, botMicEnabled, isActive } = req.body;
+
+    // Update general fields
+    if (name !== undefined) party.name = name.trim();
+    if (description !== undefined) party.description = description?.trim() || '';
+    if (isActive !== undefined && !party.isDefault) {
+      // Only allow deactivating user parties, not default parties
+      party.isActive = isActive;
+    }
+
+    // Update bot settings (only for default parties)
+    if (party.isDefault) {
+      if (botVideoUrl !== undefined) party.botVideoUrl = botVideoUrl?.trim() || null;
+      if (botAudioUrl !== undefined) party.botAudioUrl = botAudioUrl?.trim() || null;
+      if (botCameraEnabled !== undefined) party.botCameraEnabled = botCameraEnabled;
+      if (botMicEnabled !== undefined) party.botMicEnabled = botMicEnabled;
+    }
+
+    await party.save();
+    res.json({ party, message: 'Party updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete party (only user-generated parties)
+router.delete('/parties/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const party = await Party.findById(req.params.id);
+    if (!party) {
+      return res.status(404).json({ error: 'Party not found' });
+    }
+
+    // Don't allow deleting default parties
+    if (party.isDefault) {
+      return res.status(403).json({ error: 'Default parties cannot be deleted' });
+    }
+
+    await Party.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Party deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all bots
+router.get('/bots', authenticateAdmin, async (req, res, next) => {
+  try {
+    const bots = await Bot.find().sort({ botId: 1 }).lean();
+    res.json({ bots, total: bots.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update bot
+router.put('/bots/:id', authenticateAdmin, async (req, res, next) => {
+  try {
+    const bot = await Bot.findById(req.params.id);
+    if (!bot) {
+      return res.status(404).json({ error: 'Bot not found' });
+    }
+
+    const { name, username, description, avatarUrl, isActive } = req.body;
+    if (name !== undefined) bot.name = name.trim();
+    if (username !== undefined) bot.username = username.trim();
+    if (description !== undefined) bot.description = description?.trim() || '';
+    if (avatarUrl !== undefined) bot.avatarUrl = avatarUrl?.trim() || null;
+    if (isActive !== undefined) bot.isActive = isActive;
+
+    await bot.save();
+    res.json({ bot, message: 'Bot updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
 
