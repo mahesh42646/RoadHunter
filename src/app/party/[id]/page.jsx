@@ -873,6 +873,28 @@ export default function PartyRoomPage() {
       setHostCameraEnabled(data.enabled);
       setParty((prev) => ({ ...prev, hostCameraEnabled: data.enabled }));
     },
+    onPartyCallIncoming: (data) => {
+      // Handle incoming party video call
+      const callerId = data.fromUserId;
+      const currentUserId = user?._id?.toString();
+      
+      // Only show if this call is for the current user
+      if (callerId && currentUserId && callerId !== currentUserId) {
+        const participant = participants.find((p) => p.userId?.toString() === callerId);
+        if (participant) {
+          // Get full user data
+          apiClient.get(`/friends/profile/${callerId}`)
+            .then((response) => {
+              setVideoCallUser(response.data.user);
+              setIsVideoCallCaller(false);
+              setShowVideoCall(true);
+            })
+            .catch((error) => {
+              console.error("Failed to load caller data:", error);
+            });
+        }
+      }
+    },
     onStreamState: (data) => {
       // Update host stream state when joining/rejoining
       setHostMicEnabled(data.hostMicEnabled);

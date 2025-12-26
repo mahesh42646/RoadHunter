@@ -268,12 +268,13 @@ io.on('connection', (socket) => {
         }
       }
 
-      // Send call notification to receiver
-      io.to(`party:${partyId}`).emit('party:call:incoming', {
+      // Send call notification to receiver only (in their user room and party room)
+      io.to(`user:${toUserId}`).to(`party:${partyId}`).emit('party:call:incoming', {
         partyId,
         fromUserId,
         toUserId,
       });
+      console.log(`[Socket.IO] Sent party:call:incoming to user:${toUserId} in party:${partyId} from ${fromUserId}`);
     } catch (error) {
       console.error('[Socket.IO] Error initiating party call:', error);
       socket.emit('party:call:error', { error: 'Failed to initiate call' });
