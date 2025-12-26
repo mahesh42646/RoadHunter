@@ -67,7 +67,7 @@ export default function HomePage() {
       const response = await apiClient.get("/parties?privacy=public&isActive=true&limit=50");
       const partiesList = response.data.parties || [];
       setAllParties(partiesList);
-      filterPartiesByTab(partiesList, activeTab);
+      filterPartiesByTab(partiesList, activeTab, friends, isAuthenticated);
       setLoading(false);
     } catch (error) {
       // Error handled silently - show empty state
@@ -80,40 +80,41 @@ export default function HomePage() {
   const loadFriends = async () => {
     try {
       const response = await apiClient.get("/friends");
-      setFriends(response.data.friends || []);
+      const friendsList = response.data.friends || [];
+      setFriends(friendsList);
       // Re-filter parties when friends list updates
-      filterPartiesByTab(allParties, activeTab);
+      filterPartiesByTab(allParties, activeTab, friendsList, isAuthenticated);
     } catch (error) {
       // Error handled silently
       setFriends([]);
     }
   };
 
-  const filterPartiesByTab = (partiesList, tab) => {
+  const filterPartiesByTab = (partiesList, tab, currentFriends, isAuth) => {
     if (tab === "friends") {
-      if (!isAuthenticated || friends.length === 0) {
+      if (!isAuth || !currentFriends || currentFriends.length === 0) {
         setParties([]);
         return;
       }
       
       // Get friend IDs
-      const friendIds = friends.map(f => f._id || f.id).filter(Boolean);
+      const friendIds = currentFriends.map(f => f._id || f.id).filter(Boolean);
       
       // Filter parties where at least one friend is participant or host
       const filteredParties = partiesList.filter(party => {
         // Check if host is a friend
-        const hostIsFriend = party.hostId && friendIds.some(fid => 
-          party.hostId._id ? party.hostId._id.toString() === fid.toString() : 
-          party.hostId.toString() === fid.toString()
+        const hostId = party.hostId?._id || party.hostId;
+        const hostIsFriend = hostId && friendIds.some(fid => 
+          hostId.toString() === fid.toString()
         );
         
         // Check if any participant is a friend
-        const hasFriendParticipant = party.participants && party.participants.some(p => 
-          p.userId && friendIds.some(fid => 
-            p.userId._id ? p.userId._id.toString() === fid.toString() : 
-            p.userId.toString() === fid.toString()
-          )
-        );
+        const hasFriendParticipant = party.participants && party.participants.some(p => {
+          const participantId = p.userId?._id || p.userId;
+          return participantId && friendIds.some(fid => 
+            participantId.toString() === fid.toString()
+          );
+        });
         
         return hostIsFriend || hasFriendParticipant;
       });
@@ -128,9 +129,9 @@ export default function HomePage() {
   // Update parties when tab changes
   useEffect(() => {
     if (allParties.length > 0) {
-      filterPartiesByTab(allParties, activeTab);
+      filterPartiesByTab(allParties, activeTab, friends, isAuthenticated);
     }
-  }, [activeTab, friends, isAuthenticated]);
+  }, [activeTab, friends, isAuthenticated, allParties]);
 
   const handleJoinParty = async (partyId) => {
     if (!isAuthenticated) {
