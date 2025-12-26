@@ -284,8 +284,8 @@ io.on('connection', (socket) => {
     const { partyId, toUserId, signal } = data;
     const fromUserId = socket.data.user?.sub;
     
-    // Forward WebRTC signal to target user in party
-    io.to(`party:${partyId}`).emit('party:call:signal', {
+    // Forward WebRTC signal to target user only (in party room)
+    io.to(`party:${partyId}`).to(`user:${toUserId}`).emit('party:call:signal', {
       partyId,
       fromUserId,
       toUserId,
@@ -297,8 +297,8 @@ io.on('connection', (socket) => {
     const { partyId, toUserId } = data;
     const fromUserId = socket.data.user?.sub;
     
-    // Notify caller that call was accepted
-    io.to(`party:${partyId}`).emit('party:call:accepted', {
+    // Notify caller that call was accepted (send to caller's user room)
+    io.to(`user:${toUserId}`).emit('party:call:accepted', {
       partyId,
       fromUserId,
       toUserId,
@@ -309,8 +309,8 @@ io.on('connection', (socket) => {
     const { partyId, toUserId } = data;
     const fromUserId = socket.data.user?.sub;
     
-    // Notify caller that call was rejected
-    io.to(`party:${partyId}`).emit('party:call:rejected', {
+    // Notify caller that call was rejected (send to caller's user room)
+    io.to(`user:${toUserId}`).emit('party:call:rejected', {
       partyId,
       fromUserId,
       toUserId,
@@ -321,8 +321,8 @@ io.on('connection', (socket) => {
     const { partyId, toUserId } = data;
     const fromUserId = socket.data.user?.sub;
     
-    // Notify other user that call ended
-    io.to(`party:${partyId}`).emit('party:call:ended', {
+    // Notify other user that call ended (send to other user's room)
+    io.to(`user:${toUserId}`).emit('party:call:ended', {
       partyId,
       fromUserId,
       toUserId,
