@@ -11,6 +11,7 @@ const Game = require('../schemas/game');
 const Prediction = require('../schemas/prediction');
 const User = require('../schemas/users');
 const uploadCar = require('../middleware/uploadCar');
+const uploadParty = require('../middleware/upload');
 const { optimizeImage, getOptimizedPath } = require('../utils/imageOptimizer');
 
 const { JWT_SECRET = 'change-me' } = process.env;
@@ -1186,26 +1187,79 @@ router.get('/parties', authenticateAdmin, async (req, res, next) => {
   }
 });
 
-// Get single party details
+// Get single party details with full stats
 router.get('/parties/:id', authenticateAdmin, async (req, res, next) => {
   try {
     const party = await Party.findById(req.params.id)
-      .populate('hostId', 'account.displayName account.photoUrl')
+      .populate('hostId', 'account.displayName account.photoUrl account.email progress')
       .populate('botHostId', 'name username avatarUrl description')
+      .populate('participants.userId', 'account.displayName account.photoUrl account.email progress')
       .lean();
 
     if (!party) {
       return res.status(404).json({ error: 'Party not found' });
     }
 
-    res.json({ party });
+    // Get active participants count
+    const activeParticipants = party.participants.filter(
+      (p) => p.userId && (p.status === 'active' || p.status === 'muted')
+    );
+
+    // Get chat stats
+    const chatStats = {
+      totalMessages: party.chatMessages?.length || 0,
+      recentMessages: party.chatMessages?.slice(-20) || [], // Last 20 messages
+    };
+
+    // Get join requests stats
+    const joinRequestStats = {
+      pending: party.joinRequests?.filter(r => r.status === 'pending').length || 0,
+      approved: party.joinRequests?.filter(r => r.status === 'approved').length || 0,
+      rejected: party.joinRequests?.filter(r => r.status === 'rejected').length || 0,
+      total: party.joinRequests?.length || 0,
+    };
+
+    // Get gifts stats (if gifts schema exists)
+    let giftStats = null;
+    try {
+      const Gift = require('../schemas/gift');
+      const gifts = await Gift.find({ partyId: party._id }).lean();
+      giftStats = {
+        total: gifts.length,
+        totalValue: gifts.reduce((sum, g) => sum + (g.value || 0), 0),
+        recent: gifts.slice(-10), // Last 10 gifts
+      };
+    } catch (giftError) {
+      // Gifts schema might not exist, that's okay
+      console.log('[Admin] Gifts schema not found, skipping gift stats');
+    }
+
+    // Calculate duration
+    const duration = party.startedAt 
+      ? Math.floor((new Date() - new Date(party.startedAt)) / 1000 / 60) // minutes
+      : 0;
+
+    const partyDetails = {
+      ...party,
+      stats: {
+        ...party.stats,
+        activeParticipants: activeParticipants.length,
+        totalParticipants: party.participants.length,
+        duration: duration, // minutes
+        chatStats,
+        joinRequestStats,
+        giftStats,
+      },
+    };
+
+    res.json({ party: partyDetails });
   } catch (error) {
     next(error);
   }
 });
 
 // Update party (for default parties: bot settings, for user parties: general settings)
-router.put('/parties/:id', authenticateAdmin, async (req, res, next) => {
+router.put('/parties/:id', authenticateAdmin, uploadParty.single('poster'), async (req, res, next) => {
   try {
     const party = await Party.findById(req.params.id);
     if (!party) {
@@ -1222,6 +1276,23 @@ router.put('/parties/:id', authenticateAdmin, async (req, res, next) => {
       party.isActive = isActive;
     }
 
+    // Handle poster upload
+    if (req.file) {
+      try {
+        const optimizedPath = getOptimizedPath(req.file.path);
+        await optimizeImage(req.file.path, optimizedPath);
+        
+        // Get relative path for URL
+        const relativePath = path.relative(path.join(__dirname, '../uploads'), optimizedPath);
+        party.avatarUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+      } catch (imageError) {
+        console.error('Error processing party poster:', imageError);
+        // If image processing fails, use original file
+        const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+        party.avatarUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+      }
+    }
+
     // Update bot settings (only for default parties)
     if (party.isDefault) {
       if (botVideoUrl !== undefined) party.botVideoUrl = botVideoUrl?.trim() || null;
@@ -1233,6 +1304,14 @@ router.put('/parties/:id', authenticateAdmin, async (req, res, next) => {
     await party.save();
     res.json({ party, message: 'Party updated successfully' });
   } catch (error) {
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting uploaded file:', unlinkError);
+      }
+    }
     next(error);
   }
 });
@@ -1285,6 +1364,119 @@ router.put('/bots/:id', authenticateAdmin, async (req, res, next) => {
     await bot.save();
     res.json({ bot, message: 'Bot updated successfully' });
   } catch (error) {
+    next(error);
+  }
+});
+
+// Create new default party
+router.post('/parties', authenticateAdmin, uploadParty.single('poster'), async (req, res, next) => {
+  try {
+    const { name, description, botHostId, botVideoUrl, botAudioUrl, botCameraEnabled, botMicEnabled } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Party name is required' });
+    }
+
+    if (!botHostId) {
+      return res.status(400).json({ error: 'Bot host ID is required for default parties' });
+    }
+
+    // Get bot
+    const bot = await Bot.findById(botHostId);
+    if (!bot) {
+      return res.status(404).json({ error: 'Bot not found' });
+    }
+
+    // Get or create bot user
+    let botUser = await User.findOne({ 'account.displayName': `Bot_${bot.botId}` });
+    if (!botUser) {
+      botUser = await User.create({
+        account: {
+          displayName: `Bot_${bot.botId}`,
+          username: bot.username,
+          profileCompleted: true,
+          gender: 'prefer-not-to-say',
+          status: 'active',
+          isQuickLogin: false,
+        },
+        quickLoginId: `bot-${bot.botId}-${Date.now()}`,
+        auth: {
+          lastLoginAt: new Date(),
+          lastIp: '127.0.0.1',
+        },
+        wallet: {
+          walletId: User.generateWalletId(),
+          balanceUsd: 0,
+          partyCoins: 0,
+        },
+        progress: {
+          level: 1,
+          xp: 0,
+          nextLevelAt: 100,
+        },
+        social: {
+          profilePrivacy: 'public',
+          friends: [],
+          friendRequests: { sent: [], received: [] },
+          followRequests: { sent: [], received: [] },
+          removedFriends: [],
+          removedBy: [],
+          followers: [],
+          following: [],
+          blockedUsers: [],
+        },
+      });
+    }
+
+    // Handle poster upload
+    let avatarUrl = null;
+    if (req.file) {
+      try {
+        const optimizedPath = getOptimizedPath(req.file.path);
+        await optimizeImage(req.file.path, optimizedPath);
+        
+        const relativePath = path.relative(path.join(__dirname, '../uploads'), optimizedPath);
+        avatarUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+      } catch (imageError) {
+        console.error('Error processing party poster:', imageError);
+        const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+        avatarUrl = `/uploads/${relativePath.replace(/\\/g, '/')}`;
+      }
+    }
+
+    // Create default party
+    const party = await Party.create({
+      name: name.trim(),
+      description: description?.trim() || '',
+      avatarUrl,
+      privacy: 'public',
+      hostId: botUser._id,
+      hostUsername: bot.name,
+      hostAvatarUrl: bot.avatarUrl || null,
+      isDefault: true,
+      botHostId: bot._id,
+      botVideoUrl: botVideoUrl?.trim() || null,
+      botAudioUrl: botAudioUrl?.trim() || null,
+      botCameraEnabled: botCameraEnabled === true || botCameraEnabled === 'true',
+      botMicEnabled: botMicEnabled === true || botMicEnabled === 'true',
+      isActive: true,
+      startedAt: new Date(),
+    });
+
+    // Add bot as host participant
+    party.addParticipant(botUser._id, bot.name, bot.avatarUrl || null, 'host');
+    await party.save();
+
+    res.status(201).json({ party, message: 'Default party created successfully' });
+  } catch (error) {
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error deleting uploaded file:', unlinkError);
+      }
+    }
     next(error);
   }
 });
