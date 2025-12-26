@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Button, Card, Modal, Form, Badge } from "react-bootstrap";
+import { Button, Card, Modal, Form, Badge, Tabs, Tab } from "react-bootstrap";
 
 import apiClient from "@/lib/apiClient";
 import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
@@ -16,6 +16,9 @@ export default function HomePage() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const currentPartyId = usePartyStore((state) => state.currentPartyId);
   const [parties, setParties] = useState([]);
+  const [allParties, setAllParties] = useState([]); // Store all parties
+  const [friends, setFriends] = useState([]); // Store friends list
+  const [activeTab, setActiveTab] = useState("all"); // "all" or "friends"
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -37,10 +40,18 @@ export default function HomePage() {
     // Always show party list - don't auto-redirect to last party
     // User can manually click to join a party
     loadParties();
+    if (isAuthenticated) {
+      loadFriends();
+    }
 
-    const interval = setInterval(loadParties, 5000);
+    const interval = setInterval(() => {
+      loadParties();
+      if (isAuthenticated) {
+        loadFriends();
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, [hydrated, router]);
+  }, [hydrated, router, isAuthenticated]);
 
   // After login, join selected party if any
   useEffect(() => {
@@ -53,15 +64,73 @@ export default function HomePage() {
 
   const loadParties = async () => {
     try {
-      const response = await apiClient.get("/parties?privacy=public&isActive=true&limit=20");
-      setParties(response.data.parties || []);
+      const response = await apiClient.get("/parties?privacy=public&isActive=true&limit=50");
+      const partiesList = response.data.parties || [];
+      setAllParties(partiesList);
+      filterPartiesByTab(partiesList, activeTab);
       setLoading(false);
     } catch (error) {
       // Error handled silently - show empty state
       setLoading(false);
+      setAllParties([]);
       setParties([]);
     }
   };
+
+  const loadFriends = async () => {
+    try {
+      const response = await apiClient.get("/friends");
+      setFriends(response.data.friends || []);
+      // Re-filter parties when friends list updates
+      filterPartiesByTab(allParties, activeTab);
+    } catch (error) {
+      // Error handled silently
+      setFriends([]);
+    }
+  };
+
+  const filterPartiesByTab = (partiesList, tab) => {
+    if (tab === "friends") {
+      if (!isAuthenticated || friends.length === 0) {
+        setParties([]);
+        return;
+      }
+      
+      // Get friend IDs
+      const friendIds = friends.map(f => f._id || f.id).filter(Boolean);
+      
+      // Filter parties where at least one friend is participant or host
+      const filteredParties = partiesList.filter(party => {
+        // Check if host is a friend
+        const hostIsFriend = party.hostId && friendIds.some(fid => 
+          party.hostId._id ? party.hostId._id.toString() === fid.toString() : 
+          party.hostId.toString() === fid.toString()
+        );
+        
+        // Check if any participant is a friend
+        const hasFriendParticipant = party.participants && party.participants.some(p => 
+          p.userId && friendIds.some(fid => 
+            p.userId._id ? p.userId._id.toString() === fid.toString() : 
+            p.userId.toString() === fid.toString()
+          )
+        );
+        
+        return hostIsFriend || hasFriendParticipant;
+      });
+      
+      setParties(filteredParties);
+    } else {
+      // Show all parties
+      setParties(partiesList);
+    }
+  };
+
+  // Update parties when tab changes
+  useEffect(() => {
+    if (allParties.length > 0) {
+      filterPartiesByTab(allParties, activeTab);
+    }
+  }, [activeTab, friends, isAuthenticated]);
 
   const handleJoinParty = async (partyId) => {
     if (!isAuthenticated) {
@@ -177,7 +246,7 @@ export default function HomePage() {
       <div className="container-fluid px-3 py-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h4 className="fw-bold mb-0" style={{ color: "var(--text-secondary)" }}>
-            Party Rooms
+            Partys
           </h4>
           <Button variant="primary" size="sm" onClick={() => {
             if (!isAuthenticated) {
@@ -189,6 +258,17 @@ export default function HomePage() {
             + Create
           </Button>
         </div>
+
+        {/* Tabs */}
+        <Tabs
+          activeKey={activeTab}
+          onSelect={(k) => k && setActiveTab(k)}
+          className="mb-3"
+          style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}
+        >
+          <Tab eventKey="all" title="All Partys" />
+          <Tab eventKey="friends" title="Friends" disabled={!isAuthenticated} />
+        </Tabs>
 
       <div className="row g-2">
         {parties.length === 0 ? (
