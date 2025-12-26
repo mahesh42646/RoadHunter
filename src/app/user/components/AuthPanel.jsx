@@ -173,28 +173,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
         >
           {quickLoginLoading ? "Logging in..." : "⚡ Quick Login"}
         </Button>
-        {activeTab === "login" && (
-          <Form.Group className="mt-2">
-            <Form.Control
-              type="text"
-              placeholder="Enter your name (optional)"
-              value={quickLoginName}
-              onChange={(e) => setQuickLoginName(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === "Enter") {
-                  handleQuickLogin();
-                }
-              }}
-              disabled={quickLoginLoading}
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                color: "var(--text-primary)",
-                borderRadius: "8px",
-              }}
-            />
-          </Form.Group>
-        )}
+     
       </div>
 
       {/* Google Login Button */}

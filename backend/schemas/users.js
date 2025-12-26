@@ -164,7 +164,7 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.index({ 'account.firebaseUid': 1 }, { unique: true });
+userSchema.index({ 'account.firebaseUid': 1 }, { unique: true, sparse: true });
 userSchema.index({ 'wallet.walletId': 1 }, { unique: true, sparse: true });
 
 function generateNumericCode(length) {
