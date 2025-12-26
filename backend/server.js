@@ -813,7 +813,27 @@ setInterval(async () => {
       let updated = false;
       let removedParticipants = [];
       
-      // Check each participant
+      // Skip cleanup for default parties - they never end and bot hosts stay active
+      if (party.isDefault) {
+        // For default parties, just ensure bot host is always present as active
+        const botHostParticipant = party.participants.find(
+          (p) => p.userId && party.hostId && p.userId.toString() === party.hostId.toString()
+        );
+        
+        if (!botHostParticipant && party.hostId && party.botHostId) {
+          // Re-add bot host as active participant
+          const Bot = require('./schemas/bot');
+          const bot = await Bot.findById(party.botHostId).lean();
+          if (bot) {
+            party.addParticipant(party.hostId, bot.name, bot.avatarUrl || null, 'host');
+            await party.save();
+            console.log(`[Cleanup Job] Re-added bot host to default party ${party.name}`);
+          }
+        }
+        continue; // Skip all cleanup for default parties
+      }
+      
+      // Check each participant (only for non-default parties)
       for (let i = party.participants.length - 1; i >= 0; i--) {
         const participant = party.participants[i];
         
