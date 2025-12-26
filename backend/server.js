@@ -221,6 +221,114 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Party video call events
+  socket.on('party:call:initiate', async (data) => {
+    const { partyId, toUserId } = data;
+    const fromUserId = socket.data.user?.sub;
+    
+    if (!fromUserId || !toUserId || !partyId) {
+      socket.emit('party:call:error', { error: 'Missing required parameters' });
+      return;
+    }
+
+    try {
+      const Party = require('./schemas/party');
+      const User = require('./schemas/users');
+      
+      // Verify both users are in the same party
+      const party = await Party.findById(partyId);
+      if (!party) {
+        socket.emit('party:call:error', { error: 'Party not found' });
+        return;
+      }
+
+      const fromUserInParty = party.participants.some(
+        (p) => p.userId && p.userId.toString() === fromUserId
+      );
+      const toUserInParty = party.participants.some(
+        (p) => p.userId && p.userId.toString() === toUserId
+      );
+
+      if (!fromUserInParty || !toUserInParty) {
+        socket.emit('party:call:error', { error: 'Both users must be in the party' });
+        return;
+      }
+
+      // Check profile privacy
+      const toUser = await User.findById(toUserId);
+      if (toUser) {
+        const profilePrivacy = toUser.social?.profilePrivacy || 'public';
+        const fromUser = await User.findById(fromUserId);
+        const isFriend = fromUser?.social?.friends?.some((id) => id.toString() === toUserId);
+        const isFollowing = fromUser?.social?.following?.some((id) => id.toString() === toUserId);
+
+        if (profilePrivacy === 'private' && !isFriend && !isFollowing) {
+          socket.emit('party:call:error', { error: 'Cannot call user with private profile' });
+          return;
+        }
+      }
+
+      // Send call notification to receiver
+      io.to(`party:${partyId}`).emit('party:call:incoming', {
+        partyId,
+        fromUserId,
+        toUserId,
+      });
+    } catch (error) {
+      console.error('[Socket.IO] Error initiating party call:', error);
+      socket.emit('party:call:error', { error: 'Failed to initiate call' });
+    }
+  });
+
+  socket.on('party:call:signal', (data) => {
+    const { partyId, toUserId, signal } = data;
+    const fromUserId = socket.data.user?.sub;
+    
+    // Forward WebRTC signal to target user in party
+    io.to(`party:${partyId}`).emit('party:call:signal', {
+      partyId,
+      fromUserId,
+      toUserId,
+      signal,
+    });
+  });
+
+  socket.on('party:call:accept', (data) => {
+    const { partyId, toUserId } = data;
+    const fromUserId = socket.data.user?.sub;
+    
+    // Notify caller that call was accepted
+    io.to(`party:${partyId}`).emit('party:call:accepted', {
+      partyId,
+      fromUserId,
+      toUserId,
+    });
+  });
+
+  socket.on('party:call:reject', (data) => {
+    const { partyId, toUserId } = data;
+    const fromUserId = socket.data.user?.sub;
+    
+    // Notify caller that call was rejected
+    io.to(`party:${partyId}`).emit('party:call:rejected', {
+      partyId,
+      fromUserId,
+      toUserId,
+    });
+  });
+
+  socket.on('party:call:end', (data) => {
+    const { partyId, toUserId } = data;
+    const fromUserId = socket.data.user?.sub;
+    
+    // Notify other user that call ended
+    io.to(`party:${partyId}`).emit('party:call:ended', {
+      partyId,
+      fromUserId,
+      toUserId,
+    });
+  });
+
   // Handle disconnection
   socket.on('disconnect', async () => {
     console.log(`[Socket.IO] ❌ Client disconnected: ${socket.id}`);

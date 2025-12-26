@@ -45,6 +45,7 @@ import usePartySocket from "@/hooks/usePartySocket";
 import useWebRTC from "@/hooks/useWebRTC";
 import GiftSelector from "../components/GiftSelector";
 import PredictionRaceGame from "../components/PredictionRaceGame";
+import PartyVideoCallModal from "../components/PartyVideoCallModal";
 
 export default function PartyRoomPage() {
   const router = useRouter();
@@ -75,6 +76,9 @@ export default function PartyRoomPage() {
   const [participantRelationship, setParticipantRelationship] = useState(null);
   const [showGiftSelector, setShowGiftSelector] = useState(false);
   const [giftRecipientId, setGiftRecipientId] = useState(null);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [videoCallUser, setVideoCallUser] = useState(null);
+  const [isVideoCallCaller, setIsVideoCallCaller] = useState(false);
   const chatEndRef = useRef(null);
   const handleLeaveRef = useRef(null);
   const handleEndPartyRef = useRef(null);
@@ -562,15 +566,19 @@ export default function PartyRoomPage() {
       const response = await apiClient.get(`/friends/profile/${userId}`);
       const participantUser = response.data.user;
 
-      // Start call using call store
-      const { startCall, setCallStatus } = useCallStore.getState();
-      startCall(userId, participantUser, true);
-      setCallStatus("calling");
-
+      // Set up video call modal
+      setVideoCallUser(participantUser);
+      setIsVideoCallCaller(true);
+      setShowVideoCall(true);
       setShowParticipantMenu(null);
-      
-      // Navigate to call page - it will handle the socket call initiation
-      router.push(`/dashboard/friends/call/${userId}?video=true&fromParty=true`);
+
+      // Emit call initiation to other user
+      if (socket) {
+        socket.emit("party:call:initiate", {
+          partyId,
+          toUserId: userId,
+        });
+      }
     } catch (error) {
       console.error("Failed to initiate video call:", error);
       alert(error.response?.data?.error || "Failed to start video call");
