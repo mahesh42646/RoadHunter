@@ -707,6 +707,31 @@ async function init() {
     });
     console.log('Connected to MongoDB');
 
+    // Fix firebaseUid index to be sparse (allows multiple null values for quick login users)
+    try {
+      const User = require('./schemas/users');
+      const db = mongoose.connection.db;
+      const collection = db.collection('users');
+      
+      // Drop the old non-sparse index if it exists
+      try {
+        await collection.dropIndex('account.firebaseUid_1');
+        console.log('[Index Migration] Dropped old firebaseUid index');
+      } catch (dropError) {
+        // Index might not exist, that's okay
+        if (dropError.code !== 27) { // 27 = IndexNotFound
+          console.log('[Index Migration] Old index not found or already dropped');
+        }
+      }
+      
+      // Create the new sparse index
+      await collection.createIndex({ 'account.firebaseUid': 1 }, { unique: true, sparse: true });
+      console.log('[Index Migration] Created sparse firebaseUid index');
+    } catch (indexError) {
+      console.error('[Index Migration] Error fixing firebaseUid index:', indexError.message);
+      // Don't fail startup if index migration fails
+    }
+
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`API ready on port ${PORT}`);
     });
