@@ -472,14 +472,16 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Check if friend is busy (hosting a party)
-      const activeParty = await Party.findOne({
-        hostId: friendId,
-        isActive: true,
-      });
-      if (activeParty) {
-        socket.emit('friend:call:error', { error: 'User is busy (in a party)' });
-        return;
+      // Check if friend is busy (hosting a party) - but allow if calling from same party
+      if (!fromParty) {
+        const activeParty = await Party.findOne({
+          hostId: friendId,
+          isActive: true,
+        });
+        if (activeParty) {
+          socket.emit('friend:call:error', { error: 'User is busy (in a party)' });
+          return;
+        }
       }
 
       // Create call record
