@@ -876,15 +876,32 @@ export default function PartyRoomPage() {
     onPartyCallIncoming: (data) => {
       // Handle incoming party video call
       const callerId = data.fromUserId;
+      const receiverId = data.toUserId;
       const currentUserId = user?._id?.toString();
       
-      // Only show if this call is for the current user
-      if (callerId && currentUserId && callerId !== currentUserId) {
+      console.log("[Party] Incoming call received:", { callerId, receiverId, currentUserId, data });
+      
+      // Only show if this call is for the current user (we are the receiver)
+      if (receiverId && currentUserId && receiverId === currentUserId && callerId && callerId !== currentUserId) {
+        console.log("[Party] This call is for me, loading caller data...");
         const participant = participants.find((p) => p.userId?.toString() === callerId);
         if (participant) {
           // Get full user data
           apiClient.get(`/friends/profile/${callerId}`)
             .then((response) => {
+              console.log("[Party] Caller data loaded, opening call modal");
+              setVideoCallUser(response.data.user);
+              setIsVideoCallCaller(false);
+              setShowVideoCall(true);
+            })
+            .catch((error) => {
+              console.error("Failed to load caller data:", error);
+            });
+        } else {
+          // Even if participant not found in local list, try to load user data
+          apiClient.get(`/friends/profile/${callerId}`)
+            .then((response) => {
+              console.log("[Party] Caller data loaded (not in participants list), opening call modal");
               setVideoCallUser(response.data.user);
               setIsVideoCallCaller(false);
               setShowVideoCall(true);
@@ -893,6 +910,8 @@ export default function PartyRoomPage() {
               console.error("Failed to load caller data:", error);
             });
         }
+      } else {
+        console.log("[Party] Call not for me, ignoring", { receiverId, currentUserId, match: receiverId === currentUserId });
       }
     },
     onStreamState: (data) => {

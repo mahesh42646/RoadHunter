@@ -188,8 +188,16 @@ export default function usePartySocket(partyId, callbacks = {}) {
     });
 
     socket.on("party:call:incoming", (data) => {
+      console.log("[Socket] Received party:call:incoming event:", data);
       if (data.partyId === partyId && onPartyCallIncoming) {
+        console.log("[Socket] Party ID matches, calling onPartyCallIncoming callback");
         onPartyCallIncoming(data);
+      } else {
+        console.log("[Socket] Party ID mismatch or no callback", { 
+          receivedPartyId: data.partyId, 
+          currentPartyId: partyId, 
+          hasCallback: !!onPartyCallIncoming 
+        });
       }
     });
 
