@@ -322,11 +322,11 @@ export default function HomePage() {
             };
 
             return (
-              <div key={party._id} className="col-4 col-md-3 col-lg-2">
+              <div key={party._id} className="col-4 col-md-3 col-lg-2 ">
                 <Card
-                  className="glass-card border-0 h-100"
+                  className="glass-card border-0 "
                   style={{
-                    aspectRatio: "9/16",
+                    aspectRatio: "9/14",
                     overflow: "hidden",
                     position: "relative",
                     cursor: "pointer",
@@ -355,9 +355,8 @@ export default function HomePage() {
                     }}
                   />
                   <Card.Body
-                    className="p-2 d-flex flex-column justify-content-between"
-                    style={{ position: "relative", zIndex: 1, height: "100%" }}
-                  >
+                    className="p-2 d-flex flex-column justify-content-between "
+                    style={{ position: "relative", zIndex: 1, height: "100%" }}>
                     <div>
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <div className="d-flex align-items-center gap-1">
@@ -578,7 +577,7 @@ export default function HomePage() {
                       maxWidth: "100%",
                       maxHeight: "200px",
                       objectFit: "contain",
-                      borderRadius: "8px",
+                      borderRadius: "0.375rem",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                     }}
                     unoptimized

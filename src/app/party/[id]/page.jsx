@@ -3,35 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  Button,
-  Card,
-  Form,
-  Badge,
-  Modal,
-  Dropdown,
-  ListGroup,
+  Button, Card, Form, Badge, Modal, Dropdown, ListGroup,
 } from "react-bootstrap";
 import {
-  BsChatDots,
-  BsController,
-  BsGift,
-  BsX,
-  BsPersonCheck,
-  BsPersonX,
-  BsThreeDotsVertical,
-  BsStarFill,
-  BsCoin,
-  BsPeople,
-  BsLock,
-  BsUnlock,
-  BsArrowLeft,
-  BsMic,
-  BsMicMute,
-  BsCameraVideo,
-  BsCameraVideoOff,
-  BsVolumeUp,
-  BsVolumeMute,
-  BsTelephoneForward,
+  BsChatDots, BsController, BsGift, BsX, BsPersonCheck, BsPersonX, BsThreeDotsVertical, BsStarFill, BsCoin, BsPeople, BsLock, BsUnlock, BsArrowLeft, BsMic, BsMicMute, BsCameraVideo, BsCameraVideoOff, BsVolumeUp, BsVolumeMute, BsTelephoneForward,
 } from "react-icons/bs";
 import { HiSparkles } from "react-icons/hi";
 
@@ -57,12 +32,12 @@ export default function PartyRoomPage() {
   const setCurrentParty = usePartyStore((state) => state.setCurrentParty);
   const clearCurrentParty = usePartyStore((state) => state.clearCurrentParty);
   const currentPartyId = usePartyStore((state) => state.currentPartyId);
-  
+
   // UI State from persisted store
   const partyRoomState = useUIStateStore((state) => state.partyRoomState);
   const updatePartyRoomState = useUIStateStore((state) => state.updatePartyRoomState);
   const clearPartyState = useUIStateStore((state) => state.clearPartyState);
-  
+
   const [party, setParty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -160,7 +135,7 @@ export default function PartyRoomPage() {
 
     loadParty();
     loadWallet();
-    
+
     // Add body class to prevent scroll
     document.body.classList.add("party-page");
     return () => {
@@ -176,6 +151,8 @@ export default function PartyRoomPage() {
       console.error("Failed to load wallet", error);
     }
   };
+  
+
 
   // Track tab visibility and handle offline timer for non-host users
   useEffect(() => {
@@ -210,19 +187,19 @@ export default function PartyRoomPage() {
       } else {
         // Tab became visible again - clear timers and mark as active
         isTabVisibleRef.current = true;
-        
+
         // Clear offline timer
         if (offlineTimerRef.current) {
           clearTimeout(offlineTimerRef.current);
           offlineTimerRef.current = null;
         }
-        
+
         // Clear remove timer
         if (removeTimerRef.current) {
           clearTimeout(removeTimerRef.current);
           removeTimerRef.current = null;
         }
-        
+
         // Mark as active if was offline (check current participant status)
         const participant = party?.participants?.find(
           (p) => p.userId?.toString() === user?._id?.toString()
@@ -250,9 +227,9 @@ export default function PartyRoomPage() {
         try {
           if (isHost) {
             // Host should end party or transfer, but if tab is closing, just leave
-            await apiClient.post(`/parties/${partyId}/leave`).catch(() => {});
+            await apiClient.post(`/parties/${partyId}/leave`).catch(() => { });
           } else {
-            await apiClient.post(`/parties/${partyId}/leave`).catch(() => {});
+            await apiClient.post(`/parties/${partyId}/leave`).catch(() => { });
           }
         } catch (error) {
           // Ignore errors - user is leaving anyway
@@ -267,7 +244,7 @@ export default function PartyRoomPage() {
       if (isHandlingPopState) {
         return;
       }
-      
+
       if (isParticipant) {
         isHandlingPopState = true;
         const confirmed = confirm("Are you sure you want to exit the party room? You will leave the room.");
@@ -315,12 +292,12 @@ export default function PartyRoomPage() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("pagehide", handlePageHide);
-    
+
     // Only push state once on mount, not repeatedly
     if (window.history.state === null) {
       window.history.pushState({ preventBack: true }, "", window.location.pathname);
     }
-    
+
     window.addEventListener("popstate", handlePopState);
 
     return () => {
@@ -341,7 +318,7 @@ export default function PartyRoomPage() {
     try {
       const response = await apiClient.get(`/parties/${partyId}`);
       const partyData = response.data.party;
-      
+
       if (!partyData.isActive) {
         clearCurrentParty();
         clearPartyState();
@@ -351,17 +328,17 @@ export default function PartyRoomPage() {
       }
 
       setParty(partyData);
-      
+
       const isUserHost = partyData.hostId?.toString() === user?._id?.toString();
-      
+
       // Always set current party when party is loaded (for refresh persistence)
       setCurrentParty(partyId, isUserHost);
-      
+
       // Check if user is already a participant
       const currentParticipant = partyData.participants?.find(
         (p) => p.userId?.toString() === user?._id?.toString()
       );
-      
+
       // If user is host, auto-join them (even if offline)
       if (isUserHost) {
         if (!currentParticipant || currentParticipant.status === 'offline' || currentParticipant.status === 'left') {
@@ -483,7 +460,7 @@ export default function PartyRoomPage() {
       router.push("/");
     } catch (error) {
       console.error("Failed to leave party", error);
-      
+
       // If party not found or user not in party, clear store and allow navigation
       if (error.response?.status === 404 || error.response?.data?.message === 'Not in party') {
         clearCurrentParty();
@@ -592,7 +569,7 @@ export default function PartyRoomPage() {
 
       const profilePrivacy = participantRelationship?.profilePrivacy || 'public';
       await apiClient.post(`/friends/request/${userId}`);
-      
+
       // Refresh relationship
       await loadParticipantRelationship(userId);
       // Refresh user data
@@ -600,7 +577,7 @@ export default function PartyRoomPage() {
       const { setSession } = useAuthStore.getState();
       const { token } = useAuthStore.getState();
       setSession({ token, user: meResponse.data.user });
-      
+
       setShowParticipantMenu(null);
       alert("Followed successfully!");
     } catch (error) {
@@ -614,12 +591,12 @@ export default function PartyRoomPage() {
       const response = await apiClient.get(`/friends/profile/${userId}`);
       const relationship = response.data.user?.relationship || {};
       const isFriend = relationship.isFriend || relationship.isFollowing || false;
-      
+
       if (!isFriend) {
         alert("You can only send gifts to friends. Please follow this user first.");
         return;
       }
-      
+
       setGiftRecipientId(userId);
       setShowGiftSelector(true);
       setShowParticipantMenu(null);
@@ -649,7 +626,7 @@ export default function PartyRoomPage() {
 
   const handleEndParty = async () => {
     if (!confirm("Are you sure you want to end this party?")) return;
-    
+
     try {
       await apiClient.delete(`/parties/${partyId}`);
       clearCurrentParty();
@@ -673,12 +650,12 @@ export default function PartyRoomPage() {
     try {
       // Toggle mic using WebRTC first
       await webrtc.toggleMic();
-      
+
       // Then update backend
       const response = await apiClient.post(`/parties/${partyId}/toggle-mic`);
       setParty(response.data.party);
       setHostMicEnabled(response.data.party.hostMicEnabled);
-      
+
       // Notify participants via socket to start/stop receiving stream
       if (socket) {
         socket.emit("webrtc:host-stream-started", {
@@ -703,12 +680,12 @@ export default function PartyRoomPage() {
     try {
       // Toggle camera using WebRTC first
       await webrtc.toggleCamera();
-      
+
       // Then update backend
       const response = await apiClient.post(`/parties/${partyId}/toggle-camera`);
       setParty(response.data.party);
       setHostCameraEnabled(response.data.party.hostCameraEnabled);
-      
+
       // Notify participants via socket to start/stop receiving stream
       if (socket) {
         socket.emit("webrtc:host-stream-started", {
@@ -750,14 +727,14 @@ export default function PartyRoomPage() {
         const existingIndex = participants.findIndex(
           (p) => p.userId?.toString() === data.participant.userId?.toString()
         );
-        
+
         if (existingIndex !== -1) {
           // Update existing participant (e.g., status change from 'left' to 'active')
           const updated = [...participants];
           updated[existingIndex] = { ...updated[existingIndex], ...data.participant };
           return { ...prev, participants: updated };
         }
-        
+
         // Add new participant
         return {
           ...prev,
@@ -784,7 +761,7 @@ export default function PartyRoomPage() {
         const index = participants.findIndex(
           (p) => p.userId?.toString() === data.userId?.toString()
         );
-        
+
         if (index !== -1) {
           const updated = [...participants];
           updated[index] = {
@@ -793,7 +770,7 @@ export default function PartyRoomPage() {
           };
           return { ...prev, participants: updated };
         }
-        
+
         return prev;
       });
     },
@@ -841,7 +818,7 @@ export default function PartyRoomPage() {
           ...prev,
           chatMessages: [...(prev.chatMessages || []), data.message],
         }));
-        
+
         // Add gift animation
         setGiftAnimations((prev) => [
           ...prev,
@@ -851,9 +828,9 @@ export default function PartyRoomPage() {
             recipients: data.gift.recipients,
           },
         ]);
-        
+
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-        
+
         // Remove animation after 3 seconds
         setTimeout(() => {
           setGiftAnimations((prev) => prev.slice(1));
@@ -878,9 +855,9 @@ export default function PartyRoomPage() {
       const callerId = data.fromUserId;
       const receiverId = data.toUserId;
       const currentUserId = user?._id?.toString();
-      
+
       console.log("[Party] Incoming call received:", { callerId, receiverId, currentUserId, data });
-      
+
       // Only show if this call is for the current user (we are the receiver)
       if (receiverId && currentUserId && receiverId === currentUserId && callerId && callerId !== currentUserId) {
         console.log("[Party] This call is for me, loading caller data...");
@@ -918,25 +895,25 @@ export default function PartyRoomPage() {
       // Update host stream state when joining/rejoining
       setHostMicEnabled(data.hostMicEnabled);
       setHostCameraEnabled(data.hostCameraEnabled);
-      setParty((prev) => ({ 
-        ...prev, 
+      setParty((prev) => ({
+        ...prev,
         hostMicEnabled: data.hostMicEnabled,
-        hostCameraEnabled: data.hostCameraEnabled 
+        hostCameraEnabled: data.hostCameraEnabled
       }));
-      
+
       // Check if current user is the host
       const currentUserId = user?._id?.toString();
       const hostUserId = data.hostId?.toString();
       const amIHost = currentUserId && hostUserId && currentUserId === hostUserId;
-      
+
       // If host has active stream and we're not the host, request connection
       if (!amIHost && (data.hostMicEnabled || data.hostCameraEnabled) && data.hostId && socket) {
-        
+
         // Request stream with retry mechanism
         let retryCount = 0;
         const maxRetries = 3;
         const requestInterval = 1000; // 1 second between retries
-        
+
         const requestStream = () => {
           if (socket && retryCount < maxRetries) {
             socket.emit('webrtc:request-stream', {
@@ -944,7 +921,7 @@ export default function PartyRoomPage() {
               hostId: data.hostId,
             });
             retryCount++;
-            
+
             // Retry if needed (will stop once connection is established)
             if (retryCount < maxRetries) {
               setTimeout(requestStream, requestInterval);
@@ -953,7 +930,7 @@ export default function PartyRoomPage() {
             // Cannot request stream - socket not available
           }
         };
-        
+
         // Start requesting after short delay
         setTimeout(requestStream, 500);
       } else {
@@ -1024,35 +1001,26 @@ export default function PartyRoomPage() {
   );
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: "100vh",
-        width: "100vw",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        background: "radial-gradient(ellipse at top, #0f1624 0%, #0a0e1a 50%, #050810 100%)",
-      }}
-    >
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0, height: "100vh", width: "100vw", overflow: "hidden",
+      background: "radial-gradient(ellipse at top, #0f1624 0%, #0a0e1a 50%, #050810 100%)",
+    }} className="d-lg-flex  "  >
+
+
       {/* Top Section - Participants */}
       <div
-        className="glass-card p-3"
+        className=" p-3 m-25-lg-100  w-100 "
         style={{
-          flex: "0 0 25%",
-          
+
+
+
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           minHeight: 0,
-        }}
-      >
+        }}  >
         <div className="d-flex justify-content-between align-items-start " style={{ gap: "0.5rem" }}>
-          <div className="d-flex justify-content-between align-items-center" style={{ minWidth: 0 }}>
+          <div className="d-flex justify-content-between align-items-center " style={{ minWidth: 0 }}>
             <div className="d-flex align-items-center gap-2 mb-1">
               <h6 className="fw-bold mb-0 text-truncate" style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
                 {party.name}
@@ -1066,22 +1034,19 @@ export default function PartyRoomPage() {
             <div className="d-flex align-items-center gap-2">
               <Badge
                 style={{
-                  background: party.privacy === "public" ? "rgba(0, 245, 255, 0.2)" : "rgba(255, 122, 24, 0.2)",
-                  color: party.privacy === "public" ? "var(--accent-secondary)" : "var(--accent-tertiary)",
-                  border: party.privacy === "public" ? "1px solid rgba(0, 245, 255, 0.3)" : "1px solid rgba(255, 122, 24, 0.3)",
+                  background: party.privacy === "public" ? "#00ffff" : "#ff6b35",
+                  color: "#000000",
+                  border: party.privacy === "public" ? "1px solid #00ffff" : "1px solid #ff6b35",
                   fontSize: "0.65rem",
                   padding: "0.2rem 0.4rem",
-                }}
-              >
-               
-              </Badge>
+                }}   >   </Badge>
               <div className="d-flex align-items-center gap-1" style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>
                 <BsPeople style={{ fontSize: "0.75rem" }} />
                 <span>{participants.length}/50</span>
               </div>
             </div>
           </div>
-          <div className="d-flex gap-1  flex-shrink-0 align-items-center p-0">
+          <div className="d-flex gap-1 w-25  flex-shrink-0 align-items-center p-0">
             {isParticipant && (
               <>
                 {isHost && (
@@ -1090,7 +1055,7 @@ export default function PartyRoomPage() {
                       variant={hostMicEnabled ? "success" : "outline-secondary"}
                       size="sm"
                       onClick={handleToggleMic}
-                      style={{ fontSize: "0.7rem",  minWidth: "36px" }}
+                      style={{ fontSize: "0.7rem", minWidth: "36px" }}
                       title={hostMicEnabled ? "Turn off microphone" : "Turn on microphone"}
                     >
                       {hostMicEnabled ? <BsMic /> : <BsMicMute />}
@@ -1099,17 +1064,17 @@ export default function PartyRoomPage() {
                       variant={hostCameraEnabled ? "success" : "outline-secondary"}
                       size="sm"
                       onClick={handleToggleCamera}
-                      style={{ fontSize: "0.7rem",  minWidth: "36px" }}
+                      style={{ fontSize: "0.7rem", minWidth: "36px" }}
                       title={hostCameraEnabled ? "Turn off camera" : "Turn on camera"}
                     >
                       {hostCameraEnabled ? <BsCameraVideo /> : <BsCameraVideoOff />}
                     </Button>
-                    <Button className="border "  onClick={handleEndParty} >
+                    <Button className="border " onClick={handleEndParty} >
                       End
                     </Button>
                   </>
                 )}
-                <Button className="border p-0 " onClick={handleLeave}  title="Leave Party">
+                <Button className="border p-0 " onClick={handleLeave} title="Leave Party">
                   <BsArrowLeft />
                 </Button>
               </>
@@ -1138,7 +1103,7 @@ export default function PartyRoomPage() {
 
         {/* Participants Cards Grid - Responsive */}
         <div
-          className="participants-grid-responsive "
+          className="d-lg-none d-flex "
           style={{
             flex: 1,
             overflowY: "auto",
@@ -1146,28 +1111,25 @@ export default function PartyRoomPage() {
             gap: "0.5rem",
             padding: "0.1rem",
             alignContent: "flex-start",
-           
+
           }}
         >
           {topParticipants.map((participant, idx) => {
             const isParticipantHost = participant.role === "host";
             const isCurrentUser = participant.userId?.toString() === user?._id?.toString();
             const participantWallet = isCurrentUser && wallet ? wallet.partyCoins || 0 : null;
-            
+
             return (
               <div
                 key={idx}
-                className=" rounded-3  p-1"
+                className=" rounded-2  p-1"
                 style={{
                   position: "relative",
                   width: "100%",
                   cursor: !isCurrentUser ? "pointer" : "default",
                   border: isParticipantHost
                     ? "1px solid var(--accent)"
-                    : "1px solid rgba(255, 255, 255, 0.1)",
-                  boxShadow: isParticipantHost 
-                    ? "0 4px 12px rgba(255, 45, 149, 0.3)" 
-                    : "0 2px 8px rgba(0, 0, 0, 0.2)",
+                    : "1px solid #2a3441",
                   transition: "all 0.2s ease",
                   display: "flex",
                   flexDirection: "column",
@@ -1185,16 +1147,10 @@ export default function PartyRoomPage() {
                 onMouseEnter={(e) => {
                   if (!isCurrentUser) {
                     e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = isParticipantHost 
-                      ? "0 6px 16px rgba(255, 45, 149, 0.4)" 
-                      : "0 4px 12px rgba(0, 0, 0, 0.3)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = isParticipantHost 
-                    ? "0 4px 12px rgba(255, 45, 149, 0.3)" 
-                    : "0 2px 8px rgba(0, 0, 0, 0.2)";
                 }}  >
                 {/* Host Badge */}
                 {isParticipantHost && (
@@ -1220,23 +1176,23 @@ export default function PartyRoomPage() {
                       }}
                     >
                       <BsStarFill style={{ fontSize: "clamp(0.5rem, 1.2vw, 0.65rem)" }} />
-                     
+
                     </Badge>
                   </div>
                 )}
 
                 {/* Avatar/Video Container */}
-                <div 
-                  className="rounded-3 "
+                <div
+                  className="rounded-2 "
                   style={{
                     position: "relative",
                     width: "100%",
                     aspectRatio: "1",
-                    
+
                     overflow: "hidden",
                     // marginBottom: "0.5rem",
-                
-                    background: "rgba(0, 0, 0, 0.3)",
+
+                    background: "#1a2332",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1247,7 +1203,7 @@ export default function PartyRoomPage() {
                     <>
                       {isHost ? (
                         // Host sees their own local video
-                        <video className="rounded-3 border"
+                        <video className="rounded-2 border"
                           ref={webrtc.localVideoRef}
                           autoPlay
                           playsInline
@@ -1261,7 +1217,7 @@ export default function PartyRoomPage() {
                         />
                       ) : (
                         // Participants see host's remote video
-                        <video className="rounded-3 border"
+                        <video className="rounded-2 border"
                           ref={webrtc.remoteVideoRef}
                           autoPlay
                           playsInline
@@ -1278,11 +1234,11 @@ export default function PartyRoomPage() {
                             video.volume = webrtc.audioVolume;
                             // Ensure video continues playing
                             if (video.paused) {
-                              video.play().catch(() => {});
+                              video.play().catch(() => { });
                             }
                           }}
                           onLoadedMetadata={() => {
-                            
+
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1300,23 +1256,23 @@ export default function PartyRoomPage() {
                       )}
                       {/* Fallback avatar if video not available */}
                       {(!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) && (
-                        <div className="rounded-3"
+                        <div className="rounded-2"
                           style={{
                             position: "absolute",
                             inset: 0,
-                    background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
-                      ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
-                      : "rgba(255, 45, 149, 0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontWeight: "bold",
+                            background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                              ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
+                              : "#ff1493",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
                             fontSize: "2rem",
-                  }}
-                >
-                  {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
-                </div>
+                          }}
+                        >
+                          {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
+                        </div>
                       )}
                     </>
                   ) : (
@@ -1328,7 +1284,7 @@ export default function PartyRoomPage() {
                         height: "100%",
                         background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
                           ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
-                          : "rgba(255, 45, 149, 0.3)",
+                          : "#ff1493",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -1345,26 +1301,264 @@ export default function PartyRoomPage() {
                 {/* Participant Name */}
                 <p
                   className=" fw-bold m-0 text-center p-1"
-                  style={{ 
-                    color: "var(--text-primary)", 
-                    fontSize: "clamp(0.65rem, 2vw, 0.85rem)", 
-                    
+                  style={{
+                    color: "var(--text-primary)",
+                    fontSize: "clamp(0.65rem, 2vw, 0.85rem)",
+
                   }}
                   title={participant.username}
                 >
                   {participant.username}
                 </p>
 
-               
+
 
                 {/* Status Badges */}
                 <div className="d-flex align-items-center justify-content-center gap-1 participant-badges" style={{ flexWrap: "wrap", marginTop: "auto" }}>
                   {participant.status === "muted" && (
                     <Badge
                       style={{
-                        background: "rgba(255, 122, 24, 0.2)",
-                        color: "var(--accent-tertiary)",
-                        border: "1px solid rgba(255, 122, 24, 0.3)",
+                        background: "#ff6b35",
+                        color: "#000000",
+                        border: "1px solid #ff6b35",
+                        fontSize: "clamp(0.5rem, 1.2vw, 0.6rem)",
+                        padding: "0.1rem 0.25rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.15rem",
+                      }}
+                    >
+                      <BsMicMute style={{ fontSize: "clamp(0.45rem, 1.2vw, 0.55rem)" }} />
+                      <span className="d-none d-sm-inline">Muted</span>
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+        <div
+          className="d-lg-flex d-none flex-wrap overflow-y-auto "
+        
+        >
+          {topParticipants.map((participant, idx) => {
+            const isParticipantHost = participant.role === "host";
+            const isCurrentUser = participant.userId?.toString() === user?._id?.toString();
+            const participantWallet = isCurrentUser && wallet ? wallet.partyCoins || 0 : null;
+
+            return (
+              <div
+                key={idx}
+                className=" rounded-2  col-3  p-1"
+                style={{
+                  position: "relative",
+                  
+                  cursor: !isCurrentUser ? "pointer" : "default",
+                  border: isParticipantHost
+                    ? "1px solid var(--accent)"
+                    : "1px solid #2a3441",
+                  transition: "all 0.2s ease",
+                  display: "flex",
+                  flexDirection: "column",
+                 
+                 
+                }}
+                onClick={async () => {
+                  if (!isCurrentUser) {
+                    const userId = participant.userId?.toString();
+                    setShowParticipantMenu(userId);
+                    await loadParticipantRelationship(userId);
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (!isCurrentUser) {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}  >
+                {/* Host Badge */}
+                {isParticipantHost && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "0.5rem",
+                      right: "0.5rem",
+                      zIndex: 10,
+                    }}
+                  >
+                    <Badge
+                      className="host-badge"
+                      style={{
+                        color: "white",
+                        border: "none",
+                        fontSize: "clamp(0.5rem, 1.2vw, 0.6rem)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "clamp(0.15rem, 0.5vw, 0.25rem)",
+                        fontWeight: "bold",
+                        background: "var(--accent)",
+                      }}
+                    >
+                      <BsStarFill style={{ fontSize: "clamp(0.5rem, 1.2vw, 0.65rem)" }} />
+
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Avatar/Video Container */}
+                <div
+                  className="rounded-2 "
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    aspectRatio: "1",
+
+                    overflow: "hidden",
+                    // marginBottom: "0.5rem",
+
+                    background: "#1a2332",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {/* Host Video (for participants) or Host Local Video */}
+                  {isParticipantHost ? (
+                    <>
+                      {isHost ? (
+                        // Host sees their own local video
+                        <video className="rounded-2 border"
+                          ref={webrtc.localVideoRef}
+                          autoPlay
+                          playsInline
+                          muted={true}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: hostCameraEnabled ? "block" : "none",
+                          }}
+                        />
+                      ) : (
+                        // Participants see host's remote video
+                        <video className="rounded-2 border"
+                          ref={webrtc.remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          muted={true}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          onCanPlay={(e) => {
+                            const video = e.target;
+                            // DON'T unmute here - it causes video to pause due to autoplay policy
+                            // Keep video muted, user can toggle audio via audio controls
+                            video.volume = webrtc.audioVolume;
+                            // Ensure video continues playing
+                            if (video.paused) {
+                              video.play().catch(() => { });
+                            }
+                          }}
+                          onLoadedMetadata={() => {
+
+                            const reduceBuffer = () => {
+                              if (video.buffered.length > 0) {
+                                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                                const bufferSize = bufferedEnd - video.currentTime;
+                                if (bufferSize > 0.05) {
+                                  video.currentTime = bufferedEnd - 0.05;
+                                }
+                              }
+                            };
+                            reduceBuffer();
+                            video.addEventListener('progress', reduceBuffer);
+                            video.addEventListener('timeupdate', reduceBuffer);
+                          }}
+                        />
+                      )}
+                      {/* Fallback avatar if video not available */}
+                      {(!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) && (
+                        <div className="rounded-2"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                              ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
+                              : "#ff1493",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "2rem",
+                          }}
+                        >
+                          {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    // Regular participant avatar
+                    <div
+                      className="-3"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                          ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
+                          : "#ff1493",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "2rem",
+                      }}
+                    >
+                      {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
+                    </div>
+                  )}
+                </div>
+
+                {/* Participant Name */}
+                <p
+                  className=" fw-bold m-0 text-center p-1"
+                  style={{
+                    color: "var(--text-primary)",
+                    fontSize: "clamp(0.65rem, 2vw, 0.85rem)",
+
+                  }}
+                  title={participant.username}
+                >
+                  {participant.username}
+                </p>
+
+
+
+                {/* Status Badges */}
+                <div className="d-flex align-items-center justify-content-center gap-1 participant-badges" style={{ flexWrap: "wrap", marginTop: "auto" }}>
+                  {participant.status === "muted" && (
+                    <Badge
+                      style={{
+                        background: "#ff6b35",
+                        color: "#000000",
+                        border: "1px solid #ff6b35",
                         fontSize: "clamp(0.5rem, 1.2vw, 0.6rem)",
                         padding: "0.1rem 0.25rem",
                         display: "flex",
@@ -1385,30 +1579,25 @@ export default function PartyRoomPage() {
 
       {/* Bottom Section - Comments */}
       <div
-        className="glass-card"
+        className="glass-card m-75-lg-100 w-100"
         style={{
-          flex: "0 0 75%",
-          
-          // paddingBottom: isParticipant ? "33px" : "10px", // Account for bottom nav (60px) + spacing
           display: "flex",
           flexDirection: "column",
           overflow: "auto",
           minHeight: 0,
           padding: "0",
-        }}
-      >
-        
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            // marginBottom: "0.5rem",
-            display: "flex",
-            flexDirection: "column",
-            // gap: "0.4rem",
-            paddingBottom: isParticipant && activeBottomNav === "chat" ? "30px" : "0px", // Extra space for fixed chat input
-          }}
-        >
+          position: "relative",
+        }}     >
+
+        {isParticipant && activeBottomNav === "chat" && (
+          <div
+            style={{
+              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
+              paddingBottom: "80px",
+            }}
+          >
             {recentMessages.map((msg, idx) => {
               const isMessageFromHost = msg.userId?.toString() === party.hostId?.toString();
               return (
@@ -1416,9 +1605,9 @@ export default function PartyRoomPage() {
                   key={idx}
                   className="d-flex align-items-start gap-2 p-2"
                   style={{
-                    
-                    background: "linear-gradient(90deg, rgba(58, 58, 58, 0.43) 0%, rgba(0, 0, 0, 0.1) 100%)",
-                    
+
+                    background: "#1a2332",
+
                   }}
                 >
                   <div
@@ -1430,7 +1619,7 @@ export default function PartyRoomPage() {
                       flexShrink: 0,
                       background: msg.avatarUrl && getImageUrl(msg.avatarUrl)
                         ? `url(${getImageUrl(msg.avatarUrl)}) center/cover`
-                        : "rgba(255, 45, 149, 0.3)",
+                        : "#ff1493",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -1438,7 +1627,7 @@ export default function PartyRoomPage() {
                       fontWeight: "bold",
                       fontSize: "0.7rem",
                     }}
-                    
+
                   >
                     {(!msg.avatarUrl || !getImageUrl(msg.avatarUrl)) && getInitials(msg.username || "?")}
                   </div>
@@ -1451,11 +1640,11 @@ export default function PartyRoomPage() {
                         {msg.username}
                       </span>
                       <span
-                      className="small px-3"
-                      style={{ color: "var(--text-dim)", fontSize: "0.65rem" }}
-                    >
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </span>
+                        className="small px-3"
+                        style={{ color: "var(--text-dim)", fontSize: "0.65rem" }}
+                      >
+                        {new Date(msg.timestamp).toLocaleTimeString()}
+                      </span>
                       {isMessageFromHost && (
                         <Badge className="px-2 bg-transparent"
                           style={{
@@ -1468,115 +1657,116 @@ export default function PartyRoomPage() {
                           <BsStarFill style={{ fontSize: "0.5rem" }} />
                           Host
                         </Badge>
-                        
+
                       )}
-                      
+
                     </div>
-                    <span className="mb-0 small" style={{ 
-                      color: msg.type === 'gift' ? "var(--accent)" : "var(--text-primary)", 
+                    <span className="mb-0 small" style={{
+                      color: msg.type === 'gift' ? "var(--accent)" : "var(--text-primary)",
                       fontSize: "0.8rem",
                       fontWeight: msg.type === 'gift' ? "bold" : "normal",
                     }}>
                       {msg.type === 'gift' && (
                         <span style={{ fontSize: "1.2rem", marginRight: "0.25rem" }}>
                           {msg.giftType === 'lucky-kiss' ? '💋' :
-                           msg.giftType === 'hugging-heart' ? '🤗❤️' :
-                           msg.giftType === 'holding-hands' ? '🤝' :
-                           msg.giftType === 'lucky-star' ? '⭐' :
-                           msg.giftType === 'lollipop' ? '🍭' :
-                           msg.giftType === 'kiss' ? '💋' :
-                           msg.giftType === 'bouquet' ? '🌹' :
-                           msg.giftType === 'love-car' ? '🚗💕' : '🎁'}
+                            msg.giftType === 'hugging-heart' ? '🤗❤️' :
+                              msg.giftType === 'holding-hands' ? '🤝' :
+                                msg.giftType === 'lucky-star' ? '⭐' :
+                                  msg.giftType === 'lollipop' ? '🍭' :
+                                    msg.giftType === 'kiss' ? '💋' :
+                                      msg.giftType === 'bouquet' ? '🌹' :
+                                        msg.giftType === 'love-car' ? '🚗💕' : '🎁'}
                         </span>
                       )}
                       {msg.message}
                     </span>
-                   
+
                   </div>
                 </div>
               );
             })}
             <div ref={chatEndRef} />
           </div>
-          {isParticipant && activeBottomNav === "chat" && (
-            <div 
-              className="chat-input-container"
-              style={{ 
-                position: "fixed",
-                bottom: "65px", // Just above the bottom nav (60px + 5px spacing)
-                left: "0.5rem",
-                right: "0.5rem",
-                paddingBottom: "10px", 
-                zIndex: 1500,
-                background: "rgba(15, 22, 36, 0.98)",
-                backdropFilter: "blur(20px)",
-                padding: "0.75rem",
-                
-                boxShadow: "0 -2px 10px rgba(0, 0, 0, 0.3)",
-              }}
-            >
-              <Form onSubmit={handleSendChat} className="d-flex gap-2">
-                <Form.Control
-                  type="text"
-                  placeholder={isMuted ? "You are muted..." : "Type a comment..."}
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  maxLength={500}
-                  disabled={isMuted}
-                  size="sm"
-                  style={{ fontSize: "0.8rem" }}
-                />
-                <Button 
-                  type="submit" 
-                  variant="primary" 
-                  size="sm" 
-                  disabled={sendingChat || !chatMessage.trim() || isMuted}
-                  style={{ fontSize: "0.8rem", minWidth: "60px" }}
-                >
-                  {sendingChat ? "..." : "Send"}
-                </Button>
-              </Form>
-            </div>
-          )}
-          {isParticipant && activeBottomNav === "gifts" && (
-            <div style={{ 
-              position: "relative", 
-              zIndex: 1, 
-              maxHeight: "calc(100% - 20px)", 
-              overflowY: "auto",
+        )}
+        {isParticipant && activeBottomNav === "chat" && (
+          <div 
+            className="chat-input-container"
+            style={{
+              position: "absolute",
+              bottom: "5px", 
+              right: "7rem",
               paddingBottom: "10px",
-            }}>
-              <GiftSelector
-                show={true}
-                onHide={() => setActiveBottomNav("games")}
-                partyId={partyId}
-                wallet={wallet}
-                onGiftSent={() => {
-                  loadWallet();
-                  // Stay on gifts after sending, or go back to games
-                  // setActiveBottomNav("games");
-                }}
-                participants={participants}
-                hostId={party?.hostId}
+              zIndex: 1500,
+              padding: "0.75rem",
+              width: "75%",
+            }}
+          >
+            <Form onSubmit={handleSendChat} className="d-flex gap-2 w-100">
+              <Form.Control
+                type="text"
+                placeholder={isMuted ? "You are muted..." : "Type a comment..."}
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                maxLength={500}
+                disabled={isMuted}
+                size="sm"
+                style={{ fontSize: "0.8rem" }}
               />
-            </div>
-          )}
-          {isParticipant && activeBottomNav === "games" && (
-            <div style={{ height: "100%", overflow: "auto", padding: "0px" }}>
-              <PredictionRaceGame
-                socket={socket}
-                wallet={wallet}
-                onClose={() => setActiveBottomNav("games")}
-                partyId={partyId}
-              />
-            </div>
-          )}
-          {!isParticipant && (
-            <div className="text-center p-3" style={{ color: "var(--text-muted)" }}>
-              <p className="small mb-0">Join the party to comment</p>
-            </div>
-          )}
-        </div>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={sendingChat || !chatMessage.trim() || isMuted}
+                style={{ fontSize: "0.8rem", minWidth: "60px" }}
+              >
+                {sendingChat ? "..." : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M15.854 0.146a.5.5 0 0 0-.537-.105l-15 6.5a.5.5 0 0 0 .063.946l6.876 2.127 2.127 6.876a.5.5 0 0 0 .946.063l6.5-15a.5.5 0 0 0-.105-.537zm-2.504 2.504l-4.46 9.339-1.626-5.255 5.255-1.626 0.831-2.458z"/>
+                  </svg>
+                )}
+              </Button>
+            </Form>
+          </div>
+        )}
+        {isParticipant && activeBottomNav === "gifts" && (
+          <div style={{
+            position: "relative",
+            zIndex: 1,
+            height: "100%",
+            overflowY: "auto",
+            paddingBottom: "10px",
+          }}>
+            <GiftSelector
+              show={true}
+              onHide={() => setActiveBottomNav("games")}
+              partyId={partyId}
+              wallet={wallet}
+              onGiftSent={() => {
+                loadWallet();
+                // Stay on gifts after sending, or go back to games
+                // setActiveBottomNav("games");
+              }}
+              participants={participants}
+              hostId={party?.hostId}
+            />
+          </div>
+        )}
+        {isParticipant && activeBottomNav === "games" && (
+          <div style={{ height: "100%", overflow: "auto", padding: "0px" }}>
+            <PredictionRaceGame
+              socket={socket}
+              wallet={wallet}
+              onClose={() => setActiveBottomNav("games")}
+              partyId={partyId}
+            />
+          </div>
+        )}
+        {!isParticipant && (
+          <div className="text-center p-3" style={{ color: "var(--text-muted)" }}>
+            <p className="small mb-0">Join the party to comment</p>
+          </div>
+        )}
+      </div>
 
       {/* Gift Animations Overlay */}
       {giftAnimations.map((anim) => (
@@ -1608,155 +1798,111 @@ export default function PartyRoomPage() {
 
       {/* Bottom Navigation */}
       {isParticipant && (
-        <div
+        <div className="d-flex  align-items-center justify-content-end gap-2"
           style={{
             position: "fixed",
             bottom: 0,
-            left: 0,
+           padding: "1rem",
             right: 0,
-            height: "60px",
-            background: "rgba(15, 22, 36, 0.95)",
-            backdropFilter: "blur(20px)",
-            borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-around",
-            padding: "0 1rem",
+            background: "transparent",
+            
+        
+      
             zIndex: 2000,
-            boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.3)",
           }}
         >
-          <button
-            onClick={() => setActiveBottomNav("chat")}
-            style={{
-              background: activeBottomNav === "chat" ? "rgba(255, 45, 149, 0.2)" : "transparent",
-              border: "none",
-              borderRadius: "50%",
-              width: "44px",
-              height: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: activeBottomNav === "chat" ? "var(--accent)" : "var(--text-muted)",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              if (activeBottomNav !== "chat") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+          {activeBottomNav !== "chat" && (
+            <button
+              onClick={() => setActiveBottomNav("chat")}
+              style={{
+                background: "#000000",
+                border: "1px solid #2a3441",
+                borderRadius: "50%",
+                width: "44px",
+                height: "44px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--text-muted)",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#2a3441";
                 e.currentTarget.style.transform = "scale(1.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeBottomNav !== "chat") {
+              }}
+              onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.transform = "scale(1)";
-              }
-            }}
-            title="Chat"
-          >
-            <BsChatDots style={{ fontSize: "1.1rem" }} />
-          </button>
-          <button
-            onClick={() => setActiveBottomNav("games")}
-            style={{
-              background: activeBottomNav === "games" ? "rgba(255, 122, 24, 0.2)" : "transparent",
-              border: "none",
-              borderRadius: "50%",
-              width: "44px",
-              height: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: activeBottomNav === "games" ? "var(--accent-tertiary)" : "var(--text-muted)",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              if (activeBottomNav !== "games") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              title="Chat"
+            >
+              <BsChatDots style={{ fontSize: "1.1rem" }} />
+            </button>
+          )}
+          {activeBottomNav !== "games" && (
+            <button
+              onClick={() => setActiveBottomNav("games")}
+              style={{
+                background: "#000000",
+                border: "1px solid #2a3441",
+                borderRadius: "50%",
+                width: "44px",
+                height: "44px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--text-muted)",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#2a3441";
                 e.currentTarget.style.transform = "scale(1.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeBottomNav !== "games") {
+              }}
+              onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.transform = "scale(1)";
-              }
-            }}
-            title="Games"
-          >
-            <BsController style={{ fontSize: "1.1rem" }} />
-          </button>
-          <button
-            onClick={() => setActiveBottomNav("gifts")}
-            style={{
-              background: activeBottomNav === "gifts" 
-                ? "linear-gradient(135deg, rgba(255, 45, 149, 0.3) 0%, rgba(255, 122, 24, 0.3) 100%)"
-                : "transparent",
-              border: "none",
-              borderRadius: "50%",
-              width: "44px",
-              height: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: activeBottomNav === "gifts" ? "var(--accent)" : "var(--text-muted)",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              if (activeBottomNav !== "gifts") {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              title="Games"
+            >
+              <BsController style={{ fontSize: "1.1rem" }} />
+            </button>
+          )}
+          {activeBottomNav !== "gifts" && (
+            <button
+              onClick={() => setActiveBottomNav("gifts")}
+              style={{
+                background: "#000000",
+                border: "1px solid #2a3441",
+                borderRadius: "50%",
+                width: "44px",
+                height: "44px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "var(--text-muted)",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#2a3441";
                 e.currentTarget.style.transform = "scale(1.1)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeBottomNav !== "gifts") {
+              }}
+              onMouseLeave={(e) => {
                 e.currentTarget.style.background = "transparent";
                 e.currentTarget.style.transform = "scale(1)";
-              }
-            }}
-            title="Gifts"
-          >
-            <BsGift style={{ fontSize: "1.1rem" }} />
-          </button>
-      
-     
-          <button
-            onClick={handleLeave}
-            style={{
-              background: "transparent",
-              border: "none",
-              borderRadius: "50%",
-              width: "44px",
-              height: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "var(--text-muted)",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 107, 122, 0.2)";
-              e.currentTarget.style.color = "#ff6b7a";
-              e.currentTarget.style.transform = "scale(1.1)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--text-muted)";
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-            title="Exit"
-          >
-            <BsX style={{ fontSize: "1.3rem" }} />
-          </button>
+              }}
+              title="Gifts"
+            >
+              <BsGift style={{ fontSize: "1.1rem" }} />
+            </button>
+          )}
         </div>
       )}
 
       {/* Wallet Balance Display */}
-     
+
 
       {/* Participant Audio Controls */}
       {isParticipant && !isHost && (hostMicEnabled || hostCameraEnabled) && (
@@ -1768,23 +1914,21 @@ export default function PartyRoomPage() {
             left: "0.5rem",
             right: "auto",
             maxWidth: "calc(100% - 120px)", // Leave space for wallet display
-            background: "rgba(15, 22, 36, 0.95)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            borderRadius: "0.75rem",
+            background: "#0f1624",
+            border: "1px solid #2a3441",
+            borderRadius: "0.375rem",
             padding: "0.5rem 0.75rem",
             zIndex: 1000,
             display: "flex",
             alignItems: "center",
             gap: "0.5rem",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
             minWidth: "160px",
           }}
         >
           <button
             onClick={webrtc.toggleAudio}
             style={{
-              background: webrtc.audioEnabled ? "rgba(0, 245, 255, 0.2)" : "rgba(255, 107, 122, 0.2)",
+              background: webrtc.audioEnabled ? "#00ffff" : "#ff6b7a",
               border: "none",
               borderRadius: "50%",
               width: "32px",
@@ -1793,7 +1937,7 @@ export default function PartyRoomPage() {
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              color: webrtc.audioEnabled ? "var(--accent-secondary)" : "#ff6b7a",
+              color: "#000000",
               transition: "all 0.2s",
             }}
             title={webrtc.audioEnabled ? "Mute audio" : "Unmute audio"}
@@ -1811,10 +1955,11 @@ export default function PartyRoomPage() {
               style={{
                 flex: 1,
                 height: "4px",
-                background: "rgba(255, 255, 255, 0.2)",
-                borderRadius: "2px",
+                background: "#2a3441",
+                borderRadius: "0.375rem",
                 outline: "none",
                 cursor: "pointer",
+                
               }}
               title="Volume"
             />
@@ -1836,7 +1981,7 @@ export default function PartyRoomPage() {
         <Modal.Header
           closeButton
           style={{
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            borderBottom: "1px solid #2a3441",
             color: "var(--text-primary)",
           }}
         >
@@ -1855,7 +2000,7 @@ export default function PartyRoomPage() {
               const canCall = profilePrivacy === 'public' || canView;
               const isCurrentUserHost = isHost;
               const isTargetUserHost = participant?.role === 'host';
-              
+
               return (
                 <>
                   {/* Video Call - only show if profile is public and not calling host */}
@@ -1864,7 +2009,7 @@ export default function PartyRoomPage() {
                       className="d-flex align-items-center gap-2"
                       style={{
                         background: "transparent",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        borderBottom: "1px solid #2a3441",
                         cursor: "pointer",
                         color: "var(--accent-secondary)",
                       }}
@@ -1881,7 +2026,7 @@ export default function PartyRoomPage() {
                       className="d-flex align-items-center gap-2"
                       style={{
                         background: "transparent",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        borderBottom: "1px solid #2a3441",
                         cursor: "pointer",
                         color: "var(--text-primary)",
                       }}
@@ -1898,7 +2043,7 @@ export default function PartyRoomPage() {
                       className="d-flex align-items-center gap-2"
                       style={{
                         background: "transparent",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        borderBottom: "1px solid #2a3441",
                         cursor: "pointer",
                         color: "var(--text-primary)",
                       }}
@@ -1915,7 +2060,7 @@ export default function PartyRoomPage() {
                       className="d-flex align-items-center gap-2"
                       style={{
                         background: "transparent",
-                        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                        borderBottom: "1px solid #2a3441",
                         cursor: "pointer",
                         color: "#ff6b7a",
                       }}
@@ -1933,7 +2078,7 @@ export default function PartyRoomPage() {
                         className="d-flex align-items-center gap-2"
                         style={{
                           background: "transparent",
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          borderBottom: "1px solid #2a3441",
                           cursor: "pointer",
                           color: "var(--text-primary)",
                         }}
@@ -1950,7 +2095,7 @@ export default function PartyRoomPage() {
                         className="d-flex align-items-center gap-2"
                         style={{
                           background: "transparent",
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                          borderBottom: "1px solid #2a3441",
                           cursor: "pointer",
                           color: "var(--text-primary)",
                         }}
@@ -2024,7 +2169,7 @@ export default function PartyRoomPage() {
           <Modal.Header
             closeButton
             style={{
-              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+              borderBottom: "1px solid #2a3441",
               color: "var(--text-primary)",
             }}
           >
@@ -2061,7 +2206,7 @@ export default function PartyRoomPage() {
         <Modal.Header
           closeButton
           style={{
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            borderBottom: "1px solid #2a3441",
             color: "var(--text-primary)",
           }}
         >
@@ -2077,7 +2222,7 @@ export default function PartyRoomPage() {
                 className="d-flex justify-content-between align-items-center p-3"
                 style={{
                   background: "transparent",
-                  borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+                  borderBottom: "1px solid #2a3441",
                   cursor: "pointer",
                 }}
                 onClick={() => handleTransferHost(participant.userId?.toString())}
@@ -2091,7 +2236,7 @@ export default function PartyRoomPage() {
                       overflow: "hidden",
                       background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
                         ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
-                        : "rgba(255, 45, 149, 0.3)",
+                        : "#ff1493",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

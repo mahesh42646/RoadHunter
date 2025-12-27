@@ -85,7 +85,7 @@ export default function AdminSidebar({ activeTab, setActiveTab, onLogout }) {
             background: "rgba(220, 53, 69, 0.2)",
             border: "1px solid rgba(220, 53, 69, 0.3)",
             color: "#dc3545",
-            borderRadius: "0.5rem",
+            borderRadius: "0.375rem",
             display: "flex",
             alignItems: "center",
             gap: "0.75rem",

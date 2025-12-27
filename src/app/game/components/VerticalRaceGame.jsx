@@ -2087,7 +2087,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
       <div
         className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center  p-0 m-0"
         style={{
-          top: 0,
+          top: "0",
           left: 0,
           right: 0,
           bottom: 0,
@@ -2114,7 +2114,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           top: "clamp(0.5rem, 1vw, 1rem)",
           right: "clamp(0.5rem, 1vw, 1rem)",
           zIndex: 10,
-          borderRadius: "0.75rem",
+          borderRadius: "0.375rem",
           // padding: "clamp(0.5rem, 1vw, 0.75rem)",
         }}   >
         <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -2124,7 +2124,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               style={{
                 background: "linear-gradient(135deg, var(--accent, #ca0000) 0%, var(--accent-tertiary, #ce0000) 100%)",
                 color: "var(--text-primary, #ffffff)",
-                boxShadow: "0 0 10px var(--glow-pink, rgba(200, 0, 100, 0.4))",
               }}
             >
               Game&nbsp;#{game.gameNumber}
@@ -2173,7 +2172,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 10,
-            maxWidth: "90%",
+            
           }}
         >
           <div
@@ -2183,7 +2182,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               background: "rgba(202, 0, 0, 0.2)",
               border: "1px solid var(--accent, #ca0000)",
               color: "var(--text-primary, #ffffff)",
-              borderRadius: "0.5rem",
+              borderRadius: "0.375rem",
             }}
           >
             {error}
@@ -2196,20 +2195,34 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         <div
           className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            top: 0,
+            top: "0",
             left: 0,
             right: 0,
             bottom: 0,
             zIndex: 1000,
-            background: "rgba(0, 0, 0, 0.7)",
-            backdropFilter: "blur(4px)",
+            maxWidth: "400px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            flexWrap: "wrap",
+            alignContent: "center",
+            justifyItems: "center",
+            alignSelf: "center",
+            justifySelf: "center",
+            alignContent: "center",
+            justifyContent: "center",
+            alignItems: "center",
+            justifyItems: "center",
+
+           
           }}
         >
           <div
-            className="glass-card rounded"
+            className="glass-card rounded-2"
             style={{
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              maxWidth: "90%",
+              border: "1px solid #2a3441",
+              
               width: "100%",
               maxHeight: "90%",
               overflow: "auto",
@@ -2226,7 +2239,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                   fontSize: "clamp(3rem, 12vw, 6rem)",
                   fontWeight: 800,
                   color: "var(--accent-secondary, #00f5ff)",
-                  textShadow: "0 0 30px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
                   lineHeight: 1,
                 }}
               >
@@ -2246,7 +2258,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
             border: "1px solid var(--accent-secondary, #00f5ff)",
             padding: "clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem)",
             fontSize: "clamp(0.7rem, 1.5vw, 0.875rem)",
-            boxShadow: "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
           }}
         >
           <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>LIVE</span>
@@ -2259,20 +2270,33 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         <div
           className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            top: 0,
+            top: "0",
             left: 0,
             right: 0,
             bottom: 0,
             zIndex: 1000,
-            background: "rgba(0, 0, 0, 0.7)",
-            backdropFilter: "blur(4px)",
+            maxWidth: "400px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            flexWrap: "wrap",
+            alignContent: "center",
+            justifyItems: "center",
+            alignSelf: "center",
+            justifySelf: "center",
+            alignContent: "center",
+            justifyContent: "center",
+            alignItems: "center",
+            justifyItems: "center",
+            
           }}
         >
           <div
-            className="glass-card rounded"
+            className="glass-card rounded-2"
             style={{
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              maxWidth: "90%",
+              border: "1px solid #2a3441",
+              
               width: "100%",
               maxHeight: "90%",
               overflow: "auto",
@@ -2283,7 +2307,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               className="d-flex align-items-center justify-content-between px-3 py-2"
               style={{
                 background: "rgba(10, 14, 26, 0.8)",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                borderBottom: "1px solid #2a3441",
                 fontSize: "0.875rem",
               }}
             >
@@ -2311,7 +2335,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                   style={{
                     minWidth: "30px",
                     padding: "0.25rem 0.5rem",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    border: "1px solid #2a3441",
                   }}
                 >
                   +
@@ -2322,7 +2346,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
 
             <div
-              style={{ background: "transparent", padding: "1rem" }}
+              style={{ background: "transparent", padding: "0.1rem" }}
               onClick={() => setShowCarInfo(null)}
             >
               {/* Define disabled at this scope so it's available in footer */}
@@ -2364,31 +2388,25 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                             <div
                               className="h-100 p-2 position-relative"
                               style={{
-                                borderRadius: "0.75rem",
+                                borderRadius: "0.375rem",
                                 background: "rgba(20, 27, 45, 0.6)",
                                 border: hasSelections
                                   ? "2px solid var(--accent-secondary, #00f5ff)"
-                                  : "1px solid rgba(255, 255, 255, 0.1)",
-                                boxShadow: hasSelections
-                                  ? "0 0 15px var(--glow-cyan, rgba(0, 245, 255, 0.4))"
-                                  : "none",
-                              }}
-                            >
+                                  : "1px solid #2a3441",
+                              }}    >
                               {/* Rating and Info Button */}
-                              <div className="d-flex justify-content-between align-items-start mb-1">
+                              <div className="d-flex justify-content-between align-items-start ">
                                 <span
                                   className="small fw-bold"
                                   style={{ color: "#ffd700", fontSize: "0.7rem" }}
                                 >
                                   {currentRatio}/{maxRatio}
                                 </span>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="p-0"
+                                <button
+                                  
+                                  className="py-0 px-1 border rounded-2 bg-transparent text-white   "
                                   style={{
-                                    minWidth: "20px",
-                                    height: "20px",
+                                   fontSize: "0.7rem",
                                     color: "var(--text-muted, #a8b3d0)",
                                     textDecoration: "none",
                                   }}
@@ -2398,19 +2416,13 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                                   }}
                                 >
                                   ?
-                                </Button>
+                                </button>
                               </div>
 
                               {/* Car Image */}
                               <div
-                                className="mb-2 position-relative d-flex align-items-center justify-content-center rounded-2"
-                                style={{
-                                  height: "80px",
-                                  borderRadius: "0.5rem",
-                                  background: "linear-gradient(135deg,#4b5563,#1f2937)",
-                                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                                  overflow: "hidden",
-                                }}
+                                className=" position-relative d-flex align-items-center justify-content-center py-2"
+                               
                               >
                                 {getImageUrl(car.sideViewImage) ? (
                                   <Image
@@ -2424,8 +2436,6 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                                       height: "100%",
                                     }}
                                     loading="eager"
-                                    priority={hasSelections} // Priority for selected cars
-                                    unoptimized={getImageUrl(car.sideViewImage)?.startsWith('http')} // Unoptimize external URLs
                                     onError={(e) => {
                                       e.target.style.display = 'none';
                                     }}
@@ -2450,14 +2460,14 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
                               {/* Car Name */}
                               <div
-                                className="fw-semibold small mb-1 text-truncate text-center"
+                                className="fw-semibold small  text-truncate text-center"
                                 style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}
                               >
                                 {car.name}
                               </div>
 
                               {/* Cost */}
-                              <div className="d-flex align-items-center justify-content-center gap-1 mb-2">
+                              <div className="d-flex align-items-center justify-content-center gap-1 ">
                                 <BsCoin style={{ color: "#ffd700", fontSize: "0.75rem" }} />
                                 <span style={{ color: "var(--text-primary, #ffffff)", fontSize: "0.75rem" }}>
                                   {formatNumber(count * 100)}
@@ -2497,13 +2507,11 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                               {/* Car Info Modal */}
                               {showCarInfo === carId && (
                                 <div
-                                  className="position-absolute top-0 start-0 end-0 p-2 rounded"
+                                  className="position-absolute top-0 start-0 end-0 p-2 rounded-2"
                                   style={{
                                     background: "rgba(10, 14, 26, 0.95)",
                                     border: "1px solid var(--accent-secondary, #00f5ff)",
                                     zIndex: 10,
-                                    backdropFilter: "blur(10px)",
-                                    boxShadow: "0 0 20px var(--glow-cyan, rgba(0, 245, 255, 0.4))",
                                   }}
                                   onClick={(e) => e.stopPropagation()}
                                 >
@@ -2537,15 +2545,15 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
                     {/* Footer with Counter and Play Button */}
                     <div
-                      className="d-flex align-items-center justify-content-between px-3 py-2 mt-3"
+                      className="d-flex align-items-center justify-content-between px-3 py-2 "
                       style={{
                         background: "rgba(10, 14, 26, 0.8)",
-                        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
-                        borderRadius: "0 0 0.5rem 0.5rem",
+                        borderTop: "1px solid #2a3441",
+                        borderRadius: "0 0 0.375rem 0.375rem",
                       }}
                     >
                       {/* Counter */}
-                      <div className="d-flex align-items-center gap-2">
+                      <div style={{border: "1px solid rgba(255, 255, 255, 0.2)"}} className="d-flex align-items-center gap-2 rounded-2 p-1">
                         <Button
                           variant="outline-light"
                           size="sm"
@@ -2619,22 +2627,21 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         <div
           className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            top: 0,
+            top: "0",
             left: 0,
             right: 0,
             bottom: 0,
             zIndex: 2000,
-            background: "rgba(0, 0, 0, 0.8)",
-            backdropFilter: "blur(4px)",
+            background: "#000000",
           }}
         >
           <div
-            className="glass-card rounded p-4"
+            className="glass-card rounded-2 p-4"
             style={{
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              maxWidth: "90%",
+              border: "1px solid #2a3441",
+              
               width: "100%",
-              maxWidth: "500px",
+              maxWidth: "400px",
               maxHeight: "90%",
               overflowY: "auto",
             }}
@@ -2654,7 +2661,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
             {/* Gift Section */}
             {partyId && (
-              <div className="mb-4 p-3 rounded" style={{ background: "rgba(10, 14, 26, 0.6)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              <div className="mb-4 p-3 rounded-2" style={{ background: "#0a0e1a", border: "1px solid #2a3441" }}>
                 <h5 className="mb-3 text-center" style={{ color: "var(--text-primary, #ffffff)" }}>
                   Gift to your party participants
                 </h5>
@@ -2681,7 +2688,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                             background: giftPercentage === percent
                               ? "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)"
                               : "transparent",
-                            border: giftPercentage === percent ? "none" : "1px solid rgba(255, 255, 255, 0.2)",
+                            border: giftPercentage === percent ? "none" : "1px solid #2a3441",
                           }}
                         >
                           {percent}%
@@ -2690,7 +2697,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                     })}
                   </div>
                   
-                  <div className="text-center p-2 rounded" style={{ background: "rgba(0, 245, 255, 0.1)", border: "1px solid rgba(0, 245, 255, 0.3)" }}>
+                  <div className="text-center p-2 rounded-2" style={{ background: "rgba(0, 245, 255, 0.1)", border: "1px solid rgba(0, 245, 255, 0.3)" }}>
                     <div className="small mb-1" style={{ color: "var(--text-muted, #a8b3d0)" }}>
                       Gift Amount:
                     </div>
@@ -2773,7 +2780,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
             )}
 
             {!partyId && (
-              <div className="mb-4 p-3 rounded text-center" style={{ background: "rgba(10, 14, 26, 0.6)", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
+              <div className="mb-4 p-3 rounded-2 text-center" style={{ background: "#0a0e1a", border: "1px solid #2a3441" }}>
                 <p className="small mb-0" style={{ color: "var(--text-muted, #a8b3d0)" }}>
                   Join a party to gift your winnings to participants
                 </p>
@@ -2799,20 +2806,32 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         <div
           className="position-absolute w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            top: 0,
+            top: "0",
             left: 0,
             right: 0,
             bottom: 0,
             zIndex: 1000,
-            background: "rgba(0, 0, 0, 0.7)",
-            backdropFilter: "blur(4px)",
+            maxWidth: "400px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexDirection: "column",
+            flexWrap: "wrap",
+            alignContent: "center",
+            justifyItems: "center",
+            alignSelf: "center",
+            justifySelf: "center",
+            alignContent: "center",
+            justifyContent: "center",
+            alignItems: "center",
+            justifyItems: "center",
           }}
         >
           <div
-            className="glass-card rounded p-4"
+            className="glass-card rounded-2 "
             style={{
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              maxWidth: "90%",
+              border: "1px solid #2a3441",
+              
               width: "100%",
               maxHeight: "90%",
               overflowY: "auto",
@@ -2820,15 +2839,12 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
           >
             {/* Single Centered Box with All Info */}
             <div
-              className="mx-auto rounded position-relative"
+              className="mx-auto rounded-2 position-relative"
               style={{
                 background: "rgba(20, 27, 45, 0.8)",
-                border: "2px solid rgba(0, 245, 255, 0.3)",
                 
-                maxWidth: "500px",
-                boxShadow: "0 10px 40px rgba(0, 245, 255, 0.2)",
-              }}
-            >
+                maxWidth: "400px",
+              }}  >
               {/* Subtle glow effect */}
               <div
                 className="position-absolute"
@@ -2846,8 +2862,8 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
 
               <div className="position-relative" style={{ zIndex: 2 }}>
                 {/* Winner Section */}
-                <div className="text-center mb-4">
-                  <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
+                <div className="text-center ">
+                  <div className="d-flex align-items-center justify-content-center gap-2 ">
                     <span style={{ fontSize: "2rem" }}>🏆</span>
                     <h4 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
                       Winner
@@ -2868,11 +2884,9 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                           maxWidth: "100%",
                           height: "auto",
                           objectFit: "contain",
-                          filter: "drop-shadow(0 10px 30px var(--glow-cyan, rgba(0, 245, 255, 0.4)))",
                         }}
                         loading="eager"
                         priority
-                        unoptimized={getImageUrl(winnerCar.sideViewImage)?.startsWith('http')}
                         onError={(e) => {
                           e.target.style.display = 'none';
                         }}
@@ -2880,14 +2894,14 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                     </div>
                   )}
 
-                  <div className="fs-2 fw-bold mb-3" style={{ color: "var(--accent-secondary, #00f5ff)" }}>
+                  <div className="fs-2 fw-bold " style={{ color: "var(--accent-secondary, #00f5ff)" }}>
                     {winnerCar?.name || game.winnerName || "Unknown"}
                   </div>
                 </div>
 
                 {/* Divider */}
                 <div
-                  className="mx-auto mb-4"
+                  className="mx-auto "
                   style={{
                     width: "80%",
                     height: "1px",
@@ -2896,7 +2910,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                 />
 
                 {/* Your Selection Section */}
-                <div className="text-center mb-4">
+                <div className="text-center ">
                   <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
                     <span style={{ fontSize: "1.5rem" }}>🎯</span>
                     <h5 className="mb-0" style={{ color: "var(--text-primary, #ffffff)" }}>
@@ -2912,7 +2926,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                         return selectedCar ? (
                           <>
                           {getImageUrl(selectedCar?.sideViewImage) && (
-                            <div className="mb-2 position-relative" style={{ minHeight: "80px" }}>
+                            <div className=" position-relative" style={{ minHeight: "80px" }}>
                               <Image
                                 src={getImageUrl(selectedCar.sideViewImage)}
                                 alt="Your Car"
@@ -2935,13 +2949,13 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                               />
                             </div>
                           )}
-                            <div className="fs-5 fw-bold mb-2" style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
+                            <div className="fs-5 fw-bold " style={{ color: isWinner ? "var(--accent-secondary, #00f5ff)" : "var(--text-muted, #a8b3d0)" }}>
                               {selectedCar?.name || "Unknown Car"}
                             </div>
                           </>
                         ) : null;
                       })()}
-                      <div className="mb-2" style={{ color: "var(--text-muted, #a8b3d0)", fontSize: "0.9rem" }}>
+                      <div className="" style={{ color: "var(--text-muted, #a8b3d0)", fontSize: "0.9rem" }}>
                         {myPredictions.length} selection{myPredictions.length > 1 ? "s" : ""} • {myPredictions.length * 100} coins
                       </div>
                     </>
@@ -2970,18 +2984,9 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Footer with countdown */}
-            <div
-              className="mt-4 p-3 rounded text-center"
-              style={{
-                background: "rgba(10, 14, 26, 0.8)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-              }}
-            >
+         
               {resultCountdown > 0 && (
-                <div className="fw-semibold" style={{ color: "var(--text-primary, #ffffff)" }}>
+                <div className="fw-semibold text-center p-1" style={{ color: "var(--text-primary, #ffffff)" }}>
                   Next race in {resultCountdown}s
                 </div>
               )}

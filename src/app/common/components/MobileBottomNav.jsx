@@ -36,7 +36,7 @@ export default function MobileBottomNav() {
                 color: isActive ? "var(--accent)" : "var(--text-muted)",
                 transition: "all 0.3s ease",
                 padding: "0.5rem 1.5rem",
-                borderRadius: "0.75rem",
+                borderRadius: "0.375rem",
                 background: isActive ? "rgba(255, 45, 149, 0.1)" : "transparent",
               }}
             >

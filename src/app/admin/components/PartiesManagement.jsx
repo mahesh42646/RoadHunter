@@ -420,7 +420,7 @@ export default function PartiesManagement({ adminToken }) {
                       maxWidth: "100%",
                       maxHeight: "200px",
                       objectFit: "contain",
-                      borderRadius: "8px",
+                      borderRadius: "0.375rem",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                     }}
                   />
@@ -436,7 +436,7 @@ export default function PartiesManagement({ adminToken }) {
                       maxWidth: "100%",
                       maxHeight: "200px",
                       objectFit: "contain",
-                      borderRadius: "8px",
+                      borderRadius: "0.375rem",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                     }}
                   />
@@ -591,7 +591,7 @@ export default function PartiesManagement({ adminToken }) {
                       maxWidth: "100%",
                       maxHeight: "200px",
                       objectFit: "contain",
-                      borderRadius: "8px",
+                      borderRadius: "0.375rem",
                       border: "1px solid rgba(255, 255, 255, 0.1)",
                     }}
                   />

@@ -518,7 +518,7 @@ export default function PartyVideoCallModal({
                 right: "20px",
                 width: "150px",
                 height: "100px",
-                borderRadius: "8px",
+                borderRadius: "0.375rem",
                 overflow: "hidden",
                 border: "2px solid white",
                 background: "#000",
@@ -549,7 +549,7 @@ export default function PartyVideoCallModal({
                 background: "rgba(255, 0, 0, 0.8)",
                 color: "white",
                 padding: "10px 20px",
-                borderRadius: "8px",
+                borderRadius: "0.375rem",
               }}
             >
               {error}

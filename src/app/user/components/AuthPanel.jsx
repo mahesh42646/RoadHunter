@@ -167,8 +167,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
             padding: "0.875rem",
             fontWeight: "600",
             fontSize: "1rem",
-            borderRadius: "12px",
-            boxShadow: "0 4px 15px rgba(0, 245, 255, 0.3)",
+            borderRadius: "0.375rem",
           }}
         >
           {quickLoginLoading ? "Logging in..." : "⚡ Quick Login"}
@@ -187,7 +186,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
             padding: "0.875rem",
             fontWeight: "600",
             fontSize: "1rem",
-            borderRadius: "12px",
+            borderRadius: "0.375rem",
             border: "1px solid rgba(255, 255, 255, 0.3)",
             backgroundColor: "rgba(255, 255, 255, 0.05)",
             display: "flex",
@@ -228,7 +227,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
             padding: "0.75rem",
             fontWeight: "500",
             fontSize: "0.9rem",
-            borderRadius: "12px",
+            borderRadius: "0.375rem",
             border: "1px solid rgba(255, 255, 255, 0.2)",
             backgroundColor: "rgba(255, 255, 255, 0.03)",
             color: "var(--text-muted)",
@@ -263,7 +262,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
                   backgroundColor: "rgba(255, 255, 255, 0.1)",
                   border: "1px solid rgba(255, 255, 255, 0.2)",
                   color: "var(--text-primary)",
-                  borderRadius: "8px",
+                  borderRadius: "0.375rem",
                 }}
               />
             </Form.Group>
@@ -280,7 +279,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
                   backgroundColor: "rgba(255, 255, 255, 0.1)",
                   border: "1px solid rgba(255, 255, 255, 0.2)",
                   color: "var(--text-primary)",
-                  borderRadius: "8px",
+                  borderRadius: "0.375rem",
                 }}
               />
               <Form.Text className="text-light-50 small">
@@ -294,7 +293,7 @@ export default function AuthPanel({ initialTab = "login", isModal = false, onLog
               style={{
                 padding: "0.875rem",
                 fontWeight: "600",
-                borderRadius: "12px",
+                borderRadius: "0.375rem",
               }}
             >
               {loading

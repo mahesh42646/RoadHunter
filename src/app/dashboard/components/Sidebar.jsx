@@ -58,7 +58,7 @@ export default function Sidebar() {
           zIndex: 1050,
           backgroundColor: "rgba(10, 14, 26, 0.9)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: "8px",
+          borderRadius: "0.375rem",
           padding: "8px 12px"
         }}
         onClick={toggleSidebar}

@@ -272,7 +272,7 @@ export default function CallView() {
                 right: "20px",
                 width: "200px",
                 height: "150px",
-                borderRadius: "8px",
+                borderRadius: "0.375rem",
                 overflow: "hidden",
                 border: "2px solid #fff",
               }}
@@ -419,7 +419,7 @@ export default function CallView() {
                 right: "8px",
                 width: "80px",
                 height: "60px",
-                borderRadius: "4px",
+                borderRadius: "0.375rem",
                 overflow: "hidden",
                 border: "2px solid #fff",
               }}

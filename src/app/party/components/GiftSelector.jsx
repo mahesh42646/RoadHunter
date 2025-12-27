@@ -87,13 +87,11 @@ export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent
       style={{
         position: "relative",
         maxHeight: "100%",
-        background: "rgba(15, 22, 36, 0.95)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        borderRadius: "0.5rem",
+        background: "#0f1624",
+        border: "1px solid #2a3441",
+        borderRadius: "0.375rem",
         padding: "0.75rem",
         overflowY: "auto",
-        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
       }}
     >
       <div className="d-flex justify-content-between align-items-center ">
@@ -155,7 +153,7 @@ export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent
               onClick={() => setSelectedGift(key)}
               style={{
                 padding: '0.5rem',
-                borderRadius: '0.5rem',
+                borderRadius: '0.375rem',
                 background: selectedGift === key
                   ? 'rgba(255, 45, 149, 0.2)'
                   : 'rgba(255, 255, 255, 0.05)',
@@ -264,7 +262,7 @@ export default function GiftSelector({ show, onHide, partyId, wallet, onGiftSent
 
           <div className="mb-2 p-2" style={{
             background: "rgba(255, 255, 255, 0.05)",
-            borderRadius: "0.25rem",
+            borderRadius: "0.375rem",
           }}>
             <div className="small mb-1" style={{ color: 'var(--text-muted)', fontSize: "0.7rem" }}>
               Calculation: {quantity} gift{quantity > 1 ? 's' : ''} × {recipientCount} recipient{recipientCount > 1 ? 's' : ''} = {quantity * recipientCount} total gift{quantity * recipientCount > 1 ? 's' : ''}
