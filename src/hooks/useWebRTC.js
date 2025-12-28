@@ -664,11 +664,25 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     }
   }, [isHost, remoteStream, audioEnabled, audioVolume]);
 
-  // Sync host state
+  // Sync host state and initialize stream on refresh
   useEffect(() => {
     if (isHost) {
       setIsMicEnabled(hostMicEnabled);
       setIsCameraEnabled(hostCameraEnabled);
+      
+      // Initialize stream if host has mic/camera enabled but no stream exists (refresh scenario)
+      if ((hostMicEnabled || hostCameraEnabled) && !localStreamRef.current) {
+        log("Host refresh detected - initializing stream with mic:", hostMicEnabled, "camera:", hostCameraEnabled);
+        getMediaStream(hostMicEnabled, hostCameraEnabled)
+          .then(stream => {
+            localStreamRef.current = stream;
+            setLocalStream(stream);
+            log("✅ Stream initialized after refresh");
+          })
+          .catch(err => {
+            logError("Failed to initialize stream after refresh:", err);
+          });
+      }
     }
   }, [isHost, hostMicEnabled, hostCameraEnabled]);
 
