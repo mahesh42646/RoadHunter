@@ -1501,7 +1501,6 @@ export default function PartyRoomPage() {
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play after metadata loads (critical for small screens)
                             video.play().catch(() => {});
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
@@ -1791,7 +1790,6 @@ export default function PartyRoomPage() {
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play after metadata loads (critical for small screens)
                             video.play().catch(() => {});
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {

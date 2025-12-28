@@ -578,7 +578,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         
-        // Play the video - retry for small screens if needed
+        // Play the video - retry if needed
         const playVideo = () => {
           video.play().then(() => {
             log("✅ Local video preview playing");
@@ -611,7 +611,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         
         playVideo();
       } else if (video.srcObject === localStream && video.paused) {
-        // Stream already attached but paused - try to play (mobile scenario)
+        // Stream already attached but paused - try to play
         video.play().catch(err => {
           log("Resume play failed:", err.name);
         });
@@ -623,14 +623,14 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.style.visibility = 'visible';
         video.style.opacity = '1';
         
-        // Continuously try to play if paused (for mobile)
+        // Continuously try to play if paused
         const checkAndPlay = () => {
           if (video && video.srcObject === localStream && video.paused && isCameraEnabled) {
             video.play().catch(() => {});
           }
         };
         
-        // Check periodically (especially important for mobile)
+        // Check periodically
         const playInterval = setInterval(() => {
           if (!isCameraEnabled || !video || video.srcObject !== localStream) {
             clearInterval(playInterval);
@@ -832,7 +832,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         
         playVideo();
       } else if (video.srcObject === remoteStream && video.paused) {
-        // Stream already attached but paused - try to play (small screen scenario)
+        // Stream already attached but paused - try to play
         video.play().catch(err => {
           log("Resume remote video play failed:", err.name);
           // Add interaction handlers (works for all screen sizes)
