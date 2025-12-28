@@ -389,9 +389,26 @@ export default function PartyRoomPage() {
         (p) => p.userId?.toString() === user?._id?.toString()
       );
 
-      // If user is host, auto-join them (even if offline)
+      // If user is host, ensure they're active (don't rejoin if already in party)
       if (isUserHost) {
-        if (!currentParticipant || currentParticipant.status === 'offline' || currentParticipant.status === 'left') {
+        if (currentParticipant) {
+          // User is already in party - just mark as active if offline, don't rejoin
+          if (currentParticipant.status === 'offline') {
+            try {
+              await apiClient.post(`/parties/${partyId}/mark-active`);
+              // Reload party to get updated state
+              const refreshResponse = await apiClient.get(`/parties/${partyId}`);
+              if (refreshResponse.data.party) {
+                mergePartyUpdate(refreshResponse.data.party);
+              }
+            } catch (error) {
+              console.error("Failed to mark host as active", error);
+            }
+          }
+          // User is already active/muted - no action needed, just set current party
+          setCurrentParty(partyId, true);
+        } else {
+          // Host not in party at all - this shouldn't happen, but join them
           try {
             const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
             if (joinResponse.data.party) {
@@ -399,20 +416,32 @@ export default function PartyRoomPage() {
               setCurrentParty(partyId, true);
             }
           } catch (joinError) {
-            console.error("Failed to rejoin party as host", joinError);
-            // Even if join fails, set current party if user is host
+            console.error("Failed to join party as host", joinError);
             setCurrentParty(partyId, true);
           }
-        } else {
-          // User is already an active participant, ensure current party is set
-          setCurrentParty(partyId, true);
         }
       } else if (currentParticipant) {
-        // Non-host participant
+        // Non-host participant - ensure they're active
         if (currentParticipant.status === 'active' || currentParticipant.status === 'muted') {
+          // Already active - no action needed
           setCurrentParty(partyId, false);
-        } else if (currentParticipant.status === 'offline' || currentParticipant.status === 'left') {
-          // Try to rejoin if offline or left
+        } else if (currentParticipant.status === 'offline') {
+          // User is offline - mark as active (don't rejoin to avoid duplication)
+          try {
+            await apiClient.post(`/parties/${partyId}/mark-active`);
+            // Reload party to get updated state
+            const refreshResponse = await apiClient.get(`/parties/${partyId}`);
+            if (refreshResponse.data.party) {
+              mergePartyUpdate(refreshResponse.data.party);
+            }
+            setCurrentParty(partyId, false);
+          } catch (error) {
+            console.error("Failed to mark participant as active", error);
+            // Still set current party even if mark-active fails
+            setCurrentParty(partyId, false);
+          }
+        } else if (currentParticipant.status === 'left') {
+          // User left - need to rejoin
           try {
             const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
             if (joinResponse.data.party) {
@@ -421,10 +450,11 @@ export default function PartyRoomPage() {
             }
           } catch (joinError) {
             console.error("Failed to rejoin party", joinError);
-            // If rejoin fails and user is not in party, clear store
             if (joinError.response?.status === 404 || joinError.response?.status === 403) {
               clearCurrentParty();
               clearPartyState();
+              router.replace("/");
+              return;
             }
           }
         }
@@ -1102,6 +1132,25 @@ export default function PartyRoomPage() {
       setHostCameraEnabled(party.hostCameraEnabled || false);
     }
   }, [party]);
+
+  // Request stream state after party loads (for refresh scenarios)
+  useEffect(() => {
+    if (party && socket && isParticipant && !isHost) {
+      // Request current stream state from host after loading party
+      // This ensures WebRTC reconnects properly after refresh
+      const hostId = party.hostId?.toString();
+      if (hostId && (party.hostMicEnabled || party.hostCameraEnabled)) {
+        setTimeout(() => {
+          if (socket) {
+            socket.emit('webrtc:request-stream', {
+              partyId,
+              hostId: hostId,
+            });
+          }
+        }, 1000);
+      }
+    }
+  }, [party, socket, isParticipant, isHost, partyId]);
 
   useEffect(() => {
     if (party?.chatMessages) {
