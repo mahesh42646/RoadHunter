@@ -637,6 +637,22 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         });
       }
     }
+    
+    // Add resize handler to ensure video continues playing after resize
+    const handleResize = () => {
+      if (isHost && localVideoRef.current && localStream && isCameraEnabled) {
+        const video = localVideoRef.current;
+        if (video && video.paused && video.srcObject === localStream) {
+          video.play().catch(() => {});
+        }
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, [isHost, localStream, isCameraEnabled]);
 
   // Attach remote video when stream is received
