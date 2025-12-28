@@ -392,23 +392,32 @@ export default function PartyRoomPage() {
       // If user is host, ensure they're active (don't rejoin if already in party)
       if (isUserHost) {
         if (currentParticipant) {
-          // User is already in party - just mark as active if offline, don't rejoin
+          // User is already in party - reactivate if offline, otherwise do nothing
           if (currentParticipant.status === 'offline') {
+            // Use join endpoint which handles offline reactivation without duplication
             try {
-              await apiClient.post(`/parties/${partyId}/mark-active`);
-              // Reload party to get updated state
-              const refreshResponse = await apiClient.get(`/parties/${partyId}`);
-              if (refreshResponse.data.party) {
-                mergePartyUpdate(refreshResponse.data.party);
+              const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
+              if (joinResponse.data.party) {
+                mergePartyUpdate(joinResponse.data.party);
               }
             } catch (error) {
-              console.error("Failed to mark host as active", error);
+              console.error("Failed to reactivate host", error);
+              // Try mark-active as fallback
+              try {
+                await apiClient.post(`/parties/${partyId}/mark-active`);
+                const refreshResponse = await apiClient.get(`/parties/${partyId}`);
+                if (refreshResponse.data.party) {
+                  mergePartyUpdate(refreshResponse.data.party);
+                }
+              } catch (markError) {
+                console.error("Failed to mark host as active", markError);
+              }
             }
           }
           // User is already active/muted - no action needed, just set current party
           setCurrentParty(partyId, true);
         } else {
-          // Host not in party at all - this shouldn't happen, but join them
+          // Host not in party at all - join them
           try {
             const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
             if (joinResponse.data.party) {
@@ -423,25 +432,34 @@ export default function PartyRoomPage() {
       } else if (currentParticipant) {
         // Non-host participant - ensure they're active
         if (currentParticipant.status === 'active' || currentParticipant.status === 'muted') {
-          // Already active - no action needed
+          // Already active - no action needed, stay in party
           setCurrentParty(partyId, false);
         } else if (currentParticipant.status === 'offline') {
-          // User is offline - mark as active (don't rejoin to avoid duplication)
+          // User is offline (refresh scenario) - reactivate using join endpoint
+          // Join endpoint handles offline reactivation without creating duplicates
           try {
-            await apiClient.post(`/parties/${partyId}/mark-active`);
-            // Reload party to get updated state
-            const refreshResponse = await apiClient.get(`/parties/${partyId}`);
-            if (refreshResponse.data.party) {
-              mergePartyUpdate(refreshResponse.data.party);
+            const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
+            if (joinResponse.data.party) {
+              mergePartyUpdate(joinResponse.data.party);
             }
             setCurrentParty(partyId, false);
           } catch (error) {
-            console.error("Failed to mark participant as active", error);
-            // Still set current party even if mark-active fails
+            console.error("Failed to reactivate participant", error);
+            // Try mark-active as fallback
+            try {
+              await apiClient.post(`/parties/${partyId}/mark-active`);
+              const refreshResponse = await apiClient.get(`/parties/${partyId}`);
+              if (refreshResponse.data.party) {
+                mergePartyUpdate(refreshResponse.data.party);
+              }
+            } catch (markError) {
+              console.error("Failed to mark participant as active", markError);
+            }
+            // Still set current party even if reactivation fails
             setCurrentParty(partyId, false);
           }
         } else if (currentParticipant.status === 'left') {
-          // User left - need to rejoin
+          // User explicitly left - need to rejoin
           try {
             const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
             if (joinResponse.data.party) {

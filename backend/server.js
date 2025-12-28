@@ -341,12 +341,12 @@ io.on('connection', (socket) => {
       io.emit('user:offline', { userId });
       console.log(`[Socket.IO] User ${userId} marked as offline`);
       
-      // Immediately remove user from all parties they're in
+      // Mark user as offline in all parties (don't remove immediately - wait 30 seconds)
       try {
         const Party = require('./schemas/party');
         const parties = await Party.find({
           'participants.userId': userId,
-          'participants.status': { $in: ['active', 'muted', 'offline'] },
+          'participants.status': { $in: ['active', 'muted'] },
           isActive: true,
         });
         
@@ -355,59 +355,23 @@ io.on('connection', (socket) => {
             (p) => p.userId && p.userId.toString() === userId.toString()
           );
           
-          if (participant) {
-            const isHost = party.hostId && party.hostId.toString() === userId.toString();
-            
-            // Remove participant
-            const participantIndex = party.participants.findIndex(
-              (p) => p.userId && p.userId.toString() === userId.toString()
-            );
-            
-            if (participantIndex !== -1) {
-              party.participants.splice(participantIndex, 1);
-            }
-            
-            // If host left and no active participants, end party
-            // BUT: Never end default parties - they stay active forever
-            if (isHost && !party.isDefault) {
-              const activeParticipants = party.participants.filter(
-                (p) => p.userId && (p.status === 'active' || p.status === 'muted')
-              );
-              
-              if (activeParticipants.length === 0) {
-                party.isActive = false;
-                party.endedAt = new Date();
-                io.emit('party:ended', { partyId: party._id.toString() });
-              }
-            } else if (isHost && party.isDefault) {
-              // For default parties, ensure bot host is always present
-              const botHostParticipant = party.participants.find(
-                (p) => p.userId && party.hostId && p.userId.toString() === party.hostId.toString()
-              );
-              
-              if (!botHostParticipant && party.hostId && party.botHostId) {
-                // Re-add bot host as active participant
-                const Bot = require('./schemas/bot');
-                const bot = await Bot.findById(party.botHostId).lean();
-                if (bot) {
-                  party.addParticipant(party.hostId, bot.name, bot.avatarUrl || null, 'host');
-                  console.log(`[Socket Disconnect] Re-added bot host to default party ${party.name}`);
-                }
-              }
-            }
-            
+          if (participant && (participant.status === 'active' || participant.status === 'muted')) {
+            // Mark as offline instead of removing immediately
+            participant.status = 'offline';
+            participant.offlineAt = new Date();
             await party.save();
             
-            // Emit socket event
-            io.to(`party:${party._id}`).emit('party:participantLeft', {
+            // Emit offline event (not left event)
+            io.to(`party:${party._id}`).emit('party:participantOffline', {
               partyId: party._id.toString(),
               userId: userId,
-              isHost: isHost,
             });
+            
+            console.log(`[Socket Disconnect] Marked user ${userId} as offline in party ${party._id}`);
           }
         }
       } catch (error) {
-        console.error('[Socket.IO] Error removing user from parties on disconnect:', error);
+        console.error('[Socket.IO] Error marking user offline in parties on disconnect:', error);
       }
     }
     

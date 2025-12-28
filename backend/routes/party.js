@@ -187,13 +187,36 @@ module.exports = function createPartyRouter(io) {
       
       if (existingParticipant) {
         if (existingParticipant.status === 'active' || existingParticipant.status === 'muted') {
-          // Already in party, just return current state without emitting events
+          // Already in party, just return current state without emitting events or creating duplicates
           res.json({ message: 'Already in party', party: sanitizeParty(party) });
           return;
-        } else if (existingParticipant.status === 'left' || existingParticipant.status === 'offline') {
-          // User left before or was offline (host), reactivate them
+        } else if (existingParticipant.status === 'offline') {
+          // User was offline (refresh scenario) - reactivate them without emitting join event
+          // This prevents duplicate join events and duplicate participants
+          existingParticipant.status = 'active';
+          existingParticipant.joinedAt = existingParticipant.joinedAt || new Date();
+          delete existingParticipant.offlineAt;
+          await party.save();
+          
+          // Emit participantJoined event to notify others of reactivation
+          io.to(`party:${party._id}`).emit('party:participantJoined', {
+            partyId: party._id,
+            participant: {
+              userId: req.user._id.toString(),
+              username: req.user.account?.displayName || req.user.account?.email || 'Anonymous',
+              avatarUrl: req.user.account?.photoUrl,
+              role: existingParticipant.role || 'participant',
+              status: 'active',
+            },
+          });
+          
+          res.json({ message: 'Rejoined party', party: sanitizeParty(party) });
+          return;
+        } else if (existingParticipant.status === 'left') {
+          // User explicitly left - need to rejoin as new participant
           existingParticipant.status = 'active';
           existingParticipant.joinedAt = new Date();
+          delete existingParticipant.offlineAt;
           party.incrementViews();
           await party.save();
           
