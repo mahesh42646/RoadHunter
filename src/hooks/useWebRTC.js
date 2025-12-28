@@ -640,20 +640,55 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     
     // Add resize handler to ensure video continues playing after resize
     const handleResize = () => {
+      // Handle local video (host)
       if (isHost && localVideoRef.current && localStream && isCameraEnabled) {
         const video = localVideoRef.current;
-        if (video && video.paused && video.srcObject === localStream) {
-          video.play().catch(() => {});
+        if (video && video.srcObject === localStream) {
+          // Force play on resize - small screens often pause video
+          if (video.paused) {
+            video.play().catch(() => {});
+          }
+          // Also ensure video is visible and has dimensions
+          if (video.offsetWidth === 0 || video.offsetHeight === 0) {
+            // Video has zero dimensions - force layout recalculation
+            video.style.display = 'none';
+            setTimeout(() => {
+              video.style.display = 'block';
+              video.play().catch(() => {});
+            }, 10);
+          }
+        }
+      }
+      // Handle remote video (participants)
+      if (!isHost && remoteVideoRef.current && remoteStream) {
+        const video = remoteVideoRef.current;
+        if (video && video.srcObject === remoteStream) {
+          // Force play on resize - small screens often pause video
+          if (video.paused) {
+            video.play().catch(() => {});
+          }
+          // Also ensure video is visible and has dimensions
+          if (video.offsetWidth === 0 || video.offsetHeight === 0) {
+            // Video has zero dimensions - force layout recalculation
+            video.style.display = 'none';
+            setTimeout(() => {
+              video.style.display = 'block';
+              video.play().catch(() => {});
+            }, 10);
+          }
         }
       }
     };
     
     window.addEventListener('resize', handleResize);
+    // Also listen to orientation change for mobile devices
+    window.addEventListener('orientationchange', handleResize);
     
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
     };
-  }, [isHost, localStream, isCameraEnabled]);
+  }, [isHost, localStream, isCameraEnabled, remoteStream]);
 
   // Attach remote video when stream is received
   useEffect(() => {
