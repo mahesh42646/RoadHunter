@@ -34,6 +34,12 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
   };
 
   // Get media stream optimized for low latency and high quality
+  // Use a ref to store the initial screen size to prevent stream recreation on resize
+  const initialScreenSizeRef = useRef({ 
+    width: typeof window !== 'undefined' ? window.innerWidth : 1920,
+    height: typeof window !== 'undefined' ? window.innerHeight : 1080
+  });
+  
   const getMediaStream = async (audio, video) => {
     try {
       // Check if mediaDevices API is available (mobile safety check)
@@ -44,9 +50,9 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         throw error;
       }
 
-      // Use screen size instead of device detection for constraints
+      // Use initial screen size (when stream was first created) instead of current screen size
       // This prevents stream recreation when screen size changes
-      const isSmallScreen = window.innerWidth < 768 || window.innerHeight < 600;
+      const isSmallScreen = initialScreenSizeRef.current.width < 768 || initialScreenSizeRef.current.height < 600;
       const constraints = {
         audio: audio ? {
           echoCancellation: true,
