@@ -636,6 +636,49 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
           log("Resume play failed:", err.name);
         });
       }
+      
+      // Ensure video is always visible and playing when camera is enabled
+      if (isCameraEnabled && video) {
+        video.style.display = 'block';
+        video.style.visibility = 'visible';
+        video.style.opacity = '1';
+        
+        // Continuously try to play if paused (for mobile)
+        const checkAndPlay = () => {
+          if (video && video.srcObject === localStream && video.paused && isCameraEnabled) {
+            video.play().catch(() => {});
+          }
+        };
+        
+        // Check periodically (especially important for mobile)
+        const playInterval = setInterval(() => {
+          if (!isCameraEnabled || !video || video.srcObject !== localStream) {
+            clearInterval(playInterval);
+            return;
+          }
+          checkAndPlay();
+        }, 1000);
+        
+        // Also check on video events
+        const handlePause = () => checkAndPlay();
+        const handleMetadata = () => {
+          if (isCameraEnabled) {
+            video.play().catch(() => {});
+          }
+        };
+        
+        video.addEventListener('pause', handlePause);
+        video.addEventListener('loadedmetadata', handleMetadata);
+        
+        // Cleanup function
+        return () => {
+          clearInterval(playInterval);
+          if (video) {
+            video.removeEventListener('pause', handlePause);
+            video.removeEventListener('loadedmetadata', handleMetadata);
+          }
+        };
+      }
     }
     
     // Add resize handler to ensure video continues playing after resize
