@@ -1480,28 +1480,6 @@ export default function PartyRoomPage() {
                           onLoadedMetadata={(e) => {
                             const video = e.target;
                             video.play().catch(() => {});
-                          }}
-                          onCanPlay={(e) => {
-                            const video = e.target;
-                            // DON'T unmute here - it causes video to pause due to autoplay policy
-                            // Keep video muted, user can toggle audio via audio controls
-                            video.volume = webrtc.audioVolume;
-                            // Ensure video continues playing (works for all screen sizes)
-                            if (video.paused) {
-                              video.play().catch(() => { });
-                            }
-                            // Try playing on touch/click for small screens
-                            const tryPlay = () => {
-                              if (video.paused) {
-                                video.play().catch(() => {});
-                              }
-                            };
-                            video.addEventListener('touchstart', tryPlay, { once: true });
-                            video.addEventListener('click', tryPlay, { once: true });
-                          }}
-                          onLoadedMetadata={(e) => {
-                            const video = e.target;
-                            video.play().catch(() => {});
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1514,6 +1492,24 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
+                          }}
+                          onCanPlay={(e) => {
+                            const video = e.target;
+                            // DON'T unmute here - it causes video to pause due to autoplay policy
+                            // Keep video muted, user can toggle audio via audio controls
+                            video.volume = webrtc.audioVolume;
+                            // Ensure video continues playing
+                            if (video.paused) {
+                              video.play().catch(() => { });
+                            }
+                            // Try playing on touch/click
+                            const tryPlay = () => {
+                              if (video.paused) {
+                                video.play().catch(() => {});
+                              }
+                            };
+                            video.addEventListener('touchstart', tryPlay, { once: true });
+                            video.addEventListener('click', tryPlay, { once: true });
                           }}
                         />
                       )}
@@ -1769,28 +1765,6 @@ export default function PartyRoomPage() {
                           onLoadedMetadata={(e) => {
                             const video = e.target;
                             video.play().catch(() => {});
-                          }}
-                          onCanPlay={(e) => {
-                            const video = e.target;
-                            // DON'T unmute here - it causes video to pause due to autoplay policy
-                            // Keep video muted, user can toggle audio via audio controls
-                            video.volume = webrtc.audioVolume;
-                            // Ensure video continues playing (works for all screen sizes)
-                            if (video.paused) {
-                              video.play().catch(() => { });
-                            }
-                            // Try playing on touch/click for small screens
-                            const tryPlay = () => {
-                              if (video.paused) {
-                                video.play().catch(() => {});
-                              }
-                            };
-                            video.addEventListener('touchstart', tryPlay, { once: true });
-                            video.addEventListener('click', tryPlay, { once: true });
-                          }}
-                          onLoadedMetadata={(e) => {
-                            const video = e.target;
-                            video.play().catch(() => {});
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1803,6 +1777,24 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
+                          }}
+                          onCanPlay={(e) => {
+                            const video = e.target;
+                            // DON'T unmute here - it causes video to pause due to autoplay policy
+                            // Keep video muted, user can toggle audio via audio controls
+                            video.volume = webrtc.audioVolume;
+                            // Ensure video continues playing
+                            if (video.paused) {
+                              video.play().catch(() => { });
+                            }
+                            // Try playing on touch/click
+                            const tryPlay = () => {
+                              if (video.paused) {
+                                video.play().catch(() => {});
+                              }
+                            };
+                            video.addEventListener('touchstart', tryPlay, { once: true });
+                            video.addEventListener('click', tryPlay, { once: true });
                           }}
                         />
                       )}
