@@ -34,15 +34,10 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
   };
 
   // Get media stream optimized for low latency and high quality
-  // Use a ref to store the initial screen size to prevent stream recreation on resize
-  const initialScreenSizeRef = useRef({ 
-    width: typeof window !== 'undefined' ? window.innerWidth : 1920,
-    height: typeof window !== 'undefined' ? window.innerHeight : 1080
-  });
-  
+  // Use the same constraints for ALL screen sizes - no special handling
   const getMediaStream = async (audio, video) => {
     try {
-      // Check if mediaDevices API is available (mobile safety check)
+      // Check if mediaDevices API is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         const error = new Error("MediaDevices API not available. Please use HTTPS or a supported browser.");
         logError("MediaDevices API not available");
@@ -50,42 +45,27 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         throw error;
       }
 
-      // Use initial screen size (when stream was first created) instead of current screen size
-      // This prevents stream recreation when screen size changes
-      const isSmallScreen = initialScreenSizeRef.current.width < 768 || initialScreenSizeRef.current.height < 600;
+      // Use the SAME high-quality constraints for ALL screen sizes
       const constraints = {
         audio: audio ? {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          ...(isSmallScreen ? {
-            sampleRate: 44100, // Lower sample rate for small screens
-            channelCount: 1, // Mono for small screens
-          } : {
-            sampleRate: 48000,
-            channelCount: 2, // Stereo for larger screens
-            latency: 0.01, // Ultra low latency audio (10ms)
-          }),
+          sampleRate: 48000,
+          channelCount: 2, // Stereo
+          latency: 0.01, // Ultra low latency audio (10ms)
         } : false,
         video: video ? {
-          ...(isSmallScreen ? {
-            // Small screen-friendly video constraints
-            width: { ideal: 640, max: 1280 },
-            height: { ideal: 480, max: 720 },
-            frameRate: { ideal: 30, max: 30 }, // 30fps for small screens
-            facingMode: "user",
-          } : {
-            // High quality settings for larger screens
-            width: { ideal: 1920, max: 1920 },
-            height: { ideal: 1080, max: 1080 },
-            frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
-            aspectRatio: { ideal: 16/9 },
-            facingMode: "user",
-          }),
+          // High quality settings - same for all screen sizes
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
+          frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
+          aspectRatio: { ideal: 16/9 },
+          facingMode: "user",
         } : false,
       };
 
-      log(`Requesting media: audio=${audio}, video=${video}, smallScreen=${isSmallScreen}`);
+      log(`Requesting media: audio=${audio}, video=${video}`);
       const stream = await navigator.mediaDevices.getUserMedia(constraints).catch((err) => {
         // Handle permission denied or other errors gracefully
         logError("getUserMedia failed:", err);
@@ -702,7 +682,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             video.style.visibility = 'visible';
             video.style.opacity = '1';
             
-            // Force play - critical for mobile resize
+            // Force play on resize
             video.play().catch((err) => {
               log("Play failed on resize, retrying:", err.name);
               // Retry after a short delay
@@ -746,7 +726,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             video.style.visibility = 'visible';
             video.style.opacity = '1';
             
-            // Force play - critical for mobile resize
+            // Force play on resize
             video.play().catch((err) => {
               log("Remote video play failed on resize, retrying:", err.name);
               // Retry after a short delay
@@ -778,7 +758,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     };
     
     window.addEventListener('resize', handleResize);
-    // Also listen to orientation change for mobile devices
+    // Also listen to orientation change
     window.addEventListener('orientationchange', () => {
       // Immediate handling for orientation change
       handleResize();

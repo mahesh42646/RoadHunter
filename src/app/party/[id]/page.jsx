@@ -1186,46 +1186,6 @@ export default function PartyRoomPage() {
     }
   }, [party, socket, isParticipant, isHost, partyId]);
 
-  // Small screens: Trigger user interaction to enable video autoplay
-  useEffect(() => {
-    // Check if screen is small (viewport width < 768px)
-    const isSmallScreen = window.innerWidth < 768;
-    
-    if (isSmallScreen) {
-      // On small screens, trigger a programmatic user interaction to help with autoplay
-      const triggerInteraction = () => {
-        // Create a temporary invisible button and click it
-        const button = document.createElement('button');
-        button.style.position = 'fixed';
-        button.style.top = '-9999px';
-        button.style.left = '-9999px';
-        button.style.width = '1px';
-        button.style.height = '1px';
-        button.style.opacity = '0';
-        document.body.appendChild(button);
-        button.click();
-        setTimeout(() => {
-          document.body.removeChild(button);
-        }, 100);
-      };
-      
-      // Trigger after a short delay to ensure page is loaded
-      const timer = setTimeout(triggerInteraction, 500);
-      
-      // Also trigger on window resize if screen becomes small
-      const handleResize = () => {
-        if (window.innerWidth < 768) {
-          triggerInteraction();
-        }
-      };
-      window.addEventListener('resize', handleResize);
-      
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, []);
 
   useEffect(() => {
     if (party?.chatMessages) {
@@ -1477,7 +1437,6 @@ export default function PartyRoomPage() {
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play after metadata loads (works for all screen sizes)
                             if (hostCameraEnabled) {
                               video.play().catch(() => {});
                             }
@@ -1489,7 +1448,6 @@ export default function PartyRoomPage() {
                             }
                           }}
                           onResize={() => {
-                            // Force play on resize to ensure video continues on small screens
                             const video = webrtc.localVideoRef.current;
                             if (video && hostCameraEnabled && video.paused) {
                               video.play().catch(() => {});
@@ -1521,7 +1479,6 @@ export default function PartyRoomPage() {
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play after metadata loads (critical for small screens)
                             video.play().catch(() => {});
                           }}
                           onCanPlay={(e) => {
@@ -1770,7 +1727,6 @@ export default function PartyRoomPage() {
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play after metadata loads (works for all screen sizes)
                             if (hostCameraEnabled) {
                               video.play().catch(() => {});
                             }
@@ -1782,7 +1738,6 @@ export default function PartyRoomPage() {
                             }
                           }}
                           onResize={() => {
-                            // Force play on resize to ensure video continues on small screens
                             const video = webrtc.localVideoRef.current;
                             if (video && hostCameraEnabled && video.paused) {
                               video.play().catch(() => {});
@@ -1814,7 +1769,6 @@ export default function PartyRoomPage() {
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play after metadata loads (critical for small screens)
                             video.play().catch(() => {});
                           }}
                           onCanPlay={(e) => {
