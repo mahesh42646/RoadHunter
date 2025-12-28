@@ -2184,7 +2184,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
               color: "var(--text-primary, #ffffff)",
               borderRadius: "0.375rem",
             }}
-          >
+          > 
             {error}
           </div>
         </div>
@@ -2249,21 +2249,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         </div>
       )}
 
-      {/* Live indicator */}
-      {/* {gameStatus === "racing" && (
-        <div
-          className="position-absolute top-0 start-0 m-2 rounded-pill d-flex align-items-center gap-1 glass-card"
-          style={{
-            zIndex: 10,
-            border: "1px solid var(--accent-secondary, #00f5ff)",
-            padding: "clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem)",
-            fontSize: "clamp(0.7rem, 1.5vw, 0.875rem)",
-          }}
-        >
-          <span className="fw-bold" style={{ color: "var(--accent-secondary, #00f5ff)" }}>LIVE</span>
-          <span style={{ color: "var(--text-muted, #a8b3d0)" }}>Vertical street race</span>
-        </div>
-      )} */}
+   
 
       {/* Selection Modal - Custom positioned within container */}
       {gameStatus === "predictions" && raceStartCountdown === 0 && (
@@ -2550,10 +2536,9 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                         background: "rgba(10, 14, 26, 0.8)",
                         borderTop: "1px solid #2a3441",
                         borderRadius: "0 0 0.375rem 0.375rem",
-                      }}
-                    >
+                      }} >
                       {/* Counter */}
-                      <div style={{border: "1px solid rgba(255, 255, 255, 0.2)"}} className="d-flex align-items-center gap-2 rounded-2 p-1">
+                      <div style={{border: "1px solid rgba(255, 255, 255, 0.2)"}} className="d-flex align-items-center gap-2 rounded-2 ">
                         <Button
                           variant="outline-light"
                           size="sm"
@@ -2598,21 +2583,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
                         </Button>
                       </div>
 
-                      {/* Play Button (disabled - just visual) */}
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        disabled
-                        style={{
-                          background: "linear-gradient(135deg, var(--accent-secondary, #00f5ff) 0%, #0099cc 100%)",
-                          border: "none",
-                          padding: "0.5rem 2rem",
-                          fontSize: "1rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Play
-                      </Button>
+                    
                     </div>
                   </>
                 );

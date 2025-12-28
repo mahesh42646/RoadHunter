@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   Button, Card, Form, Badge, Modal, Dropdown, ListGroup,
@@ -71,16 +71,26 @@ export default function PartyRoomPage() {
   const isParticipant = !!currentParticipant && (currentParticipant.status === "active" || currentParticipant.status === "muted" || currentParticipant.status === "offline");
   const isMuted = currentParticipant?.status === "muted";
 
-  const participants = party?.participants || [];
-  const hostParticipant = participants.find((p) => p.role === "host") || {
-    username: party?.hostUsername,
-    avatarUrl: party?.hostAvatarUrl,
-    userId: party?.hostId,
-  };
-  const otherParticipants = participants.filter((p) => p.role !== "host");
-  const topParticipants = [...(hostParticipant ? [hostParticipant] : []), ...otherParticipants].slice(0, 12);
-  const chatMessages = party?.chatMessages || [];
-  const recentMessages = chatMessages.slice(-50);
+  // Memoize derived data to prevent unnecessary re-renders
+  const participants = useMemo(() => party?.participants || [], [party?.participants]);
+  const hostParticipant = useMemo(() => 
+    participants.find((p) => p.role === "host") || {
+      username: party?.hostUsername,
+      avatarUrl: party?.hostAvatarUrl,
+      userId: party?.hostId,
+    },
+    [participants, party?.hostUsername, party?.hostAvatarUrl, party?.hostId]
+  );
+  const otherParticipants = useMemo(() => 
+    participants.filter((p) => p.role !== "host"),
+    [participants]
+  );
+  const topParticipants = useMemo(() => 
+    [...(hostParticipant ? [hostParticipant] : []), ...otherParticipants].slice(0, 12),
+    [hostParticipant, otherParticipants]
+  );
+  const chatMessages = useMemo(() => party?.chatMessages || [], [party?.chatMessages]);
+  const recentMessages = useMemo(() => chatMessages.slice(-50), [chatMessages]);
 
   // Restore UI state from persisted store, but always default to games when joining
   useEffect(() => {
@@ -314,6 +324,44 @@ export default function PartyRoomPage() {
     };
   }, [isParticipant, isHost, partyId, router, clearCurrentParty, party, user]);
 
+  // Helper function to merge party updates intelligently
+  const mergePartyUpdate = useCallback((newPartyData) => {
+    setParty((prev) => {
+      if (!prev) return newPartyData;
+      
+      // Only update if something actually changed
+      const participantsChanged = JSON.stringify(prev.participants || []) !== JSON.stringify(newPartyData.participants || []);
+      const chatMessagesChanged = JSON.stringify(prev.chatMessages || []) !== JSON.stringify(newPartyData.chatMessages || []);
+      const hostMicChanged = prev.hostMicEnabled !== newPartyData.hostMicEnabled;
+      const hostCameraChanged = prev.hostCameraEnabled !== newPartyData.hostCameraEnabled;
+      const nameChanged = prev.name !== newPartyData.name;
+      const privacyChanged = prev.privacy !== newPartyData.privacy;
+      const isActiveChanged = prev.isActive !== newPartyData.isActive;
+      
+      // If nothing changed, return previous state to prevent re-render
+      if (!participantsChanged && !chatMessagesChanged && !hostMicChanged && 
+          !hostCameraChanged && !nameChanged && !privacyChanged && !isActiveChanged) {
+        return prev;
+      }
+      
+      // Merge only changed fields
+      return {
+        ...prev,
+        ...(nameChanged && { name: newPartyData.name }),
+        ...(privacyChanged && { privacy: newPartyData.privacy }),
+        ...(isActiveChanged && { isActive: newPartyData.isActive }),
+        ...(hostMicChanged && { hostMicEnabled: newPartyData.hostMicEnabled }),
+        ...(hostCameraChanged && { hostCameraEnabled: newPartyData.hostCameraEnabled }),
+        ...(participantsChanged && { participants: newPartyData.participants }),
+        ...(chatMessagesChanged && { chatMessages: newPartyData.chatMessages }),
+        // Always preserve other fields from previous state
+        hostId: newPartyData.hostId || prev.hostId,
+        hostUsername: newPartyData.hostUsername || prev.hostUsername,
+        hostAvatarUrl: newPartyData.hostAvatarUrl || prev.hostAvatarUrl,
+      };
+    });
+  }, []);
+
   const loadParty = async () => {
     try {
       const response = await apiClient.get(`/parties/${partyId}`);
@@ -327,7 +375,8 @@ export default function PartyRoomPage() {
         return;
       }
 
-      setParty(partyData);
+      // Use merge update instead of direct replacement
+      mergePartyUpdate(partyData);
 
       const isUserHost = partyData.hostId?.toString() === user?._id?.toString();
 
@@ -345,7 +394,7 @@ export default function PartyRoomPage() {
           try {
             const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
             if (joinResponse.data.party) {
-              setParty(joinResponse.data.party);
+              mergePartyUpdate(joinResponse.data.party);
               setCurrentParty(partyId, true);
             }
           } catch (joinError) {
@@ -366,7 +415,7 @@ export default function PartyRoomPage() {
           try {
             const joinResponse = await apiClient.post(`/parties/${partyId}/join`);
             if (joinResponse.data.party) {
-              setParty(joinResponse.data.party);
+              mergePartyUpdate(joinResponse.data.party);
               setCurrentParty(partyId, false);
             }
           } catch (joinError) {
@@ -416,8 +465,7 @@ export default function PartyRoomPage() {
       if (response.data.request) {
         alert("Join request sent! Waiting for host approval...");
       } else {
-        setParty(response.data.party);
-        await loadParty(); // Wait for party data to reload
+        mergePartyUpdate(response.data.party);
         // Set current party after joining
         const isUserHost = response.data.party?.hostId?.toString() === user?._id?.toString();
         setCurrentParty(partyId, isUserHost);
@@ -653,8 +701,10 @@ export default function PartyRoomPage() {
 
       // Then update backend
       const response = await apiClient.post(`/parties/${partyId}/toggle-mic`);
-      setParty(response.data.party);
-      setHostMicEnabled(response.data.party.hostMicEnabled);
+      // Only update mic state, not entire party
+      const newMicState = response.data.party.hostMicEnabled;
+      setHostMicEnabled(newMicState);
+      setParty((prev) => prev ? { ...prev, hostMicEnabled: newMicState } : response.data.party);
 
       // Notify participants via socket to start/stop receiving stream
       if (socket) {
@@ -683,8 +733,10 @@ export default function PartyRoomPage() {
 
       // Then update backend
       const response = await apiClient.post(`/parties/${partyId}/toggle-camera`);
-      setParty(response.data.party);
-      setHostCameraEnabled(response.data.party.hostCameraEnabled);
+      // Only update camera state, not entire party
+      const newCameraState = response.data.party.hostCameraEnabled;
+      setHostCameraEnabled(newCameraState);
+      setParty((prev) => prev ? { ...prev, hostCameraEnabled: newCameraState } : response.data.party);
 
       // Notify participants via socket to start/stop receiving stream
       if (socket) {
@@ -722,6 +774,7 @@ export default function PartyRoomPage() {
   const socket = usePartySocket(partyId, {
     onParticipantJoined: (data) => {
       setParty((prev) => {
+        if (!prev) return prev;
         const participants = prev.participants || [];
         // Check if participant already exists
         const existingIndex = participants.findIndex(
@@ -730,9 +783,15 @@ export default function PartyRoomPage() {
 
         if (existingIndex !== -1) {
           // Update existing participant (e.g., status change from 'left' to 'active')
-          const updated = [...participants];
-          updated[existingIndex] = { ...updated[existingIndex], ...data.participant };
-          return { ...prev, participants: updated };
+          const existing = participants[existingIndex];
+          const updated = { ...existing, ...data.participant };
+          // Only update if something changed
+          if (JSON.stringify(existing) === JSON.stringify(updated)) {
+            return prev;
+          }
+          const updatedList = [...participants];
+          updatedList[existingIndex] = updated;
+          return { ...prev, participants: updatedList };
         }
 
         // Add new participant
@@ -743,12 +802,17 @@ export default function PartyRoomPage() {
       });
     },
     onParticipantLeft: (data) => {
-      setParty((prev) => ({
-        ...prev,
-        participants: (prev.participants || []).filter(
+      setParty((prev) => {
+        if (!prev) return prev;
+        const filtered = (prev.participants || []).filter(
           (p) => p.userId?.toString() !== data.userId
-        ),
-      }));
+        );
+        // Only update if participant was actually removed
+        if (filtered.length === prev.participants?.length) {
+          return prev;
+        }
+        return { ...prev, participants: filtered };
+      });
       if (data.userId === user?._id?.toString()) {
         clearCurrentParty();
         clearPartyState();
@@ -757,15 +821,21 @@ export default function PartyRoomPage() {
     },
     onParticipantOffline: (data) => {
       setParty((prev) => {
+        if (!prev) return prev;
         const participants = prev.participants || [];
         const index = participants.findIndex(
           (p) => p.userId?.toString() === data.userId?.toString()
         );
 
         if (index !== -1) {
+          const participant = participants[index];
+          // Only update if status actually changed
+          if (participant.status === 'offline') {
+            return prev;
+          }
           const updated = [...participants];
           updated[index] = {
-            ...updated[index],
+            ...participant,
             status: 'offline',
           };
           return { ...prev, participants: updated };
@@ -775,10 +845,14 @@ export default function PartyRoomPage() {
       });
     },
     onChatMessage: (data) => {
-      setParty((prev) => ({
-        ...prev,
-        chatMessages: [...(prev.chatMessages || []), data.message],
-      }));
+      setParty((prev) => {
+        if (!prev) return prev;
+        // Always add new message (no need to check for duplicates)
+        return {
+          ...prev,
+          chatMessages: [...(prev.chatMessages || []), data.message],
+        };
+      });
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     },
     onPartyEnded: () => {
@@ -787,7 +861,25 @@ export default function PartyRoomPage() {
       router.push("/");
     },
     onHostTransferred: (data) => {
-      loadParty();
+      // Update host info incrementally instead of full reload
+      setParty((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          hostId: data.newHostId,
+          hostUsername: data.newHostUsername,
+          hostAvatarUrl: data.newHostAvatarUrl,
+          participants: (prev.participants || []).map((p) => {
+            if (p.userId?.toString() === data.newHostId?.toString()) {
+              return { ...p, role: "host" };
+            }
+            if (p.userId?.toString() === data.oldHostId?.toString()) {
+              return { ...p, role: "participant" };
+            }
+            return p;
+          }),
+        };
+      });
     },
     onParticipantRemoved: (data) => {
       if (data.userId === user?._id?.toString()) {
@@ -795,29 +887,41 @@ export default function PartyRoomPage() {
         clearPartyState();
         router.push("/");
       } else {
-        loadParty();
+        // Remove participant incrementally instead of full reload
+        setParty((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            participants: (prev.participants || []).filter(
+              (p) => p.userId?.toString() !== data.userId
+            ),
+          };
+        });
       }
     },
     onParticipantMuted: (data) => {
-      if (data.userId === user?._id?.toString()) {
-        setParty((prev) => ({
-          ...prev,
-          participants: (prev.participants || []).map((p) =>
-            p.userId?.toString() === data.userId
-              ? { ...p, status: data.muted ? "muted" : "active" }
-              : p
-          ),
-        }));
-      } else {
-        loadParty();
-      }
+      // Update participant status incrementally for all users
+      setParty((prev) => {
+        if (!prev) return prev;
+        const updatedParticipants = (prev.participants || []).map((p) =>
+          p.userId?.toString() === data.userId
+            ? { ...p, status: data.muted ? "muted" : "active" }
+            : p
+        );
+        // Only update if something changed
+        const participantChanged = JSON.stringify(prev.participants) !== JSON.stringify(updatedParticipants);
+        return participantChanged ? { ...prev, participants: updatedParticipants } : prev;
+      });
     },
     onGiftSent: (data) => {
       if (data.partyId === partyId) {
-        setParty((prev) => ({
-          ...prev,
-          chatMessages: [...(prev.chatMessages || []), data.message],
-        }));
+        setParty((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            chatMessages: [...(prev.chatMessages || []), data.message],
+          };
+        });
 
         // Add gift animation
         setGiftAnimations((prev) => [
@@ -844,11 +948,17 @@ export default function PartyRoomPage() {
     },
     onHostMicToggled: (data) => {
       setHostMicEnabled(data.enabled);
-      setParty((prev) => ({ ...prev, hostMicEnabled: data.enabled }));
+      setParty((prev) => {
+        if (!prev || prev.hostMicEnabled === data.enabled) return prev;
+        return { ...prev, hostMicEnabled: data.enabled };
+      });
     },
     onHostCameraToggled: (data) => {
       setHostCameraEnabled(data.enabled);
-      setParty((prev) => ({ ...prev, hostCameraEnabled: data.enabled }));
+      setParty((prev) => {
+        if (!prev || prev.hostCameraEnabled === data.enabled) return prev;
+        return { ...prev, hostCameraEnabled: data.enabled };
+      });
     },
     onPartyCallIncoming: (data) => {
       // Handle incoming party video call
@@ -895,11 +1005,19 @@ export default function PartyRoomPage() {
       // Update host stream state when joining/rejoining
       setHostMicEnabled(data.hostMicEnabled);
       setHostCameraEnabled(data.hostCameraEnabled);
-      setParty((prev) => ({
-        ...prev,
-        hostMicEnabled: data.hostMicEnabled,
-        hostCameraEnabled: data.hostCameraEnabled
-      }));
+      setParty((prev) => {
+        if (!prev) return prev;
+        // Only update if values actually changed
+        if (prev.hostMicEnabled === data.hostMicEnabled && 
+            prev.hostCameraEnabled === data.hostCameraEnabled) {
+          return prev;
+        }
+        return {
+          ...prev,
+          hostMicEnabled: data.hostMicEnabled,
+          hostCameraEnabled: data.hostCameraEnabled
+        };
+      });
 
       // Check if current user is the host
       const currentUserId = user?._id?.toString();
