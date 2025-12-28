@@ -1170,10 +1170,13 @@ export default function PartyRoomPage() {
     }
   }, [party, socket, isParticipant, isHost, partyId]);
 
-  // Mobile: Trigger user interaction to enable video autoplay
+  // Small screens: Trigger user interaction to enable video autoplay
   useEffect(() => {
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      // On mobile, trigger a programmatic user interaction to help with autoplay
+    // Check if screen is small (viewport width < 768px)
+    const isSmallScreen = window.innerWidth < 768;
+    
+    if (isSmallScreen) {
+      // On small screens, trigger a programmatic user interaction to help with autoplay
       const triggerInteraction = () => {
         // Create a temporary invisible button and click it
         const button = document.createElement('button');
@@ -1192,7 +1195,19 @@ export default function PartyRoomPage() {
       
       // Trigger after a short delay to ensure page is loaded
       const timer = setTimeout(triggerInteraction, 500);
-      return () => clearTimeout(timer);
+      
+      // Also trigger on window resize if screen becomes small
+      const handleResize = () => {
+        if (window.innerWidth < 768) {
+          triggerInteraction();
+        }
+      };
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', handleResize);
+      };
     }
   }, []);
 
@@ -1408,11 +1423,10 @@ export default function PartyRoomPage() {
                   style={{
                     position: "relative",
                     width: "100%",
+                    minWidth: "60px",
+                    minHeight: "60px",
                     aspectRatio: "1",
-
                     overflow: "hidden",
-                    // marginBottom: "0.5rem",
-
                     background: "#1a2332",
                     display: "flex",
                     alignItems: "center",
@@ -1432,18 +1446,22 @@ export default function PartyRoomPage() {
                           webkit-playsinline="true"
                           muted={true}
                           style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
                             width: "100%",
                             height: "100%",
+                            minWidth: "60px",
+                            minHeight: "60px",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
                             backgroundColor: "#000",
+                            zIndex: 1,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play on mobile after metadata loads
-                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                              video.play().catch(() => {});
-                            }
+                            // Force play after metadata loads (works for all screen sizes)
+                            video.play().catch(() => {});
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
@@ -1462,30 +1480,34 @@ export default function PartyRoomPage() {
                           webkit-playsinline="true"
                           muted={true}
                           style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
                             width: "100%",
                             height: "100%",
+                            minWidth: "60px",
+                            minHeight: "60px",
                             objectFit: "cover",
                             backgroundColor: "#000",
+                            zIndex: 1,
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
-                            // Ensure video continues playing (especially important on mobile)
+                            // Ensure video continues playing (works for all screen sizes)
                             if (video.paused) {
                               video.play().catch(() => { });
                             }
-                            // On mobile, also try playing on touch/click
-                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                              const tryPlay = () => {
-                                if (video.paused) {
-                                  video.play().catch(() => {});
-                                }
-                              };
-                              video.addEventListener('touchstart', tryPlay, { once: true });
-                              video.addEventListener('click', tryPlay, { once: true });
-                            }
+                            // Try playing on touch/click for small screens
+                            const tryPlay = () => {
+                              if (video.paused) {
+                                video.play().catch(() => {});
+                              }
+                            };
+                            video.addEventListener('touchstart', tryPlay, { once: true });
+                            video.addEventListener('click', tryPlay, { once: true });
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
@@ -1501,10 +1523,8 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
-                            // Force play on mobile after metadata loads
-                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                              video.play().catch(() => {});
-                            }
+                            // Force play after metadata loads (works for all screen sizes)
+                            video.play().catch(() => {});
                           }}
                         />
                       )}
@@ -1679,11 +1699,10 @@ export default function PartyRoomPage() {
                   style={{
                     position: "relative",
                     width: "100%",
+                    minWidth: "60px",
+                    minHeight: "60px",
                     aspectRatio: "1",
-
                     overflow: "hidden",
-                    // marginBottom: "0.5rem",
-
                     background: "#1a2332",
                     display: "flex",
                     alignItems: "center",
@@ -1703,18 +1722,22 @@ export default function PartyRoomPage() {
                           webkit-playsinline="true"
                           muted={true}
                           style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
                             width: "100%",
                             height: "100%",
+                            minWidth: "60px",
+                            minHeight: "60px",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
                             backgroundColor: "#000",
+                            zIndex: 1,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            // Force play on mobile after metadata loads
-                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                              video.play().catch(() => {});
-                            }
+                            // Force play after metadata loads (works for all screen sizes)
+                            video.play().catch(() => {});
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
@@ -1733,30 +1756,34 @@ export default function PartyRoomPage() {
                           webkit-playsinline="true"
                           muted={true}
                           style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
                             width: "100%",
                             height: "100%",
+                            minWidth: "60px",
+                            minHeight: "60px",
                             objectFit: "cover",
                             backgroundColor: "#000",
+                            zIndex: 1,
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
-                            // Ensure video continues playing (especially important on mobile)
+                            // Ensure video continues playing (works for all screen sizes)
                             if (video.paused) {
                               video.play().catch(() => { });
                             }
-                            // On mobile, also try playing on touch/click
-                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                              const tryPlay = () => {
-                                if (video.paused) {
-                                  video.play().catch(() => {});
-                                }
-                              };
-                              video.addEventListener('touchstart', tryPlay, { once: true });
-                              video.addEventListener('click', tryPlay, { once: true });
-                            }
+                            // Try playing on touch/click for small screens
+                            const tryPlay = () => {
+                              if (video.paused) {
+                                video.play().catch(() => {});
+                              }
+                            };
+                            video.addEventListener('touchstart', tryPlay, { once: true });
+                            video.addEventListener('click', tryPlay, { once: true });
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
@@ -1772,10 +1799,8 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
-                            // Force play on mobile after metadata loads
-                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                              video.play().catch(() => {});
-                            }
+                            // Force play after metadata loads (works for all screen sizes)
+                            video.play().catch(() => {});
                           }}
                         />
                       )}

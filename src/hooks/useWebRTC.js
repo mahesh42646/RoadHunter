@@ -591,28 +591,34 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         
-        // Play the video - retry on mobile if needed
+        // Play the video - retry for small screens if needed
         const playVideo = () => {
           video.play().then(() => {
             log("✅ Local video preview playing");
           }).catch(err => {
             log("Local video play issue:", err.name);
-            // On mobile, try again after a short delay or user interaction
-            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-              setTimeout(() => {
-                video.play().catch(e => {
-                  log("Retry play failed:", e.name);
-                  // Add click handler for mobile
-                  const handleClick = () => {
-                    video.play().catch(() => {});
-                    document.removeEventListener('click', handleClick);
-                    document.removeEventListener('touchstart', handleClick);
-                  };
-                  document.addEventListener('click', handleClick, { once: true });
-                  document.addEventListener('touchstart', handleClick, { once: true });
-                });
-              }, 100);
-            }
+            // Retry after delay (works for all screen sizes)
+            setTimeout(() => {
+              video.play().catch(e => {
+                log("Retry play failed:", e.name);
+                // Add interaction handlers (works for all screen sizes)
+                const handleInteraction = () => {
+                  video.play().catch(() => {});
+                  document.removeEventListener('click', handleInteraction);
+                  document.removeEventListener('touchstart', handleInteraction);
+                  if (video) {
+                    video.removeEventListener('click', handleInteraction);
+                    video.removeEventListener('touchstart', handleInteraction);
+                  }
+                };
+                document.addEventListener('click', handleInteraction, { once: true });
+                document.addEventListener('touchstart', handleInteraction, { once: true });
+                if (video) {
+                  video.addEventListener('click', handleInteraction, { once: true });
+                  video.addEventListener('touchstart', handleInteraction, { once: true });
+                }
+              });
+            }, 200);
           });
         };
         
@@ -648,68 +654,54 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
           }).catch(err => {
             log("Remote video play failed, will retry:", err.name);
             
-            // On mobile, retry after delay with multiple strategies
-            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-              setTimeout(() => {
-                video.play().then(() => {
-                  log("✅ Remote video playing after retry");
-                  video.volume = audioVolume;
-                }).catch(e => {
-                  log("Retry play failed:", e.name);
-                  // Strategy 1: Add touch/click handlers directly on video element
-                  const handleVideoInteraction = () => {
-                    video.play().then(() => {
-                      log("✅ Remote video playing after video interaction");
-                      video.volume = audioVolume;
-                    }).catch(() => {});
-                    video.removeEventListener('click', handleVideoInteraction);
-                    video.removeEventListener('touchstart', handleVideoInteraction);
-                  };
-                  video.addEventListener('click', handleVideoInteraction, { once: true });
-                  video.addEventListener('touchstart', handleVideoInteraction, { once: true });
-                  
-                  // Strategy 2: Also try document-level handlers
-                  const handleDocInteraction = () => {
-                    video.play().then(() => {
-                      log("✅ Remote video playing after document interaction");
-                      video.volume = audioVolume;
-                    }).catch(() => {});
-                    document.removeEventListener('click', handleDocInteraction);
-                    document.removeEventListener('touchstart', handleDocInteraction);
-                  };
-                  document.addEventListener('click', handleDocInteraction, { once: true });
-                  document.addEventListener('touchstart', handleDocInteraction, { once: true });
-                });
-              }, 200);
-            } else {
-              // Desktop fallback
-              const playOnClick = () => {
-                video.play().then(() => {
-                  log("✅ Remote video playing after user interaction");
-                  video.volume = audioVolume;
-                  document.removeEventListener('click', playOnClick);
-                }).catch(e => log("Play still failed:", e.name));
-              };
-              document.addEventListener('click', playOnClick, { once: true });
-            }
+            // Retry after delay with multiple strategies (works for all screen sizes)
+            setTimeout(() => {
+              video.play().then(() => {
+                log("✅ Remote video playing after retry");
+                video.volume = audioVolume;
+              }).catch(e => {
+                log("Retry play failed:", e.name);
+                // Strategy 1: Add touch/click handlers directly on video element
+                const handleVideoInteraction = () => {
+                  video.play().then(() => {
+                    log("✅ Remote video playing after video interaction");
+                    video.volume = audioVolume;
+                  }).catch(() => {});
+                  video.removeEventListener('click', handleVideoInteraction);
+                  video.removeEventListener('touchstart', handleVideoInteraction);
+                };
+                video.addEventListener('click', handleVideoInteraction, { once: true });
+                video.addEventListener('touchstart', handleVideoInteraction, { once: true });
+                
+                // Strategy 2: Also try document-level handlers
+                const handleDocInteraction = () => {
+                  video.play().then(() => {
+                    log("✅ Remote video playing after document interaction");
+                    video.volume = audioVolume;
+                  }).catch(() => {});
+                  document.removeEventListener('click', handleDocInteraction);
+                  document.removeEventListener('touchstart', handleDocInteraction);
+                };
+                document.addEventListener('click', handleDocInteraction, { once: true });
+                document.addEventListener('touchstart', handleDocInteraction, { once: true });
+              });
+            }, 200);
           });
         };
         
         playVideo();
       } else if (video.srcObject === remoteStream && video.paused) {
-        // Stream already attached but paused - try to play (mobile scenario)
+        // Stream already attached but paused - try to play (small screen scenario)
         video.play().catch(err => {
           log("Resume remote video play failed:", err.name);
-          // On mobile, add interaction handlers
-          if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-            const handleInteraction = () => {
-              video.play().catch(() => {});
-              video.removeEventListener('click', handleInteraction);
-              video.removeEventListener('touchstart', handleInteraction);
-            };
-            video.addEventListener('click', handleInteraction, { once: true });
-            video.addEventListener('touchstart', handleInteraction, { once: true });
-          }
+          // Add interaction handlers (works for all screen sizes)
+          const handleInteraction = () => {
+            video.play().catch(() => {});
+            video.removeEventListener('click', handleInteraction);
+            video.removeEventListener('touchstart', handleInteraction);
+          };
+          video.addEventListener('click', handleInteraction, { once: true });
+          video.addEventListener('touchstart', handleInteraction, { once: true });
         });
       } else {
         // Stream already attached, update mute state when audioEnabled changes
