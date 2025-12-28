@@ -1143,11 +1143,27 @@ export default function PartyRoomPage() {
     }
   }, [isHost, socket, party, hostMicEnabled, hostCameraEnabled, partyId, user?._id]);
 
-  // Sync host mic/camera state from party data
+  // Sync host mic/camera state from party data (but don't trigger toggles on screen resize)
+  const prevPartyStateRef = useRef({ hostMicEnabled: false, hostCameraEnabled: false });
+  
   useEffect(() => {
     if (party) {
-      setHostMicEnabled(party.hostMicEnabled || false);
-      setHostCameraEnabled(party.hostCameraEnabled || false);
+      const prevState = prevPartyStateRef.current;
+      const newMicState = party.hostMicEnabled || false;
+      const newCameraState = party.hostCameraEnabled || false;
+      
+      // Only update if state actually changed (not just party data refresh)
+      if (prevState.hostMicEnabled !== newMicState) {
+        setHostMicEnabled(newMicState);
+      }
+      if (prevState.hostCameraEnabled !== newCameraState) {
+        setHostCameraEnabled(newCameraState);
+      }
+      
+      prevPartyStateRef.current = { 
+        hostMicEnabled: newMicState, 
+        hostCameraEnabled: newCameraState 
+      };
     }
   }, [party]);
 
@@ -1455,17 +1471,27 @@ export default function PartyRoomPage() {
                             minHeight: "60px",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
+                            visibility: hostCameraEnabled ? "visible" : "hidden",
                             backgroundColor: "#000",
                             zIndex: 1,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
                             // Force play after metadata loads (works for all screen sizes)
-                            video.play().catch(() => {});
+                            if (hostCameraEnabled) {
+                              video.play().catch(() => {});
+                            }
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
-                            if (video.paused) {
+                            if (hostCameraEnabled && video.paused) {
+                              video.play().catch(() => {});
+                            }
+                          }}
+                          onResize={() => {
+                            // Force play on resize to ensure video continues on small screens
+                            const video = webrtc.localVideoRef.current;
+                            if (video && hostCameraEnabled && video.paused) {
                               video.play().catch(() => {});
                             }
                           }}
@@ -1731,17 +1757,27 @@ export default function PartyRoomPage() {
                             minHeight: "60px",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
+                            visibility: hostCameraEnabled ? "visible" : "hidden",
                             backgroundColor: "#000",
                             zIndex: 1,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
                             // Force play after metadata loads (works for all screen sizes)
-                            video.play().catch(() => {});
+                            if (hostCameraEnabled) {
+                              video.play().catch(() => {});
+                            }
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
-                            if (video.paused) {
+                            if (hostCameraEnabled && video.paused) {
+                              video.play().catch(() => {});
+                            }
+                          }}
+                          onResize={() => {
+                            // Force play on resize to ensure video continues on small screens
+                            const video = webrtc.localVideoRef.current;
+                            if (video && hostCameraEnabled && video.paused) {
                               video.play().catch(() => {});
                             }
                           }}

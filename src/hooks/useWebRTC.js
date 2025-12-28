@@ -737,13 +737,24 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     }
   }, [isHost, remoteStream, audioEnabled, audioVolume]);
 
-  // Sync host state and initialize stream on refresh
+  // Sync host state and initialize stream on refresh (but don't recreate on screen size changes)
+  const prevHostStateRef = useRef({ hostMicEnabled: false, hostCameraEnabled: false });
+  
   useEffect(() => {
     if (isHost) {
-      setIsMicEnabled(hostMicEnabled);
-      setIsCameraEnabled(hostCameraEnabled);
+      const prevState = prevHostStateRef.current;
+      const micChanged = prevState.hostMicEnabled !== hostMicEnabled;
+      const cameraChanged = prevState.hostCameraEnabled !== hostCameraEnabled;
+      
+      // Only update state if it actually changed (not just screen resize)
+      if (micChanged || cameraChanged) {
+        setIsMicEnabled(hostMicEnabled);
+        setIsCameraEnabled(hostCameraEnabled);
+        prevHostStateRef.current = { hostMicEnabled, hostCameraEnabled };
+      }
       
       // Initialize stream if host has mic/camera enabled but no stream exists (refresh scenario)
+      // Only initialize if stream doesn't exist - don't recreate on screen size changes
       if ((hostMicEnabled || hostCameraEnabled) && !localStreamRef.current) {
         log("Host refresh detected - initializing stream with mic:", hostMicEnabled, "camera:", hostCameraEnabled);
         // Use async function to call getMediaStream
