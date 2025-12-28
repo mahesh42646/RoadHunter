@@ -1542,8 +1542,6 @@ export default function PartyRoomPage() {
                             video.addEventListener('touchstart', tryPlay, { once: true });
                             video.addEventListener('click', tryPlay, { once: true });
                           }}
-                          onLoadedMetadata={(e) => {
-                            const video = e.target;
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1835,8 +1833,6 @@ export default function PartyRoomPage() {
                             video.addEventListener('touchstart', tryPlay, { once: true });
                             video.addEventListener('click', tryPlay, { once: true });
                           }}
-                          onLoadedMetadata={(e) => {
-                            const video = e.target;
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
