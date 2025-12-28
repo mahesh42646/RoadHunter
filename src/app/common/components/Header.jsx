@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button, Offcanvas } from "react-bootstrap";
@@ -10,6 +10,7 @@ import useAuthStore, { selectIsAuthenticated } from "@/store/useAuthStore";
 import useAuthActions from "@/app/user/hooks/useAuthActions";
 import apiClient from "@/lib/apiClient";
 import AuthPanel from "@/app/user/components/AuthPanel";
+import useGlobalSocket from "@/hooks/useGlobalSocket";
 
 export default function Header() {
   const pathname = usePathname();
@@ -22,28 +23,48 @@ export default function Header() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
-  // Load wallet balance
-  useEffect(() => {
-    if (isAuthenticated && hydrated) {
-      loadBalance();
-      // Refresh balance periodically
-      const interval = setInterval(loadBalance, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated, hydrated]);
-
-  const loadBalance = async () => {
+  // Load wallet balance once on mount
+  const loadBalance = useCallback(async () => {
     if (!isAuthenticated) return;
     setLoadingBalance(true);
     try {
       const response = await apiClient.get("/wallet/balance");
-      setWalletBalance(response.data.partyCoins || 0);
+      const newBalance = response.data.partyCoins || 0;
+      // Only update if balance actually changed
+      setWalletBalance((prev) => {
+        if (prev === newBalance) {
+          setLoadingBalance(false);
+          return prev;
+        }
+        return newBalance;
+      });
     } catch (error) {
       console.error("Failed to load balance", error);
     } finally {
       setLoadingBalance(false);
     }
-  };
+  }, [isAuthenticated]);
+
+  // Load balance once on mount
+  useEffect(() => {
+    if (isAuthenticated && hydrated) {
+      loadBalance();
+    }
+  }, [isAuthenticated, hydrated, loadBalance]);
+
+  // Listen to wallet updates via socket (no polling)
+  useGlobalSocket({
+    onWalletUpdated: useCallback((data) => {
+      if (data.userId === user?._id?.toString() && data.wallet) {
+        const newBalance = data.wallet.partyCoins || 0;
+        // Only update if balance actually changed
+        setWalletBalance((prev) => {
+          if (prev === newBalance) return prev;
+          return newBalance;
+        });
+      }
+    }, [user?._id]),
+  });
 
   const formatNumber = (num) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";

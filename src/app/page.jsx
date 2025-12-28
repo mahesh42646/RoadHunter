@@ -43,14 +43,7 @@ export default function HomePage() {
     if (isAuthenticated) {
       loadFriends();
     }
-
-    const interval = setInterval(() => {
-      loadParties();
-      if (isAuthenticated) {
-        loadFriends();
-      }
-    }, 5000);
-    return () => clearInterval(interval);
+    // Removed polling - parties will update via socket events or manual refresh
   }, [hydrated, router, isAuthenticated]);
 
   // After login, join selected party if any
@@ -66,7 +59,23 @@ export default function HomePage() {
     try {
       const response = await apiClient.get("/parties?privacy=public&isActive=true&limit=50");
       const partiesList = response.data.parties || [];
-      setAllParties(partiesList);
+      
+      // Only update if parties actually changed
+      setAllParties((prev) => {
+        const prevIds = (prev || []).map(p => p._id).sort().join(',');
+        const newIds = partiesList.map(p => p._id).sort().join(',');
+        if (prevIds === newIds) {
+          // Check if any party data changed
+          const hasChanges = partiesList.some((newParty, idx) => {
+            const oldParty = prev[idx];
+            if (!oldParty) return true;
+            return JSON.stringify(oldParty) !== JSON.stringify(newParty);
+          });
+          if (!hasChanges) return prev;
+        }
+        return partiesList;
+      });
+      
       filterPartiesByTab(partiesList, activeTab, friends, isAuthenticated);
       setLoading(false);
     } catch (error) {

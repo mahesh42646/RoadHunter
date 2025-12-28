@@ -144,6 +144,7 @@ export default function PartyRoomPage() {
     }
 
     loadParty();
+    // Load wallet once - updates will come via socket
     loadWallet();
 
     // Add body class to prevent scroll
@@ -943,7 +944,16 @@ export default function PartyRoomPage() {
     },
     onWalletUpdated: (data) => {
       if (data.userId === user?._id?.toString()) {
-        setWallet(data.wallet);
+        // Only update if wallet actually changed
+        setWallet((prev) => {
+          if (!prev || !data.wallet) return data.wallet || prev;
+          const prevBalance = prev.partyCoins || 0;
+          const newBalance = data.wallet.partyCoins || 0;
+          if (prevBalance === newBalance && JSON.stringify(prev) === JSON.stringify(data.wallet)) {
+            return prev;
+          }
+          return data.wallet;
+        });
       }
     },
     onHostMicToggled: (data) => {

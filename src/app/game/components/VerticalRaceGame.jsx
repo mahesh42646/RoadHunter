@@ -632,20 +632,26 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
     loadActiveGame();
   }, [loadActiveGame]);
 
-  // Load user balance (use wallet prop if provided, otherwise fetch)
+  // Load user balance (use wallet prop if provided, otherwise fetch once)
   useEffect(() => {
     try {
       // If wallet prop is provided, use it
       if (wallet?.partyCoins !== undefined) {
-        setUserBalance(wallet.partyCoins);
+        setUserBalance((prev) => {
+          const newBalance = wallet.partyCoins;
+          return prev === newBalance ? prev : newBalance;
+        });
         return;
       }
 
-      // Otherwise, fetch balance
+      // Otherwise, fetch balance once (socket will update it)
       const loadBalance = async () => {
         try {
           const response = await apiClient.get("/wallet/balance");
-          setUserBalance(response.data.partyCoins || 0);
+          const newBalance = response.data.partyCoins || 0;
+          setUserBalance((prev) => {
+            return prev === newBalance ? prev : newBalance;
+          });
         } catch (err) {
           console.error("[VerticalRaceGame] Failed to load balance", err);
           // Don't set error for balance loading failure, just use 0
@@ -653,9 +659,7 @@ export default function VerticalRaceGame({ socket: externalSocket, wallet, onClo
         }
       };
       loadBalance();
-      // Refresh balance periodically
-      const interval = setInterval(loadBalance, 5000);
-      return () => clearInterval(interval);
+      // Removed polling - balance will update via socket events
     } catch (err) {
       console.error("[VerticalRaceGame] Error in balance effect:", err);
       setUserBalance(0);
