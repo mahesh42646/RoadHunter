@@ -1402,12 +1402,28 @@ export default function PartyRoomPage() {
                           ref={webrtc.localVideoRef}
                           autoPlay
                           playsInline
+                          playsinline="true"
+                          webkit-playsinline="true"
                           muted={true}
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
+                            backgroundColor: "#000",
+                          }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
+                            // Force play on mobile after metadata loads
+                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                              video.play().catch(() => {});
+                            }
+                          }}
+                          onCanPlay={(e) => {
+                            const video = e.target;
+                            if (video.paused) {
+                              video.play().catch(() => {});
+                            }
                           }}
                         />
                       ) : (
@@ -1416,24 +1432,37 @@ export default function PartyRoomPage() {
                           ref={webrtc.remoteVideoRef}
                           autoPlay
                           playsInline
+                          playsinline="true"
+                          webkit-playsinline="true"
                           muted={true}
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
+                            backgroundColor: "#000",
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
-                            // Ensure video continues playing
+                            // Ensure video continues playing (especially important on mobile)
                             if (video.paused) {
                               video.play().catch(() => { });
                             }
+                            // On mobile, also try playing on touch/click
+                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                              const tryPlay = () => {
+                                if (video.paused) {
+                                  video.play().catch(() => {});
+                                }
+                              };
+                              video.addEventListener('touchstart', tryPlay, { once: true });
+                              video.addEventListener('click', tryPlay, { once: true });
+                            }
                           }}
-                          onLoadedMetadata={() => {
-
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1446,6 +1475,10 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
+                            // Force play on mobile after metadata loads
+                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                              video.play().catch(() => {});
+                            }
                           }}
                         />
                       )}
@@ -1640,12 +1673,28 @@ export default function PartyRoomPage() {
                           ref={webrtc.localVideoRef}
                           autoPlay
                           playsInline
+                          playsinline="true"
+                          webkit-playsinline="true"
                           muted={true}
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
+                            backgroundColor: "#000",
+                          }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
+                            // Force play on mobile after metadata loads
+                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                              video.play().catch(() => {});
+                            }
+                          }}
+                          onCanPlay={(e) => {
+                            const video = e.target;
+                            if (video.paused) {
+                              video.play().catch(() => {});
+                            }
                           }}
                         />
                       ) : (
@@ -1654,24 +1703,37 @@ export default function PartyRoomPage() {
                           ref={webrtc.remoteVideoRef}
                           autoPlay
                           playsInline
+                          playsinline="true"
+                          webkit-playsinline="true"
                           muted={true}
                           style={{
                             width: "100%",
                             height: "100%",
                             objectFit: "cover",
+                            backgroundColor: "#000",
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
-                            // Ensure video continues playing
+                            // Ensure video continues playing (especially important on mobile)
                             if (video.paused) {
                               video.play().catch(() => { });
                             }
+                            // On mobile, also try playing on touch/click
+                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                              const tryPlay = () => {
+                                if (video.paused) {
+                                  video.play().catch(() => {});
+                                }
+                              };
+                              video.addEventListener('touchstart', tryPlay, { once: true });
+                              video.addEventListener('click', tryPlay, { once: true });
+                            }
                           }}
-                          onLoadedMetadata={() => {
-
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1684,6 +1746,10 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
+                            // Force play on mobile after metadata loads
+                            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                              video.play().catch(() => {});
+                            }
                           }}
                         />
                       )}

@@ -588,12 +588,39 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.srcObject = localStream;
         video.muted = true;
         video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
         
-        // Play the video
-        video.play().then(() => {
-          log("✅ Local video preview playing");
-        }).catch(err => {
-          log("Local video play issue:", err.name);
+        // Play the video - retry on mobile if needed
+        const playVideo = () => {
+          video.play().then(() => {
+            log("✅ Local video preview playing");
+          }).catch(err => {
+            log("Local video play issue:", err.name);
+            // On mobile, try again after a short delay or user interaction
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              setTimeout(() => {
+                video.play().catch(e => {
+                  log("Retry play failed:", e.name);
+                  // Add click handler for mobile
+                  const handleClick = () => {
+                    video.play().catch(() => {});
+                    document.removeEventListener('click', handleClick);
+                    document.removeEventListener('touchstart', handleClick);
+                  };
+                  document.addEventListener('click', handleClick, { once: true });
+                  document.addEventListener('touchstart', handleClick, { once: true });
+                });
+              }, 100);
+            }
+          });
+        };
+        
+        playVideo();
+      } else if (video.srcObject === localStream && video.paused) {
+        // Stream already attached but paused - try to play (mobile scenario)
+        video.play().catch(err => {
+          log("Resume play failed:", err.name);
         });
       }
     }
@@ -610,25 +637,69 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.srcObject = remoteStream;
         video.muted = true; // Start muted to allow autoplay
         video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
         
         // Play the video (muted, so should work)
-        video.play().then(() => {
-          log("✅ Remote video playing (muted for autoplay)");
-          // DON'T unmute automatically - keep muted to prevent video pause
-          // User will unmute via audio controls when ready
-          video.volume = audioVolume;
-        }).catch(err => {
-          log("Remote video play failed, will retry on user interaction:", err.name);
-          
-          // Fallback: play on user interaction
-          const playOnClick = () => {
-            video.play().then(() => {
-              log("✅ Remote video playing after user interaction");
-              video.volume = audioVolume;
-              document.removeEventListener('click', playOnClick);
-            }).catch(e => log("Play still failed:", e.name));
-          };
-          document.addEventListener('click', playOnClick, { once: true });
+        const playVideo = () => {
+          video.play().then(() => {
+            log("✅ Remote video playing (muted for autoplay)");
+            video.volume = audioVolume;
+          }).catch(err => {
+            log("Remote video play failed, will retry:", err.name);
+            
+            // On mobile, retry after delay with multiple strategies
+            if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+              setTimeout(() => {
+                video.play().then(() => {
+                  log("✅ Remote video playing after retry");
+                  video.volume = audioVolume;
+                }).catch(e => {
+                  log("Retry play failed:", e.name);
+                  // Strategy 1: Add touch/click handlers directly on video element
+                  const handleVideoInteraction = () => {
+                    video.play().then(() => {
+                      log("✅ Remote video playing after video interaction");
+                      video.volume = audioVolume;
+                    }).catch(() => {});
+                    video.removeEventListener('click', handleVideoInteraction);
+                    video.removeEventListener('touchstart', handleVideoInteraction);
+                  };
+                  video.addEventListener('click', handleVideoInteraction, { once: true });
+                  video.addEventListener('touchstart', handleVideoInteraction, { once: true });
+                  
+                  // Strategy 2: Also try document-level handlers
+                  const handleDocInteraction = () => {
+                    video.play().then(() => {
+                      log("✅ Remote video playing after document interaction");
+                      video.volume = audioVolume;
+                    }).catch(() => {});
+                    document.removeEventListener('click', handleDocInteraction);
+                    document.removeEventListener('touchstart', handleDocInteraction);
+                  };
+                  document.addEventListener('click', handleDocInteraction, { once: true });
+                  document.addEventListener('touchstart', handleDocInteraction, { once: true });
+                });
+              }, 200);
+            } else {
+              // Desktop fallback
+              const playOnClick = () => {
+                video.play().then(() => {
+                  log("✅ Remote video playing after user interaction");
+                  video.volume = audioVolume;
+                  document.removeEventListener('click', playOnClick);
+                }).catch(e => log("Play still failed:", e.name));
+              };
+              document.addEventListener('click', playOnClick, { once: true });
+            }
+          });
+        };
+        
+        playVideo();
+      } else if (video.srcObject === remoteStream && video.paused) {
+        // Stream already attached but paused - try to play (mobile scenario)
+        video.play().catch(err => {
+          log("Resume remote video play failed:", err.name);
         });
       } else {
         // Stream already attached, update mute state when audioEnabled changes
