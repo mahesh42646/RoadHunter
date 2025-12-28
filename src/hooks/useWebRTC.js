@@ -44,31 +44,32 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         throw error;
       }
 
-      // Mobile-friendly constraints (lower quality for better compatibility)
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      // Use screen size instead of device detection for constraints
+      // This prevents stream recreation when screen size changes
+      const isSmallScreen = window.innerWidth < 768 || window.innerHeight < 600;
       const constraints = {
         audio: audio ? {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          ...(isMobile ? {
-            sampleRate: 44100, // Lower sample rate for mobile
-            channelCount: 1, // Mono for mobile
+          ...(isSmallScreen ? {
+            sampleRate: 44100, // Lower sample rate for small screens
+            channelCount: 1, // Mono for small screens
           } : {
             sampleRate: 48000,
-            channelCount: 2, // Stereo for desktop
+            channelCount: 2, // Stereo for larger screens
             latency: 0.01, // Ultra low latency audio (10ms)
           }),
         } : false,
         video: video ? {
-          ...(isMobile ? {
-            // Mobile-friendly video constraints
+          ...(isSmallScreen ? {
+            // Small screen-friendly video constraints
             width: { ideal: 640, max: 1280 },
             height: { ideal: 480, max: 720 },
-            frameRate: { ideal: 30, max: 30 }, // 30fps for mobile
+            frameRate: { ideal: 30, max: 30 }, // 30fps for small screens
             facingMode: "user",
           } : {
-            // High quality settings for desktop
+            // High quality settings for larger screens
             width: { ideal: 1920, max: 1920 },
             height: { ideal: 1080, max: 1080 },
             frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
@@ -78,7 +79,7 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         } : false,
       };
 
-      log(`Requesting media: audio=${audio}, video=${video}, mobile=${isMobile}`);
+      log(`Requesting media: audio=${audio}, video=${video}, smallScreen=${isSmallScreen}`);
       const stream = await navigator.mediaDevices.getUserMedia(constraints).catch((err) => {
         // Handle permission denied or other errors gracefully
         logError("getUserMedia failed:", err);
