@@ -1542,6 +1542,10 @@ export default function PartyRoomPage() {
                             video.addEventListener('touchstart', tryPlay, { once: true });
                             video.addEventListener('click', tryPlay, { once: true });
                           }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
+                            // Force play after metadata loads (critical for small screens)
+                            video.play().catch(() => {});
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1554,8 +1558,6 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
-                            // Force play after metadata loads (works for all screen sizes)
-                            video.play().catch(() => {});
                           }}
                         />
                       )}
@@ -1833,6 +1835,10 @@ export default function PartyRoomPage() {
                             video.addEventListener('touchstart', tryPlay, { once: true });
                             video.addEventListener('click', tryPlay, { once: true });
                           }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
+                            // Force play after metadata loads (critical for small screens)
+                            video.play().catch(() => {});
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1845,8 +1851,6 @@ export default function PartyRoomPage() {
                             reduceBuffer();
                             video.addEventListener('progress', reduceBuffer);
                             video.addEventListener('timeupdate', reduceBuffer);
-                            // Force play after metadata loads (works for all screen sizes)
-                            video.play().catch(() => {});
                           }}
                         />
                       )}
