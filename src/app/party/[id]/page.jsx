@@ -1516,6 +1516,13 @@ export default function PartyRoomPage() {
                             objectFit: "cover",
                             backgroundColor: "#000",
                             zIndex: 1,
+                            display: "block",
+                            visibility: "visible",
+                          }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
+                            // Force play after metadata loads (critical for small screens)
+                            video.play().catch(() => {});
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
@@ -1802,6 +1809,13 @@ export default function PartyRoomPage() {
                             objectFit: "cover",
                             backgroundColor: "#000",
                             zIndex: 1,
+                            display: "block",
+                            visibility: "visible",
+                          }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.target;
+                            // Force play after metadata loads (critical for small screens)
+                            video.play().catch(() => {});
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
