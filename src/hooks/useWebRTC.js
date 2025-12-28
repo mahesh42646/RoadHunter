@@ -673,17 +673,20 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
       // Initialize stream if host has mic/camera enabled but no stream exists (refresh scenario)
       if ((hostMicEnabled || hostCameraEnabled) && !localStreamRef.current) {
         log("Host refresh detected - initializing stream with mic:", hostMicEnabled, "camera:", hostCameraEnabled);
-        getMediaStream(hostMicEnabled, hostCameraEnabled)
-          .then(stream => {
+        // Use async function to call getMediaStream
+        (async () => {
+          try {
+            const stream = await getMediaStream(hostMicEnabled, hostCameraEnabled);
             localStreamRef.current = stream;
             setLocalStream(stream);
             log("✅ Stream initialized after refresh");
-          })
-          .catch(err => {
+          } catch (err) {
             logError("Failed to initialize stream after refresh:", err);
-          });
+          }
+        })();
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHost, hostMicEnabled, hostCameraEnabled]);
 
   // Participant: Sync audio enabled state with video element
