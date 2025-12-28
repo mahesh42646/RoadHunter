@@ -639,52 +639,112 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     }
     
     // Add resize handler to ensure video continues playing after resize
+    let resizeTimeout;
     const handleResize = () => {
-      // Handle local video (host)
-      if (isHost && localVideoRef.current && localStream && isCameraEnabled) {
-        const video = localVideoRef.current;
-        if (video && video.srcObject === localStream) {
-          // Force play on resize - small screens often pause video
-          if (video.paused) {
-            video.play().catch(() => {});
-          }
-          // Also ensure video is visible and has dimensions
-          if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-            // Video has zero dimensions - force layout recalculation
-            video.style.display = 'none';
-            setTimeout(() => {
-              video.style.display = 'block';
-              video.play().catch(() => {});
-            }, 10);
+      // Debounce resize events
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        // Handle local video (host)
+        if (isHost && localVideoRef.current && localStream && isCameraEnabled) {
+          const video = localVideoRef.current;
+          if (video) {
+            // Check if stream is still attached
+            if (video.srcObject !== localStream) {
+              log("Stream detached on resize - reattaching");
+              video.srcObject = localStream;
+            }
+            
+            // Ensure video is visible
+            video.style.display = 'block';
+            video.style.visibility = 'visible';
+            video.style.opacity = '1';
+            
+            // Force play - critical for mobile resize
+            video.play().catch((err) => {
+              log("Play failed on resize, retrying:", err.name);
+              // Retry after a short delay
+              setTimeout(() => {
+                if (video && video.srcObject === localStream) {
+                  video.play().catch(() => {});
+                }
+              }, 100);
+            });
+            
+            // Check dimensions and force layout if needed
+            if (video.offsetWidth === 0 || video.offsetHeight === 0) {
+              log("Video has zero dimensions - forcing layout recalculation");
+              const parent = video.parentElement;
+              if (parent) {
+                // Force reflow
+                parent.style.display = 'none';
+                setTimeout(() => {
+                  parent.style.display = '';
+                  if (video) {
+                    video.play().catch(() => {});
+                  }
+                }, 10);
+              }
+            }
           }
         }
-      }
-      // Handle remote video (participants)
-      if (!isHost && remoteVideoRef.current && remoteStream) {
-        const video = remoteVideoRef.current;
-        if (video && video.srcObject === remoteStream) {
-          // Force play on resize - small screens often pause video
-          if (video.paused) {
-            video.play().catch(() => {});
-          }
-          // Also ensure video is visible and has dimensions
-          if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-            // Video has zero dimensions - force layout recalculation
-            video.style.display = 'none';
-            setTimeout(() => {
-              video.style.display = 'block';
-              video.play().catch(() => {});
-            }, 10);
+        
+        // Handle remote video (participants)
+        if (!isHost && remoteVideoRef.current && remoteStream) {
+          const video = remoteVideoRef.current;
+          if (video) {
+            // Check if stream is still attached
+            if (video.srcObject !== remoteStream) {
+              log("Remote stream detached on resize - reattaching");
+              video.srcObject = remoteStream;
+            }
+            
+            // Ensure video is visible
+            video.style.display = 'block';
+            video.style.visibility = 'visible';
+            video.style.opacity = '1';
+            
+            // Force play - critical for mobile resize
+            video.play().catch((err) => {
+              log("Remote video play failed on resize, retrying:", err.name);
+              // Retry after a short delay
+              setTimeout(() => {
+                if (video && video.srcObject === remoteStream) {
+                  video.play().catch(() => {});
+                }
+              }, 100);
+            });
+            
+            // Check dimensions and force layout if needed
+            if (video.offsetWidth === 0 || video.offsetHeight === 0) {
+              log("Remote video has zero dimensions - forcing layout recalculation");
+              const parent = video.parentElement;
+              if (parent) {
+                // Force reflow
+                parent.style.display = 'none';
+                setTimeout(() => {
+                  parent.style.display = '';
+                  if (video) {
+                    video.play().catch(() => {});
+                  }
+                }, 10);
+              }
+            }
           }
         }
-      }
+      }, 150); // Debounce resize events
     };
     
     window.addEventListener('resize', handleResize);
     // Also listen to orientation change for mobile devices
-    window.addEventListener('orientationchange', handleResize);
+    window.addEventListener('orientationchange', () => {
+      // Immediate handling for orientation change
+      handleResize();
+      // Also handle after orientation change completes
+      setTimeout(handleResize, 500);
+    });
     
     return () => {
+      clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
