@@ -1170,6 +1170,32 @@ export default function PartyRoomPage() {
     }
   }, [party, socket, isParticipant, isHost, partyId]);
 
+  // Mobile: Trigger user interaction to enable video autoplay
+  useEffect(() => {
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // On mobile, trigger a programmatic user interaction to help with autoplay
+      const triggerInteraction = () => {
+        // Create a temporary invisible button and click it
+        const button = document.createElement('button');
+        button.style.position = 'fixed';
+        button.style.top = '-9999px';
+        button.style.left = '-9999px';
+        button.style.width = '1px';
+        button.style.height = '1px';
+        button.style.opacity = '0';
+        document.body.appendChild(button);
+        button.click();
+        setTimeout(() => {
+          document.body.removeChild(button);
+        }, 100);
+      };
+      
+      // Trigger after a short delay to ensure page is loaded
+      const timer = setTimeout(triggerInteraction, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   useEffect(() => {
     if (party?.chatMessages) {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });

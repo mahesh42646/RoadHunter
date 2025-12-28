@@ -700,6 +700,16 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         // Stream already attached but paused - try to play (mobile scenario)
         video.play().catch(err => {
           log("Resume remote video play failed:", err.name);
+          // On mobile, add interaction handlers
+          if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+            const handleInteraction = () => {
+              video.play().catch(() => {});
+              video.removeEventListener('click', handleInteraction);
+              video.removeEventListener('touchstart', handleInteraction);
+            };
+            video.addEventListener('click', handleInteraction, { once: true });
+            video.addEventListener('touchstart', handleInteraction, { once: true });
+          }
         });
       } else {
         // Stream already attached, update mute state when audioEnabled changes
