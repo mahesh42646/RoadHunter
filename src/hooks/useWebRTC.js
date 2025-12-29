@@ -862,12 +862,54 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
               video.play().catch(() => {});
             }
             
-            // Log after fix
+            // Log after fix - wait longer to ensure dimensions are set
             setTimeout(() => {
               const newRect = video.getBoundingClientRect();
-              log(`[VIDEO DEBUG] After fix - dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${newRect.width}x${newRect.height}`);
-              debugVideoState(video, 'LOCAL_VIDEO_AFTER_FIX');
-            }, 50);
+              const newParentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
+              
+              // If still zero, try one more aggressive fix
+              if (newRect.width === 0 || newRect.height === 0) {
+                log(`[VIDEO DEBUG] ⚠️ Still zero after fix - trying aggressive fix. Parent: ${newParentRect.width}x${newParentRect.height}`);
+                
+                // Calculate from screen if parent still zero
+                if (newParentRect.width === 0 || newParentRect.height === 0) {
+                  const screenWidth = window.innerWidth;
+                  const cardCount = document.querySelectorAll('[data-participant-container]').length || 1;
+                  const gap = 0.5 * 16;
+                  const totalGaps = (cardCount - 1) * gap;
+                  const calculatedWidth = Math.max((screenWidth - totalGaps) / cardCount, 60);
+                  
+                  log(`[VIDEO DEBUG] Calculating from screen: ${calculatedWidth}px`);
+                  video.style.width = `${calculatedWidth}px`;
+                  video.style.height = `${calculatedWidth}px`;
+                  
+                  // Also fix parent
+                  if (parent) {
+                    parent.style.width = `${calculatedWidth}px`;
+                    parent.style.height = `${calculatedWidth}px`;
+                    parent.style.minWidth = '60px';
+                    parent.style.minHeight = '60px';
+                  }
+                } else {
+                  // Parent has dimensions now - use them
+                  video.style.width = `${newParentRect.width}px`;
+                  video.style.height = `${newParentRect.height}px`;
+                }
+                
+                video.style.minWidth = '60px';
+                video.style.minHeight = '60px';
+                
+                // Check again after another delay
+                setTimeout(() => {
+                  const finalRect = video.getBoundingClientRect();
+                  log(`[VIDEO DEBUG] Final check after aggressive fix - dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${finalRect.width}x${finalRect.height}`);
+                  debugVideoState(video, 'LOCAL_VIDEO_AFTER_FIX');
+                }, 100);
+              } else {
+                log(`[VIDEO DEBUG] After fix - dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${newRect.width}x${newRect.height}`);
+                debugVideoState(video, 'LOCAL_VIDEO_AFTER_FIX');
+              }
+            }, 100);
           }
         };
         
