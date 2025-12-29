@@ -1189,28 +1189,68 @@ export default function PartyRoomPage() {
   // Monitor and fix video container dimensions on small screens
   useEffect(() => {
     const fixContainerDimensions = () => {
-      // Find all video containers
-      const videoContainers = document.querySelectorAll('[data-participant-container]');
-      videoContainers.forEach((card) => {
+      // Find all participant cards
+      const cards = document.querySelectorAll('[data-participant-container]');
+      cards.forEach((card) => {
         const rect = card.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(card);
+        
+        console.log(`[CONTAINER FIX] Card check - screen: ${window.innerWidth}x${window.innerHeight}, card: ${rect.width}x${rect.height}, styles: width=${computedStyle.width}, minWidth=${computedStyle.minWidth}`);
+        
         if (rect.width === 0 || rect.height === 0) {
-          console.log(`[CONTAINER FIX] Fixing collapsed container - screen: ${window.innerWidth}x${window.innerHeight}`);
-          const computedStyle = window.getComputedStyle(card);
+          console.log(`[CONTAINER FIX] ⚠️ Card has zero dimensions! Fixing...`);
           
-          // Force dimensions
-          card.style.width = computedStyle.width || '100%';
-          card.style.minWidth = '60px';
-          card.style.minHeight = '60px';
+          // Get parent container
+          const parent = card.parentElement;
+          if (parent) {
+            const parentRect = parent.getBoundingClientRect();
+            const parentStyle = window.getComputedStyle(parent);
+            console.log(`[CONTAINER FIX] Parent container: ${parentRect.width}x${parentRect.height}, display: ${parentStyle.display}, flexDirection: ${parentStyle.flexDirection}`);
+            
+            // If parent has width, use it to calculate card width
+            if (parentRect.width > 0) {
+              const cardCount = cards.length;
+              const gap = 0.5; // 0.5rem gap
+              const totalGaps = (cardCount - 1) * gap * 16; // Convert rem to px (assuming 16px base)
+              const availableWidth = parentRect.width - totalGaps;
+              const cardWidth = Math.max(availableWidth / cardCount, 60);
+              
+              console.log(`[CONTAINER FIX] Calculating card width: ${cardWidth}px from parent width: ${parentRect.width}px, cards: ${cardCount}`);
+              
+              card.style.width = `${cardWidth}px`;
+              card.style.minWidth = '60px';
+              card.style.height = `${cardWidth}px`; // Use aspect ratio
+              card.style.minHeight = '60px';
+            } else {
+              // Parent also collapsed - force parent first
+              console.log(`[CONTAINER FIX] ⚠️ Parent also collapsed! Fixing parent...`);
+              parent.style.width = '100%';
+              parent.style.minWidth = '0';
+              parent.style.display = 'flex';
+              
+              // Then fix card
+              const cardCount = cards.length;
+              const gap = 0.5 * 16; // 0.5rem in px
+              const totalGaps = (cardCount - 1) * gap;
+              const cardWidth = Math.max((window.innerWidth - totalGaps) / cardCount, 60);
+              
+              card.style.width = `${cardWidth}px`;
+              card.style.minWidth = '60px';
+              card.style.height = `${cardWidth}px`;
+              card.style.minHeight = '60px';
+            }
+          }
           
-          // Find the video container inside
-          const videoContainer = card.querySelector('.rounded-2[style*="position: relative"]');
+          // Find the video container inside and fix it
+          const videoContainer = card.querySelector('.rounded-2');
           if (videoContainer) {
             const videoContainerRect = videoContainer.getBoundingClientRect();
+            console.log(`[CONTAINER FIX] Video container: ${videoContainerRect.width}x${videoContainerRect.height}`);
+            
             if (videoContainerRect.width === 0 || videoContainerRect.height === 0) {
-              console.log(`[CONTAINER FIX] Fixing video container inside card`);
-              const videoContainerStyle = window.getComputedStyle(videoContainer);
-              videoContainer.style.width = videoContainerStyle.width || '100%';
-              videoContainer.style.height = videoContainerStyle.height || '100%';
+              console.log(`[CONTAINER FIX] ⚠️ Video container also collapsed! Fixing...`);
+              videoContainer.style.width = '100%';
+              videoContainer.style.height = '100%';
               videoContainer.style.minWidth = '60px';
               videoContainer.style.minHeight = '60px';
             }
@@ -1220,11 +1260,13 @@ export default function PartyRoomPage() {
     };
 
     // Check immediately
-    fixContainerDimensions();
+    setTimeout(fixContainerDimensions, 100);
     
     // Check on resize
+    let resizeTimeout;
     const handleResize = () => {
-      setTimeout(fixContainerDimensions, 100);
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(fixContainerDimensions, 150);
     };
     
     window.addEventListener('resize', handleResize);
@@ -1233,6 +1275,7 @@ export default function PartyRoomPage() {
     const interval = setInterval(fixContainerDimensions, 500);
     
     return () => {
+      clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
       clearInterval(interval);
     };
