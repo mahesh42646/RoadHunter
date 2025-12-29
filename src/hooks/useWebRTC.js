@@ -839,36 +839,77 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
                   
                   log(`[VIDEO DEBUG] Applied !important styles - card: ${cardWidth}x${cardHeight}, container: ${containerWidth}x${containerHeight}, video: ${containerWidth}x${containerHeight}`);
                   
-                  // Force layout recalculation
+                  // Force immediate reflow by accessing offsetHeight
+                  void grandParent.offsetHeight;
+                  void parent.offsetHeight;
+                  void video.offsetHeight;
+                  
+                  // Force layout recalculation with multiple attempts
                   requestAnimationFrame(() => {
+                    // Force another reflow
+                    void grandParent.offsetHeight;
+                    void parent.offsetHeight;
+                    void video.offsetHeight;
+                    
                     requestAnimationFrame(() => {
-                      // Force a reflow by reading dimensions
-                      grandParent.offsetHeight;
-                      parent.offsetHeight;
-                      video.offsetHeight;
+                      // Force yet another reflow
+                      void grandParent.offsetHeight;
+                      void parent.offsetHeight;
+                      void video.offsetHeight;
                       
                       // Get actual dimensions
                       const cardRect = grandParent.getBoundingClientRect();
                       const parentRect = parent.getBoundingClientRect();
                       const videoRect = video.getBoundingClientRect();
+                      const videoOffset = { width: video.offsetWidth, height: video.offsetHeight };
                       
-                      log(`[VIDEO DEBUG] After !important fix - card: ${cardRect.width}x${cardRect.height}, parent: ${parentRect.width}x${parentRect.height}, video: ${videoRect.width}x${videoRect.height}`);
+                      log(`[VIDEO DEBUG] After !important fix - card: ${cardRect.width}x${cardRect.height}, parent: ${parentRect.width}x${parentRect.height}, video: ${videoRect.width}x${videoRect.height}, offset: ${videoOffset.width}x${videoOffset.height}`);
                       
-                      // If still zero, try one more aggressive approach
-                      if (videoRect.width === 0 || videoRect.height === 0) {
-                        log(`[VIDEO DEBUG] ⚠️ Still zero after !important - trying direct DOM manipulation`);
+                      // Check computed styles
+                      const videoComputed = window.getComputedStyle(video);
+                      const parentComputed = window.getComputedStyle(parent);
+                      const cardComputed = window.getComputedStyle(grandParent);
+                      
+                      log(`[VIDEO DEBUG] Computed styles - card width: ${cardComputed.width}, parent width: ${parentComputed.width}, video width: ${videoComputed.width}`);
+                      
+                      // If still zero, try multiple aggressive approaches
+                      if (videoRect.width === 0 || videoRect.height === 0 || videoOffset.width === 0 || videoOffset.height === 0) {
+                        log(`[VIDEO DEBUG] ⚠️ Still zero after !important - trying multiple fixes`);
                         
-                        // Remove and re-add video element to force reflow
-                        const videoParent = video.parentElement;
-                        const nextSibling = video.nextSibling;
-                        videoParent.removeChild(video);
-                        videoParent.appendChild(video);
+                        // Approach 1: Remove and re-add video element
+                        try {
+                          const videoParent = video.parentElement;
+                          if (videoParent) {
+                            const videoClone = video.cloneNode(true);
+                            videoClone.srcObject = video.srcObject;
+                            videoParent.replaceChild(videoClone, video);
+                            const newVideo = videoParent.querySelector('video');
+                            if (newVideo) {
+                              newVideo.style.setProperty('width', `${containerWidth}px`, 'important');
+                              newVideo.style.setProperty('height', `${containerHeight}px`, 'important');
+                              newVideo.style.setProperty('display', 'block', 'important');
+                              newVideo.style.setProperty('visibility', 'visible', 'important');
+                              log(`[VIDEO DEBUG] Replaced video element, new dimensions: ${newVideo.offsetWidth}x${newVideo.offsetHeight}`);
+                              newVideo.play().catch(() => {});
+                            }
+                          }
+                        } catch (e) {
+                          log(`[VIDEO DEBUG] Video replacement failed: ${e.message}`);
+                        }
                         
-                        // Set dimensions again
-                        video.style.width = `${containerWidth}px`;
-                        video.style.height = `${containerHeight}px`;
-                        
-                        // Force play
+                        // Approach 2: Force minimum dimensions as last resort
+                        setTimeout(() => {
+                          if (video && (video.offsetWidth === 0 || video.offsetHeight === 0)) {
+                            log(`[VIDEO DEBUG] Final fallback - forcing 60px minimum`);
+                            video.style.setProperty('width', '60px', 'important');
+                            video.style.setProperty('height', '60px', 'important');
+                            video.style.setProperty('display', 'block', 'important');
+                            video.style.setProperty('visibility', 'visible', 'important');
+                            video.play().catch(() => {});
+                          }
+                        }, 100);
+                      } else {
+                        log(`[VIDEO DEBUG] ✅ Dimensions fixed successfully!`);
                         video.play().catch(() => {});
                       }
                     });
