@@ -759,35 +759,85 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             
             // If parent has dimensions, use them
             if (parentRect.width > 0 && parentRect.height > 0) {
-              log(`[VIDEO DEBUG] Parent has dimensions - forcing video to match`);
+              log(`[VIDEO DEBUG] Parent has dimensions - forcing video to match: ${parentRect.width}x${parentRect.height}`);
               video.style.width = `${parentRect.width}px`;
               video.style.height = `${parentRect.height}px`;
               video.style.minWidth = '60px';
               video.style.minHeight = '60px';
             } else if (parent) {
-              // Parent also collapsed - fix parent first
-              log(`[VIDEO DEBUG] Parent also collapsed - fixing parent first`);
-              const parentStyle = window.getComputedStyle(parent);
+              // Parent also collapsed - fix entire parent chain
+              log(`[VIDEO DEBUG] ⚠️ Parent also collapsed (${parentRect.width}x${parentRect.height}) - fixing parent chain`);
               
-              // Try to get dimensions from parent's computed style or force minimum
-              const parentWidth = parseFloat(parentStyle.width) || 60;
-              const parentHeight = parseFloat(parentStyle.height) || 60;
+              // Check grandparent (participant card)
+              const grandParent = parent.parentElement;
+              let cardWidth = 0;
+              let cardHeight = 0;
               
-              if (parentWidth === 0 || parentHeight === 0) {
-                // Force parent to have minimum dimensions
-                parent.style.width = '60px';
-                parent.style.height = '60px';
-                parent.style.minWidth = '60px';
-                parent.style.minHeight = '60px';
+              if (grandParent) {
+                const grandParentRect = grandParent.getBoundingClientRect();
+                const grandParentStyle = window.getComputedStyle(grandParent);
+                log(`[VIDEO DEBUG] Grandparent (card) dimensions: ${grandParentRect.width}x${grandParentRect.height}, computed: ${grandParentStyle.width}x${grandParentStyle.height}`);
                 
-                // Then set video to match
-                video.style.width = '60px';
-                video.style.height = '60px';
-              } else {
-                video.style.width = `${parentWidth}px`;
-                video.style.height = `${parentHeight}px`;
+                if (grandParentRect.width > 0 && grandParentRect.height > 0) {
+                  cardWidth = grandParentRect.width;
+                  cardHeight = grandParentRect.height;
+                } else {
+                  // Card also collapsed - calculate from screen size
+                  const screenWidth = window.innerWidth;
+                  const cardCount = document.querySelectorAll('[data-participant-container]').length || 1;
+                  const gap = 0.5 * 16; // 0.5rem in px
+                  const totalGaps = (cardCount - 1) * gap;
+                  cardWidth = Math.max((screenWidth - totalGaps) / cardCount, 60);
+                  cardHeight = cardWidth; // Aspect ratio 1:1
+                  
+                  log(`[VIDEO DEBUG] Card collapsed - calculating from screen: ${screenWidth}px, cards: ${cardCount}, cardWidth: ${cardWidth}px`);
+                  
+                  // Fix card
+                  grandParent.style.width = `${cardWidth}px`;
+                  grandParent.style.minWidth = '60px';
+                  grandParent.style.height = `${cardHeight}px`;
+                  grandParent.style.minHeight = '60px';
+                }
+                
+                // Now fix parent container (video container) to match card
+                if (cardWidth > 0 && cardHeight > 0) {
+                  parent.style.width = '100%';
+                  parent.style.height = '100%';
+                  parent.style.minWidth = '60px';
+                  parent.style.minHeight = '60px';
+                  
+                  // Force reflow
+                  parent.style.display = 'none';
+                  setTimeout(() => {
+                    parent.style.display = 'flex';
+                    
+                    // Get new parent dimensions after reflow
+                    const newParentRect = parent.getBoundingClientRect();
+                    if (newParentRect.width > 0 && newParentRect.height > 0) {
+                      video.style.width = `${newParentRect.width}px`;
+                      video.style.height = `${newParentRect.height}px`;
+                      log(`[VIDEO DEBUG] Set video dimensions after parent fix: ${newParentRect.width}x${newParentRect.height}`);
+                    } else {
+                      // Still zero - use calculated card dimensions
+                      video.style.width = `${cardWidth}px`;
+                      video.style.height = `${cardHeight}px`;
+                      log(`[VIDEO DEBUG] Parent still zero after reflow - using calculated: ${cardWidth}x${cardHeight}`);
+                    }
+                    video.style.minWidth = '60px';
+                    video.style.minHeight = '60px';
+                  }, 10);
+                  return; // Exit early, will be fixed in setTimeout
+                }
               }
               
+              // Fallback: force minimum dimensions
+              log(`[VIDEO DEBUG] Using fallback minimum dimensions`);
+              parent.style.width = '60px';
+              parent.style.height = '60px';
+              parent.style.minWidth = '60px';
+              parent.style.minHeight = '60px';
+              video.style.width = '60px';
+              video.style.height = '60px';
               video.style.minWidth = '60px';
               video.style.minHeight = '60px';
             } else {
