@@ -1429,29 +1429,45 @@ export default function PartyRoomPage() {
                             height: "100%",
                             minWidth: "60px",
                             minHeight: "60px",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
                             visibility: hostCameraEnabled ? "visible" : "hidden",
+                            opacity: hostCameraEnabled ? 1 : 0,
                             backgroundColor: "#000",
-                            zIndex: 1,
+                            zIndex: hostCameraEnabled ? 1 : -1,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Local video metadata loaded - screen: ${window.innerWidth}x${window.innerHeight}, dimensions: ${video.videoWidth}x${video.videoHeight}, offset: ${video.offsetWidth}x${video.offsetHeight}`);
                             if (hostCameraEnabled) {
-                              video.play().catch(() => {});
+                              video.play().catch((err) => {
+                                console.log(`[VIDEO DEBUG PAGE] Local video play failed on metadata: ${err.name}`);
+                              });
                             }
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Local video can play - paused: ${video.paused}, readyState: ${video.readyState}`);
                             if (hostCameraEnabled && video.paused) {
-                              video.play().catch(() => {});
+                              video.play().catch((err) => {
+                                console.log(`[VIDEO DEBUG PAGE] Local video play failed on canPlay: ${err.name}`);
+                              });
                             }
                           }}
-                          onResize={() => {
-                            const video = webrtc.localVideoRef.current;
+                          onResize={(e) => {
+                            const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Local video resize event - dimensions: ${video.offsetWidth}x${video.offsetHeight}`);
                             if (video && hostCameraEnabled && video.paused) {
                               video.play().catch(() => {});
                             }
+                          }}
+                          onPlay={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Local video playing - screen: ${window.innerWidth}x${window.innerHeight}`);
+                          }}
+                          onPause={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Local video paused - screen: ${window.innerWidth}x${window.innerHeight}`);
                           }}
                         />
                       ) : (
@@ -1513,26 +1529,26 @@ export default function PartyRoomPage() {
                           }}
                         />
                       )}
-                      {/* Fallback avatar if video not available */}
-                      {(!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) && (
-                        <div className="rounded-2"
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
-                              ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
-                              : "#ff1493",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "2rem",
-                          }}
-                        >
-                          {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
-                        </div>
-                      )}
+                      {/* Fallback avatar if video not available - ALWAYS render, just control visibility */}
+                      <div className="rounded-2"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                            ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
+                            : "#ff1493",
+                          display: (!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) ? "flex" : "none",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "white",
+                          fontWeight: "bold",
+                          fontSize: "2rem",
+                          zIndex: (!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) ? 0 : -1,
+                          visibility: (!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) ? "visible" : "hidden",
+                        }}
+                      >
+                        {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
+                      </div>
                     </>
                   ) : (
                     // Regular participant avatar
@@ -1714,29 +1730,45 @@ export default function PartyRoomPage() {
                             height: "100%",
                             minWidth: "60px",
                             minHeight: "60px",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
                             objectFit: "cover",
                             display: hostCameraEnabled ? "block" : "none",
                             visibility: hostCameraEnabled ? "visible" : "hidden",
+                            opacity: hostCameraEnabled ? 1 : 0,
                             backgroundColor: "#000",
-                            zIndex: 1,
+                            zIndex: hostCameraEnabled ? 1 : -1,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Local video metadata loaded - screen: ${window.innerWidth}x${window.innerHeight}, dimensions: ${video.videoWidth}x${video.videoHeight}, offset: ${video.offsetWidth}x${video.offsetHeight}`);
                             if (hostCameraEnabled) {
-                              video.play().catch(() => {});
+                              video.play().catch((err) => {
+                                console.log(`[VIDEO DEBUG PAGE] Local video play failed on metadata: ${err.name}`);
+                              });
                             }
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Local video can play - paused: ${video.paused}, readyState: ${video.readyState}`);
                             if (hostCameraEnabled && video.paused) {
-                              video.play().catch(() => {});
+                              video.play().catch((err) => {
+                                console.log(`[VIDEO DEBUG PAGE] Local video play failed on canPlay: ${err.name}`);
+                              });
                             }
                           }}
-                          onResize={() => {
-                            const video = webrtc.localVideoRef.current;
+                          onResize={(e) => {
+                            const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Local video resize event - dimensions: ${video.offsetWidth}x${video.offsetHeight}`);
                             if (video && hostCameraEnabled && video.paused) {
                               video.play().catch(() => {});
                             }
+                          }}
+                          onPlay={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Local video playing - screen: ${window.innerWidth}x${window.innerHeight}`);
+                          }}
+                          onPause={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Local video paused - screen: ${window.innerWidth}x${window.innerHeight}`);
                           }}
                         />
                       ) : (
@@ -1798,26 +1830,26 @@ export default function PartyRoomPage() {
                           }}
                         />
                       )}
-                      {/* Fallback avatar if video not available */}
-                      {(!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) && (
-                        <div className="rounded-2"
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
-                              ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
-                              : "#ff1493",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "2rem",
-                          }}
-                        >
-                          {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
-                        </div>
-                      )}
+                      {/* Fallback avatar if video not available - ALWAYS render, just control visibility */}
+                      <div className="rounded-2"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: participant.avatarUrl && getImageUrl(participant.avatarUrl)
+                            ? `url(${getImageUrl(participant.avatarUrl)}) center/cover`
+                            : "#ff1493",
+                          display: (!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) ? "flex" : "none",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "white",
+                          fontWeight: "bold",
+                          fontSize: "2rem",
+                          zIndex: (!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) ? 0 : -1,
+                          visibility: (!hostCameraEnabled || (!isHost && !webrtc.remoteStream)) ? "visible" : "hidden",
+                        }}
+                      >
+                        {(!participant.avatarUrl || !getImageUrl(participant.avatarUrl)) && getInitials(participant.username || "?")}
+                      </div>
                     </>
                   ) : (
                     // Regular participant avatar

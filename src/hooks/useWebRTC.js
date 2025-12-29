@@ -564,31 +564,119 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     };
   }, [socket, partyId, isHost, userId, createPeer, isMicEnabled, isCameraEnabled]);
 
+  // Comprehensive video debugging and monitoring function
+  const debugVideoState = (video, label) => {
+    if (!video) {
+      log(`[DEBUG ${label}] Video element is null`);
+      return;
+    }
+    
+    const rect = video.getBoundingClientRect();
+    const computedStyle = window.getComputedStyle(video);
+    const stream = video.srcObject;
+    
+    const debugInfo = {
+      label,
+      screenSize: `${window.innerWidth}x${window.innerHeight}`,
+      videoDimensions: {
+        offsetWidth: video.offsetWidth,
+        offsetHeight: video.offsetHeight,
+        clientWidth: video.clientWidth,
+        clientHeight: video.clientHeight,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        boundingRect: `${rect.width}x${rect.height}`,
+      },
+      styles: {
+        display: computedStyle.display,
+        visibility: computedStyle.visibility,
+        opacity: computedStyle.opacity,
+        position: computedStyle.position,
+        zIndex: computedStyle.zIndex,
+      },
+      state: {
+        paused: video.paused,
+        muted: video.muted,
+        readyState: video.readyState,
+        networkState: video.networkState,
+        currentTime: video.currentTime,
+        duration: video.duration,
+      },
+      stream: {
+        hasStream: !!stream,
+        active: stream ? stream.active : false,
+        videoTracks: stream ? stream.getVideoTracks().length : 0,
+        audioTracks: stream ? stream.getAudioTracks().length : 0,
+      },
+    };
+    
+    log(`[DEBUG ${label}]`, JSON.stringify(debugInfo, null, 2));
+    
+    // Check for issues
+    if (video.offsetWidth === 0 || video.offsetHeight === 0) {
+      log(`[DEBUG ${label}] ⚠️ VIDEO HAS ZERO DIMENSIONS!`);
+    }
+    if (video.paused && isCameraEnabled) {
+      log(`[DEBUG ${label}] ⚠️ VIDEO IS PAUSED BUT CAMERA IS ENABLED!`);
+    }
+    if (!stream) {
+      log(`[DEBUG ${label}] ⚠️ NO STREAM ATTACHED!`);
+    }
+    if (stream && !stream.active) {
+      log(`[DEBUG ${label}] ⚠️ STREAM IS NOT ACTIVE!`);
+    }
+    if (computedStyle.display === 'none') {
+      log(`[DEBUG ${label}] ⚠️ VIDEO IS HIDDEN (display: none)!`);
+    }
+    if (computedStyle.visibility === 'hidden') {
+      log(`[DEBUG ${label}] ⚠️ VIDEO IS HIDDEN (visibility: hidden)!`);
+    }
+  };
+
   // Attach local video when camera is enabled
   useEffect(() => {
     if (isHost && localStream && localVideoRef.current) {
       const video = localVideoRef.current;
       
+      log(`[VIDEO DEBUG] Local video setup - isCameraEnabled: ${isCameraEnabled}, hasStream: ${!!localStream}, hasVideoElement: ${!!video}`);
+      debugVideoState(video, 'LOCAL_VIDEO_INIT');
+      
       // Only attach if not already attached or stream changed
       if (video.srcObject !== localStream) {
-        log("Attaching local stream to video preview");
+        log("[VIDEO DEBUG] Attaching local stream to video preview");
         video.srcObject = localStream;
         video.muted = true;
         video.playsInline = true;
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         
+        // Force visibility
+        video.style.display = 'block';
+        video.style.visibility = 'visible';
+        video.style.opacity = '1';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.minWidth = '60px';
+        video.style.minHeight = '60px';
+        
         // Play the video - retry if needed
         const playVideo = () => {
+          debugVideoState(video, 'LOCAL_VIDEO_BEFORE_PLAY');
           video.play().then(() => {
-            log("✅ Local video preview playing");
+            log("[VIDEO DEBUG] ✅ Local video preview playing");
+            debugVideoState(video, 'LOCAL_VIDEO_AFTER_PLAY_SUCCESS');
           }).catch(err => {
-            log("Local video play issue:", err.name);
-            // Retry after delay (works for all screen sizes)
+            log(`[VIDEO DEBUG] Local video play issue: ${err.name} - ${err.message}`);
+            debugVideoState(video, 'LOCAL_VIDEO_PLAY_FAILED');
+            // Retry after delay
             setTimeout(() => {
-              video.play().catch(e => {
-                log("Retry play failed:", e.name);
-                // Add interaction handlers (works for all screen sizes)
+              video.play().then(() => {
+                log("[VIDEO DEBUG] ✅ Local video playing after retry");
+                debugVideoState(video, 'LOCAL_VIDEO_RETRY_SUCCESS');
+              }).catch(e => {
+                log(`[VIDEO DEBUG] Retry play failed: ${e.name}`);
+                debugVideoState(video, 'LOCAL_VIDEO_RETRY_FAILED');
+                // Add interaction handlers
                 const handleInteraction = () => {
                   video.play().catch(() => {});
                   document.removeEventListener('click', handleInteraction);
@@ -611,51 +699,96 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         
         playVideo();
       } else if (video.srcObject === localStream && video.paused) {
-        // Stream already attached but paused - try to play
+        log("[VIDEO DEBUG] Stream already attached but paused - trying to play");
+        debugVideoState(video, 'LOCAL_VIDEO_PAUSED');
         video.play().catch(err => {
-          log("Resume play failed:", err.name);
+          log(`[VIDEO DEBUG] Resume play failed: ${err.name}`);
         });
       }
       
       // Ensure video is always visible and playing when camera is enabled
       if (isCameraEnabled && video) {
+        // Force visibility styles
         video.style.display = 'block';
         video.style.visibility = 'visible';
         video.style.opacity = '1';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.minWidth = '60px';
+        video.style.minHeight = '60px';
         
-        // Continuously try to play if paused
+        // Continuously monitor and fix video state
         const checkAndPlay = () => {
-          if (video && video.srcObject === localStream && video.paused && isCameraEnabled) {
-            video.play().catch(() => {});
+          if (!video || video.srcObject !== localStream || !isCameraEnabled) return;
+          
+          const needsFix = video.paused || 
+                          video.offsetWidth === 0 || 
+                          video.offsetHeight === 0 ||
+                          window.getComputedStyle(video).display === 'none' ||
+                          window.getComputedStyle(video).visibility === 'hidden';
+          
+          if (needsFix) {
+            log(`[VIDEO DEBUG] Video needs fix - paused: ${video.paused}, dimensions: ${video.offsetWidth}x${video.offsetHeight}`);
+            debugVideoState(video, 'LOCAL_VIDEO_NEEDS_FIX');
+            
+            // Force visibility
+            video.style.display = 'block';
+            video.style.visibility = 'visible';
+            video.style.opacity = '1';
+            
+            // Try to play
+            if (video.paused) {
+              video.play().catch(() => {});
+            }
           }
         };
         
-        // Check periodically
+        // Check every 500ms for more responsive fixes
         const playInterval = setInterval(() => {
           if (!isCameraEnabled || !video || video.srcObject !== localStream) {
             clearInterval(playInterval);
             return;
           }
           checkAndPlay();
-        }, 1000);
+        }, 500);
+        
+        // Debug every 2 seconds
+        const debugInterval = setInterval(() => {
+          if (isCameraEnabled && video && video.srcObject === localStream) {
+            debugVideoState(video, 'LOCAL_VIDEO_MONITOR');
+          }
+        }, 2000);
         
         // Also check on video events
-        const handlePause = () => checkAndPlay();
+        const handlePause = () => {
+          log("[VIDEO DEBUG] Video paused event");
+          checkAndPlay();
+        };
         const handleMetadata = () => {
+          log("[VIDEO DEBUG] Video metadata loaded");
+          debugVideoState(video, 'LOCAL_VIDEO_METADATA_LOADED');
           if (isCameraEnabled) {
             video.play().catch(() => {});
           }
         };
+        const handleResize = () => {
+          log("[VIDEO DEBUG] Video resize event");
+          debugVideoState(video, 'LOCAL_VIDEO_RESIZE');
+          checkAndPlay();
+        };
         
         video.addEventListener('pause', handlePause);
         video.addEventListener('loadedmetadata', handleMetadata);
+        video.addEventListener('resize', handleResize);
         
         // Cleanup function
         return () => {
           clearInterval(playInterval);
+          clearInterval(debugInterval);
           if (video) {
             video.removeEventListener('pause', handlePause);
             video.removeEventListener('loadedmetadata', handleMetadata);
+            video.removeEventListener('resize', handleResize);
           }
         };
       }
