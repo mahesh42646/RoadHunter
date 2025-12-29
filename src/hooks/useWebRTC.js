@@ -801,32 +801,60 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
                 
                 // Now fix parent container (video container) to match card
                 if (cardWidth > 0 && cardHeight > 0) {
+                  // Force card to actually render with calculated dimensions
+                  grandParent.style.width = `${cardWidth}px`;
+                  grandParent.style.height = `${cardHeight}px`;
+                  grandParent.style.minWidth = '60px';
+                  grandParent.style.minHeight = '60px';
+                  grandParent.style.display = 'flex';
+                  grandParent.style.flexDirection = 'column';
+                  
+                  // Force parent container to fill card
                   parent.style.width = '100%';
                   parent.style.height = '100%';
                   parent.style.minWidth = '60px';
                   parent.style.minHeight = '60px';
+                  parent.style.display = 'flex';
                   
-                  // Force reflow
-                  parent.style.display = 'none';
-                  setTimeout(() => {
-                    parent.style.display = 'flex';
-                    
-                    // Get new parent dimensions after reflow
-                    const newParentRect = parent.getBoundingClientRect();
-                    if (newParentRect.width > 0 && newParentRect.height > 0) {
-                      video.style.width = `${newParentRect.width}px`;
-                      video.style.height = `${newParentRect.height}px`;
-                      log(`[VIDEO DEBUG] Set video dimensions after parent fix: ${newParentRect.width}x${newParentRect.height}`);
-                    } else {
-                      // Still zero - use calculated card dimensions
-                      video.style.width = `${cardWidth}px`;
-                      video.style.height = `${cardHeight}px`;
-                      log(`[VIDEO DEBUG] Parent still zero after reflow - using calculated: ${cardWidth}x${cardHeight}`);
-                    }
-                    video.style.minWidth = '60px';
-                    video.style.minHeight = '60px';
-                  }, 10);
-                  return; // Exit early, will be fixed in setTimeout
+                  // Force layout recalculation using requestAnimationFrame
+                  requestAnimationFrame(() => {
+                    // Force another frame to ensure layout is complete
+                    requestAnimationFrame(() => {
+                      // Get actual dimensions after layout
+                      const cardRect = grandParent.getBoundingClientRect();
+                      const parentRect = parent.getBoundingClientRect();
+                      
+                      log(`[VIDEO DEBUG] After layout - card: ${cardRect.width}x${cardRect.height}, parent: ${parentRect.width}x${parentRect.height}`);
+                      
+                      // Use actual rendered dimensions, fallback to calculated
+                      const finalWidth = parentRect.width > 0 ? parentRect.width : cardRect.width > 0 ? cardRect.width : cardWidth;
+                      const finalHeight = parentRect.height > 0 ? parentRect.height : cardRect.height > 0 ? cardRect.height : cardHeight;
+                      
+                      // Set video to explicit pixel dimensions
+                      video.style.width = `${finalWidth}px`;
+                      video.style.height = `${finalHeight}px`;
+                      video.style.minWidth = '60px';
+                      video.style.minHeight = '60px';
+                      video.style.position = 'absolute';
+                      video.style.top = '0';
+                      video.style.left = '0';
+                      
+                      log(`[VIDEO DEBUG] Set video to explicit dimensions: ${finalWidth}x${finalHeight}px`);
+                      
+                      // Verify after a short delay
+                      setTimeout(() => {
+                        const videoRect = video.getBoundingClientRect();
+                        log(`[VIDEO DEBUG] Video dimensions after explicit set: ${video.offsetWidth}x${video.offsetHeight}, rect: ${videoRect.width}x${videoRect.height}`);
+                        if (videoRect.width === 0 || videoRect.height === 0) {
+                          log(`[VIDEO DEBUG] ⚠️ Still zero - forcing minimum and triggering play`);
+                          video.style.width = '60px';
+                          video.style.height = '60px';
+                          video.play().catch(() => {});
+                        }
+                      }, 50);
+                    });
+                  });
+                  return; // Exit early, will be fixed in requestAnimationFrame
                 }
               }
               
