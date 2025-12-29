@@ -16,7 +16,7 @@ export default function AppShell({ children }) {
     () => chromeFreeRoutes.some((route) => pathname.startsWith(route)),
     [pathname],
   );
-  
+
   // Hide only bottom nav on root route (party list page)
   const hideBottomNav = useMemo(
     () => pathname === "/" || hideChrome,
@@ -44,7 +44,7 @@ export default function AppShell({ children }) {
         }}
       >
         {children}
-        {!hideChrome && <Footer />}
+      {!hideChrome && <Footer />}
       </main>
       {!hideChrome && <FloatingHelp />}
       {/* Hide bottom nav on chrome-free routes (party, game) and root route */}

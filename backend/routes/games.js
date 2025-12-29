@@ -174,7 +174,7 @@ router.post('/predict', authenticate, async (req, res, next) => {
     if (validCars.length === 0) {
       return res.status(400).json({ error: 'Game has no valid cars' });
     }
-    
+
     // Verify car is in this game
     const carInGame = validCars.find(
       (c) => c.carId && c.carId._id && c.carId._id.toString() === carId
@@ -313,7 +313,7 @@ router.get('/history', authenticate, async (req, res, next) => {
       }
       return {
         ...gameObj,
-        userPrediction: predictionsMap[game._id.toString()] || null,
+      userPrediction: predictionsMap[game._id.toString()] || null,
       };
     });
 

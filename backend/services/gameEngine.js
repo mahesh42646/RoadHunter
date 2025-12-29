@@ -103,10 +103,10 @@ class GameEngine {
           // If finished more than 8 seconds ago (results phase duration), start new game
           if (timeSinceFinished > 8) {
             console.log(`[Game Engine] Finished game ${activeGame.gameNumber} completed results phase (${timeSinceFinished.toFixed(1)}s ago), generating new game...`);
-            if (this.connectedClients.size > 0) {
-              await this.generateNewGame();
-            }
-            return;
+          if (this.connectedClients.size > 0) {
+            await this.generateNewGame();
+          }
+          return;
           } else {
             // Still in results phase, wait for it to complete
             console.log(`[Game Engine] Finished game ${activeGame.gameNumber} still in results phase (${timeSinceFinished.toFixed(1)}s / 8s)`);
@@ -554,7 +554,7 @@ class GameEngine {
 
     // Safety: Maximum updates to prevent infinite loops (2x expected duration)
     const maxUpdates = totalUpdates * 2;
-    
+
     this.raceAnimationInterval = setInterval(() => {
       if (raceFinished) {
         clearInterval(this.raceAnimationInterval);
@@ -656,21 +656,21 @@ class GameEngine {
           currentSegment = 3;
         } else {
           // Calculate distance based on actual segment speeds (no additional scaling)
-          for (let i = 0; i < result.segmentTimes.length; i++) {
+        for (let i = 0; i < result.segmentTimes.length; i++) {
             const segmentTime = result.segmentTimes[i]; // Actual time for this segment
             
-            if (elapsedTime >= segmentProgress + segmentTime) {
+          if (elapsedTime >= segmentProgress + segmentTime) {
               // Completed this segment
               distance += 100; // 100m per segment
-              segmentProgress += segmentTime;
-              currentSegment = i + 1;
-            } else {
+            segmentProgress += segmentTime;
+            currentSegment = i + 1;
+          } else {
               // Currently in this segment - calculate partial distance
-              const timeInSegment = elapsedTime - segmentProgress;
+            const timeInSegment = elapsedTime - segmentProgress;
               // Speed for this segment = 100m / segmentTime (actual speed for this terrain)
               const speed = 100 / segmentTime; // meters per second
-              distance += speed * timeInSegment;
-              break;
+            distance += speed * timeInSegment;
+            break;
             }
           }
         }
@@ -914,7 +914,7 @@ class GameEngine {
       console.log('[Game Engine] Starting next game in 8s (after results phases)...');
       if (this.connectedClients.size > 0) {
         const nextGameTimeout = setTimeout(() => {
-          if (this.connectedClients.size > 0) {
+        if (this.connectedClients.size > 0) {
             // Directly generate new game
             this.generateNewGame();
           } else {
@@ -925,10 +925,10 @@ class GameEngine {
 
         // Store timeout for cleanup
         game.nextGameTimeout = nextGameTimeout;
-      } else {
-        console.log('[Game Engine] No clients connected, waiting for clients before starting next game...');
-        this.isWaitingForClients = true;
-      }
+        } else {
+          console.log('[Game Engine] No clients connected, waiting for clients before starting next game...');
+          this.isWaitingForClients = true;
+        }
     } catch (error) {
       // Only log if it's not a connection error
       if (error.name !== 'MongoNotConnectedError' && error.name !== 'MongoServerError') {

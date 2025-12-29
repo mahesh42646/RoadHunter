@@ -34,10 +34,9 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
   };
 
   // Get media stream optimized for low latency and high quality
-  // Use the same constraints for ALL screen sizes - no special handling
   const getMediaStream = async (audio, video) => {
     try {
-      // Check if mediaDevices API is available
+      // Check if mediaDevices API is available (mobile safety check)
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         const error = new Error("MediaDevices API not available. Please use HTTPS or a supported browser.");
         logError("MediaDevices API not available");
@@ -45,27 +44,41 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         throw error;
       }
 
-      // Use the SAME high-quality constraints for ALL screen sizes
+      // Mobile-friendly constraints (lower quality for better compatibility)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const constraints = {
         audio: audio ? {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 48000,
-          channelCount: 2, // Stereo
-          latency: 0.01, // Ultra low latency audio (10ms)
+          ...(isMobile ? {
+            sampleRate: 44100, // Lower sample rate for mobile
+            channelCount: 1, // Mono for mobile
+          } : {
+            sampleRate: 48000,
+            channelCount: 2, // Stereo for desktop
+            latency: 0.01, // Ultra low latency audio (10ms)
+          }),
         } : false,
         video: video ? {
-          // High quality settings - same for all screen sizes
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 },
-          frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
-          aspectRatio: { ideal: 16/9 },
-          facingMode: "user",
+          ...(isMobile ? {
+            // Mobile-friendly video constraints
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 30, max: 30 }, // 30fps for mobile
+            facingMode: "user",
+          } : {
+            // High quality settings for desktop
+            width: { ideal: 1920, max: 1920 },
+            height: { ideal: 1080, max: 1080 },
+            frameRate: { ideal: 60, max: 60 }, // 60fps for smooth video
+            aspectRatio: { ideal: 16/9 },
+            facingMode: "user",
+          }),
         } : false,
       };
 
-      log(`Requesting media: audio=${audio}, video=${video}`);
+      log(`Requesting media: audio=${audio}, video=${video}, mobile=${isMobile}`);
       const stream = await navigator.mediaDevices.getUserMedia(constraints).catch((err) => {
         // Handle permission denied or other errors gracefully
         logError("getUserMedia failed:", err);
@@ -564,699 +577,55 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     };
   }, [socket, partyId, isHost, userId, createPeer, isMicEnabled, isCameraEnabled]);
 
-  // Comprehensive video debugging and monitoring function
-  const debugVideoState = (video, label) => {
-    if (!video) {
-      log(`[DEBUG ${label}] Video element is null`);
-      return;
-    }
-    
-    const rect = video.getBoundingClientRect();
-    const computedStyle = window.getComputedStyle(video);
-    const stream = video.srcObject;
-    
-    const debugInfo = {
-      label,
-      screenSize: `${window.innerWidth}x${window.innerHeight}`,
-      videoDimensions: {
-        offsetWidth: video.offsetWidth,
-        offsetHeight: video.offsetHeight,
-        clientWidth: video.clientWidth,
-        clientHeight: video.clientHeight,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        boundingRect: `${rect.width}x${rect.height}`,
-      },
-      styles: {
-        display: computedStyle.display,
-        visibility: computedStyle.visibility,
-        opacity: computedStyle.opacity,
-        position: computedStyle.position,
-        zIndex: computedStyle.zIndex,
-      },
-      state: {
-        paused: video.paused,
-        muted: video.muted,
-        readyState: video.readyState,
-        networkState: video.networkState,
-        currentTime: video.currentTime,
-        duration: video.duration,
-      },
-      stream: {
-        hasStream: !!stream,
-        active: stream ? stream.active : false,
-        videoTracks: stream ? stream.getVideoTracks().length : 0,
-        audioTracks: stream ? stream.getAudioTracks().length : 0,
-      },
-    };
-    
-    log(`[DEBUG ${label}]`, JSON.stringify(debugInfo, null, 2));
-    
-    // Check for issues
-    if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-      log(`[DEBUG ${label}] ⚠️ VIDEO HAS ZERO DIMENSIONS!`);
-    }
-    if (video.paused && isCameraEnabled) {
-      log(`[DEBUG ${label}] ⚠️ VIDEO IS PAUSED BUT CAMERA IS ENABLED!`);
-    }
-    if (!stream) {
-      log(`[DEBUG ${label}] ⚠️ NO STREAM ATTACHED!`);
-    }
-    if (stream && !stream.active) {
-      log(`[DEBUG ${label}] ⚠️ STREAM IS NOT ACTIVE!`);
-    }
-    if (computedStyle.display === 'none') {
-      log(`[DEBUG ${label}] ⚠️ VIDEO IS HIDDEN (display: none)!`);
-    }
-    if (computedStyle.visibility === 'hidden') {
-      log(`[DEBUG ${label}] ⚠️ VIDEO IS HIDDEN (visibility: hidden)!`);
-    }
-  };
-
   // Attach local video when camera is enabled
   useEffect(() => {
     if (isHost && localStream && localVideoRef.current) {
       const video = localVideoRef.current;
       
-      log(`[VIDEO DEBUG] Local video setup - isCameraEnabled: ${isCameraEnabled}, hasStream: ${!!localStream}, hasVideoElement: ${!!video}`);
-      debugVideoState(video, 'LOCAL_VIDEO_INIT');
-      
       // Only attach if not already attached or stream changed
       if (video.srcObject !== localStream) {
-        log("[VIDEO DEBUG] Attaching local stream to video preview");
+        log("Attaching local stream to video preview");
         video.srcObject = localStream;
         video.muted = true;
         video.playsInline = true;
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         
-        // Get parent dimensions first
-        const parent = video.parentElement;
-        const parentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
-        
-        // Force visibility
+        // Ensure video is visible and has proper dimensions
         video.style.display = 'block';
-        video.style.visibility = 'visible';
-        video.style.opacity = '1';
-        video.style.position = 'absolute';
-        video.style.top = '0';
-        video.style.left = '0';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.minWidth = '100%';
+        video.style.minHeight = '100%';
         
-        // Use explicit dimensions if parent has them, otherwise use percentages with minimums
-        if (parentRect.width > 0 && parentRect.height > 0) {
-          video.style.width = `${parentRect.width}px`;
-          video.style.height = `${parentRect.height}px`;
-          log(`[VIDEO DEBUG] Setting initial video dimensions from parent: ${parentRect.width}x${parentRect.height}`);
-        } else {
-          video.style.width = '100%';
-          video.style.height = '100%';
-          log(`[VIDEO DEBUG] Parent has no dimensions, using 100% with minimums`);
-        }
-        
-        video.style.minWidth = '60px';
-        video.style.minHeight = '60px';
-        video.style.maxWidth = '100%';
-        video.style.maxHeight = '100%';
-        
-        // Play the video - retry if needed
+        // Play the video with retry for mobile
         const playVideo = () => {
-          debugVideoState(video, 'LOCAL_VIDEO_BEFORE_PLAY');
           video.play().then(() => {
-            log("[VIDEO DEBUG] ✅ Local video preview playing");
-            debugVideoState(video, 'LOCAL_VIDEO_AFTER_PLAY_SUCCESS');
+            log("✅ Local video preview playing");
           }).catch(err => {
-            log(`[VIDEO DEBUG] Local video play issue: ${err.name} - ${err.message}`);
-            debugVideoState(video, 'LOCAL_VIDEO_PLAY_FAILED');
-            // Retry after delay
-            setTimeout(() => {
-              video.play().then(() => {
-                log("[VIDEO DEBUG] ✅ Local video playing after retry");
-                debugVideoState(video, 'LOCAL_VIDEO_RETRY_SUCCESS');
-              }).catch(e => {
-                log(`[VIDEO DEBUG] Retry play failed: ${e.name}`);
-                debugVideoState(video, 'LOCAL_VIDEO_RETRY_FAILED');
-                // Add interaction handlers
-                const handleInteraction = () => {
-                  video.play().catch(() => {});
-                  document.removeEventListener('click', handleInteraction);
-                  document.removeEventListener('touchstart', handleInteraction);
-                  if (video) {
-                    video.removeEventListener('click', handleInteraction);
-                    video.removeEventListener('touchstart', handleInteraction);
-                  }
-                };
-                document.addEventListener('click', handleInteraction, { once: true });
-                document.addEventListener('touchstart', handleInteraction, { once: true });
-                if (video) {
-                  video.addEventListener('click', handleInteraction, { once: true });
-                  video.addEventListener('touchstart', handleInteraction, { once: true });
-                }
-              });
-            }, 200);
+            log("Local video play issue:", err.name);
+            // Retry on user interaction for mobile
+            const retryPlay = () => {
+              video.play().catch(() => {});
+              document.removeEventListener('touchstart', retryPlay);
+              document.removeEventListener('click', retryPlay);
+            };
+            document.addEventListener('touchstart', retryPlay, { once: true });
+            document.addEventListener('click', retryPlay, { once: true });
           });
         };
         
+        // Try playing immediately
         playVideo();
+        
+        // Also try on loadedmetadata for mobile
+        video.addEventListener('loadedmetadata', playVideo, { once: true });
       } else if (video.srcObject === localStream && video.paused) {
-        log("[VIDEO DEBUG] Stream already attached but paused - trying to play");
-        debugVideoState(video, 'LOCAL_VIDEO_PAUSED');
-        video.play().catch(err => {
-          log(`[VIDEO DEBUG] Resume play failed: ${err.name}`);
-        });
-      }
-      
-      // Ensure video is always visible and playing when camera is enabled
-      if (isCameraEnabled && video) {
-        // Force visibility styles
-        video.style.display = 'block';
-        video.style.visibility = 'visible';
-        video.style.opacity = '1';
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.minWidth = '60px';
-        video.style.minHeight = '60px';
-        
-        // Continuously monitor and fix video state
-        const checkAndPlay = () => {
-          if (!video || video.srcObject !== localStream || !isCameraEnabled) return;
-          
-          const rect = video.getBoundingClientRect();
-          const computedStyle = window.getComputedStyle(video);
-          const parent = video.parentElement;
-          const parentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
-          
-          const needsFix = video.paused || 
-                          video.offsetWidth === 0 || 
-                          video.offsetHeight === 0 ||
-                          rect.width === 0 ||
-                          rect.height === 0 ||
-                          computedStyle.display === 'none' ||
-                          computedStyle.visibility === 'hidden';
-          
-          if (needsFix) {
-            log(`[VIDEO DEBUG] Video needs fix - paused: ${video.paused}, dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${rect.width}x${rect.height}, parent: ${parentRect.width}x${parentRect.height}`);
-            debugVideoState(video, 'LOCAL_VIDEO_NEEDS_FIX');
-            
-            // If parent has dimensions, use them
-            if (parentRect.width > 0 && parentRect.height > 0) {
-              log(`[VIDEO DEBUG] Parent has dimensions - forcing video to match: ${parentRect.width}x${parentRect.height}`);
-              video.style.width = `${parentRect.width}px`;
-              video.style.height = `${parentRect.height}px`;
-              video.style.minWidth = '60px';
-              video.style.minHeight = '60px';
-            } else if (parent) {
-              // Parent also collapsed - fix entire parent chain
-              log(`[VIDEO DEBUG] ⚠️ Parent also collapsed (${parentRect.width}x${parentRect.height}) - fixing parent chain`);
-              
-              // Check grandparent (participant card)
-              const grandParent = parent.parentElement;
-              let cardWidth = 0;
-              let cardHeight = 0;
-              
-              if (grandParent) {
-                const grandParentRect = grandParent.getBoundingClientRect();
-                const grandParentStyle = window.getComputedStyle(grandParent);
-                log(`[VIDEO DEBUG] Grandparent (card) dimensions: ${grandParentRect.width}x${grandParentRect.height}, computed: ${grandParentStyle.width}x${grandParentStyle.height}`);
-                
-                if (grandParentRect.width > 0 && grandParentRect.height > 0) {
-                  cardWidth = grandParentRect.width;
-                  cardHeight = grandParentRect.height;
-                } else {
-                  // Card also collapsed - calculate from screen size
-                  const screenWidth = window.innerWidth;
-                  const cardCount = document.querySelectorAll('[data-participant-container]').length || 1;
-                  const gap = 0.5 * 16; // 0.5rem in px
-                  const totalGaps = (cardCount - 1) * gap;
-                  cardWidth = Math.max((screenWidth - totalGaps) / cardCount, 60);
-                  cardHeight = cardWidth; // Aspect ratio 1:1
-                  
-                  log(`[VIDEO DEBUG] Card collapsed - calculating from screen: ${screenWidth}px, cards: ${cardCount}, cardWidth: ${cardWidth}px`);
-                  
-                  // Fix card
-                  grandParent.style.width = `${cardWidth}px`;
-                  grandParent.style.minWidth = '60px';
-                  grandParent.style.height = `${cardHeight}px`;
-                  grandParent.style.minHeight = '60px';
-                }
-                
-                // Now fix parent container (video container) to match card
-                if (cardWidth > 0 && cardHeight > 0) {
-                  // AGGRESSIVE FIX: Force entire chain with !important and explicit pixels
-                  log(`[VIDEO DEBUG] Applying aggressive fix - card: ${cardWidth}x${cardHeight}px`);
-                  
-                  // Force card with !important via setProperty
-                  grandParent.style.setProperty('width', `${cardWidth}px`, 'important');
-                  grandParent.style.setProperty('height', `${cardHeight}px`, 'important');
-                  grandParent.style.setProperty('min-width', '60px', 'important');
-                  grandParent.style.setProperty('min-height', '60px', 'important');
-                  grandParent.style.setProperty('display', 'flex', 'important');
-                  grandParent.style.setProperty('flex-direction', 'column', 'important');
-                  grandParent.style.setProperty('visibility', 'visible', 'important');
-                  grandParent.style.setProperty('opacity', '1', 'important');
-                  
-                  // Force parent container with explicit pixel dimensions (not percentage)
-                  const containerWidth = cardWidth - 8; // Account for padding
-                  const containerHeight = cardHeight - 8;
-                  parent.style.setProperty('width', `${containerWidth}px`, 'important');
-                  parent.style.setProperty('height', `${containerHeight}px`, 'important');
-                  parent.style.setProperty('min-width', '60px', 'important');
-                  parent.style.setProperty('min-height', '60px', 'important');
-                  parent.style.setProperty('display', 'flex', 'important');
-                  parent.style.setProperty('visibility', 'visible', 'important');
-                  parent.style.setProperty('opacity', '1', 'important');
-                  
-                  // Force video with explicit pixel dimensions
-                  video.style.setProperty('width', `${containerWidth}px`, 'important');
-                  video.style.setProperty('height', `${containerHeight}px`, 'important');
-                  video.style.setProperty('min-width', '60px', 'important');
-                  video.style.setProperty('min-height', '60px', 'important');
-                  video.style.setProperty('position', 'absolute', 'important');
-                  video.style.setProperty('top', '0', 'important');
-                  video.style.setProperty('left', '0', 'important');
-                  video.style.setProperty('display', 'block', 'important');
-                  video.style.setProperty('visibility', 'visible', 'important');
-                  video.style.setProperty('opacity', '1', 'important');
-                  
-                  log(`[VIDEO DEBUG] Applied !important styles - card: ${cardWidth}x${cardHeight}, container: ${containerWidth}x${containerHeight}, video: ${containerWidth}x${containerHeight}`);
-                  
-                  // Force immediate reflow by accessing offsetHeight
-                  void grandParent.offsetHeight;
-                  void parent.offsetHeight;
-                  void video.offsetHeight;
-                  
-                  // Force layout recalculation with multiple attempts
-                  requestAnimationFrame(() => {
-                    // Force another reflow
-                    void grandParent.offsetHeight;
-                    void parent.offsetHeight;
-                    void video.offsetHeight;
-                    
-                    requestAnimationFrame(() => {
-                      // Force yet another reflow
-                      void grandParent.offsetHeight;
-                      void parent.offsetHeight;
-                      void video.offsetHeight;
-                      
-                      // Get actual dimensions
-                      const cardRect = grandParent.getBoundingClientRect();
-                      const parentRect = parent.getBoundingClientRect();
-                      const videoRect = video.getBoundingClientRect();
-                      const videoOffset = { width: video.offsetWidth, height: video.offsetHeight };
-                      
-                      log(`[VIDEO DEBUG] After !important fix - card: ${cardRect.width}x${cardRect.height}, parent: ${parentRect.width}x${parentRect.height}, video: ${videoRect.width}x${videoRect.height}, offset: ${videoOffset.width}x${videoOffset.height}`);
-                      
-                      // Check computed styles
-                      const videoComputed = window.getComputedStyle(video);
-                      const parentComputed = window.getComputedStyle(parent);
-                      const cardComputed = window.getComputedStyle(grandParent);
-                      
-                      log(`[VIDEO DEBUG] Computed styles - card width: ${cardComputed.width}, parent width: ${parentComputed.width}, video width: ${videoComputed.width}`);
-                      
-                      // If still zero, try multiple aggressive approaches
-                      if (videoRect.width === 0 || videoRect.height === 0 || videoOffset.width === 0 || videoOffset.height === 0) {
-                        log(`[VIDEO DEBUG] ⚠️ Still zero after !important - trying multiple fixes`);
-                        
-                        // Approach 1: Remove and re-add video element
-                        try {
-                          const videoParent = video.parentElement;
-                          if (videoParent) {
-                            const videoClone = video.cloneNode(true);
-                            videoClone.srcObject = video.srcObject;
-                            videoParent.replaceChild(videoClone, video);
-                            const newVideo = videoParent.querySelector('video');
-                            if (newVideo) {
-                              newVideo.style.setProperty('width', `${containerWidth}px`, 'important');
-                              newVideo.style.setProperty('height', `${containerHeight}px`, 'important');
-                              newVideo.style.setProperty('display', 'block', 'important');
-                              newVideo.style.setProperty('visibility', 'visible', 'important');
-                              log(`[VIDEO DEBUG] Replaced video element, new dimensions: ${newVideo.offsetWidth}x${newVideo.offsetHeight}`);
-                              newVideo.play().catch(() => {});
-                            }
-                          }
-                        } catch (e) {
-                          log(`[VIDEO DEBUG] Video replacement failed: ${e.message}`);
-                        }
-                        
-                        // Approach 2: Force minimum dimensions as last resort
-                        setTimeout(() => {
-                          if (video && (video.offsetWidth === 0 || video.offsetHeight === 0)) {
-                            log(`[VIDEO DEBUG] Final fallback - forcing 60px minimum`);
-                            video.style.setProperty('width', '60px', 'important');
-                            video.style.setProperty('height', '60px', 'important');
-                            video.style.setProperty('display', 'block', 'important');
-                            video.style.setProperty('visibility', 'visible', 'important');
-                            video.play().catch(() => {});
-                          }
-                        }, 100);
-                      } else {
-                        log(`[VIDEO DEBUG] ✅ Dimensions fixed successfully!`);
-                        video.play().catch(() => {});
-                      }
-                    });
-                  });
-                  return; // Exit early, will be fixed in requestAnimationFrame
-                }
-              }
-              
-              // Fallback: force minimum dimensions
-              log(`[VIDEO DEBUG] Using fallback minimum dimensions`);
-              parent.style.width = '60px';
-              parent.style.height = '60px';
-              parent.style.minWidth = '60px';
-              parent.style.minHeight = '60px';
-              video.style.width = '60px';
-              video.style.height = '60px';
-              video.style.minWidth = '60px';
-              video.style.minHeight = '60px';
-            } else {
-              // No parent - force minimum dimensions
-              log(`[VIDEO DEBUG] No parent - forcing minimum dimensions`);
-              video.style.width = '60px';
-              video.style.height = '60px';
-              video.style.minWidth = '60px';
-              video.style.minHeight = '60px';
-            }
-            
-            // Force visibility
-            video.style.display = 'block';
-            video.style.visibility = 'visible';
-            video.style.opacity = '1';
-            video.style.position = 'absolute';
-            video.style.top = '0';
-            video.style.left = '0';
-            
-            // Try to play
-            if (video.paused) {
-              video.play().catch(() => {});
-            }
-            
-            // Log after fix - wait longer to ensure dimensions are set
-            setTimeout(() => {
-              const newRect = video.getBoundingClientRect();
-              const newParentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
-              
-              // If still zero, try one more aggressive fix
-              if (newRect.width === 0 || newRect.height === 0) {
-                log(`[VIDEO DEBUG] ⚠️ Still zero after fix - trying aggressive fix. Parent: ${newParentRect.width}x${newParentRect.height}`);
-                
-                // Calculate from screen if parent still zero
-                if (newParentRect.width === 0 || newParentRect.height === 0) {
-                  const screenWidth = window.innerWidth;
-                  const cardCount = document.querySelectorAll('[data-participant-container]').length || 1;
-                  const gap = 0.5 * 16;
-                  const totalGaps = (cardCount - 1) * gap;
-                  const calculatedWidth = Math.max((screenWidth - totalGaps) / cardCount, 60);
-                  
-                  log(`[VIDEO DEBUG] Calculating from screen: ${calculatedWidth}px`);
-                  video.style.width = `${calculatedWidth}px`;
-                  video.style.height = `${calculatedWidth}px`;
-                  
-                  // Also fix parent
-                  if (parent) {
-                    parent.style.width = `${calculatedWidth}px`;
-                    parent.style.height = `${calculatedWidth}px`;
-                    parent.style.minWidth = '60px';
-                    parent.style.minHeight = '60px';
-                  }
-                } else {
-                  // Parent has dimensions now - use them
-                  video.style.width = `${newParentRect.width}px`;
-                  video.style.height = `${newParentRect.height}px`;
-                }
-                
-                video.style.minWidth = '60px';
-                video.style.minHeight = '60px';
-                
-                // Check again after another delay
-                setTimeout(() => {
-                  const finalRect = video.getBoundingClientRect();
-                  log(`[VIDEO DEBUG] Final check after aggressive fix - dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${finalRect.width}x${finalRect.height}`);
-                  debugVideoState(video, 'LOCAL_VIDEO_AFTER_FIX');
-                }, 100);
-              } else {
-                log(`[VIDEO DEBUG] After fix - dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${newRect.width}x${newRect.height}`);
-                debugVideoState(video, 'LOCAL_VIDEO_AFTER_FIX');
-              }
-            }, 100);
-          }
-        };
-        
-        // Check every 500ms for more responsive fixes
-        const playInterval = setInterval(() => {
-          if (!isCameraEnabled || !video || video.srcObject !== localStream) {
-            clearInterval(playInterval);
-            return;
-          }
-          checkAndPlay();
-        }, 500);
-        
-        // Debug every 2 seconds
-        const debugInterval = setInterval(() => {
-          if (isCameraEnabled && video && video.srcObject === localStream) {
-            debugVideoState(video, 'LOCAL_VIDEO_MONITOR');
-          }
-        }, 2000);
-        
-        // Also check on video events
-        const handlePause = () => {
-          log("[VIDEO DEBUG] Video paused event");
-          checkAndPlay();
-        };
-        const handleMetadata = () => {
-          log("[VIDEO DEBUG] Video metadata loaded");
-          debugVideoState(video, 'LOCAL_VIDEO_METADATA_LOADED');
-          if (isCameraEnabled) {
-            video.play().catch(() => {});
-          }
-        };
-        const handleResize = () => {
-          log("[VIDEO DEBUG] Video resize event");
-          debugVideoState(video, 'LOCAL_VIDEO_RESIZE');
-          checkAndPlay();
-        };
-        
-        video.addEventListener('pause', handlePause);
-        video.addEventListener('loadedmetadata', handleMetadata);
-        video.addEventListener('resize', handleResize);
-        
-        // Cleanup function
-        return () => {
-          clearInterval(playInterval);
-          clearInterval(debugInterval);
-          if (video) {
-            video.removeEventListener('pause', handlePause);
-            video.removeEventListener('loadedmetadata', handleMetadata);
-            video.removeEventListener('resize', handleResize);
-          }
-        };
+        // Stream already attached but paused - try to play (mobile issue)
+        video.play().catch(() => {});
       }
     }
-    
-    // Add window resize handler to ensure video continues playing after resize
-    let resizeTimeout;
-    const handleWindowResize = () => {
-      log(`[VIDEO DEBUG] Window resize detected - screen: ${window.innerWidth}x${window.innerHeight}`);
-      
-      // Debounce resize events
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(() => {
-        // Handle local video (host)
-        if (isHost && localVideoRef.current && localStream && isCameraEnabled) {
-          const video = localVideoRef.current;
-          if (video) {
-            log("[VIDEO DEBUG] Handling local video window resize");
-            debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_START');
-            
-            // Check if stream is still attached
-            if (video.srcObject !== localStream) {
-              log("[VIDEO DEBUG] Stream detached on window resize - reattaching");
-              video.srcObject = localStream;
-            }
-            
-            // Force visibility and dimensions
-            video.style.display = 'block';
-            video.style.visibility = 'visible';
-            video.style.opacity = '1';
-            video.style.width = '100%';
-            video.style.height = '100%';
-            video.style.minWidth = '60px';
-            video.style.minHeight = '60px';
-            video.style.position = 'absolute';
-            video.style.top = '0';
-            video.style.left = '0';
-            
-            // Force play on resize
-            video.play().then(() => {
-              log("[VIDEO DEBUG] ✅ Local video playing after window resize");
-              debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_SUCCESS');
-            }).catch((err) => {
-              log(`[VIDEO DEBUG] Play failed on window resize: ${err.name}, retrying`);
-              debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_PLAY_FAILED');
-              // Retry after a short delay
-              setTimeout(() => {
-                if (video && video.srcObject === localStream) {
-                  video.play().catch(() => {});
-                }
-              }, 100);
-            });
-            
-            // Check dimensions and force layout if needed
-            if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-              log("[VIDEO DEBUG] ⚠️ Local video has zero dimensions - forcing layout recalculation");
-              const parent = video.parentElement;
-              if (parent) {
-                const parentDisplay = window.getComputedStyle(parent).display;
-                const parentRect = parent.getBoundingClientRect();
-                log(`[VIDEO DEBUG] Parent display: ${parentDisplay}, dimensions: ${parent.offsetWidth}x${parent.offsetHeight}, rect: ${parentRect.width}x${parentRect.height}`);
-                
-                // If parent also has zero dimensions, fix it first
-                if (parent.offsetWidth === 0 || parent.offsetHeight === 0) {
-                  log("[VIDEO DEBUG] ⚠️ Parent container also has zero dimensions - fixing parent first");
-                  
-                  // Force parent to have dimensions
-                  const parentComputed = window.getComputedStyle(parent);
-                  parent.style.width = parentComputed.width || '100%';
-                  parent.style.height = parentComputed.height || 'auto';
-                  parent.style.minWidth = '60px';
-                  parent.style.minHeight = '60px';
-                  
-                  // If parent's parent exists, check it too
-                  const grandParent = parent.parentElement;
-                  if (grandParent) {
-                    const grandParentRect = grandParent.getBoundingClientRect();
-                    log(`[VIDEO DEBUG] Grandparent dimensions: ${grandParent.offsetWidth}x${grandParent.offsetHeight}, rect: ${grandParentRect.width}x${grandParentRect.height}`);
-                    
-                    if (grandParent.offsetWidth === 0 || grandParent.offsetHeight === 0) {
-                      log("[VIDEO DEBUG] ⚠️ Grandparent also has zero dimensions - fixing grandparent");
-                      const grandParentComputed = window.getComputedStyle(grandParent);
-                      grandParent.style.width = grandParentComputed.width || '100%';
-                      grandParent.style.minWidth = '60px';
-                    }
-                  }
-                  
-                  // Force reflow on parent
-                  parent.style.display = 'none';
-                  setTimeout(() => {
-                    parent.style.display = parentDisplay || 'flex';
-                    // Force dimensions again after reflow
-                    if (parent.offsetWidth === 0) {
-                      parent.style.width = '100%';
-                      parent.style.minWidth = '60px';
-                    }
-                    if (parent.offsetHeight === 0) {
-                      parent.style.height = parent.offsetWidth + 'px'; // Use aspect ratio
-                      parent.style.minHeight = '60px';
-                    }
-                    
-                    if (video) {
-                      // Force video dimensions
-                      video.style.width = '100%';
-                      video.style.height = '100%';
-                      video.style.minWidth = '60px';
-                      video.style.minHeight = '60px';
-                      video.play().catch(() => {});
-                      debugVideoState(video, 'LOCAL_VIDEO_AFTER_PARENT_FIX');
-                    }
-                  }, 10);
-                } else {
-                  // Just force reflow on parent
-                  parent.style.display = 'none';
-                  setTimeout(() => {
-                    parent.style.display = parentDisplay || 'flex';
-                    if (video) {
-                      video.play().catch(() => {});
-                      debugVideoState(video, 'LOCAL_VIDEO_AFTER_WINDOW_REFLOW');
-                    }
-                  }, 10);
-                }
-              }
-            }
-            
-            debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_END');
-          }
-        }
-        
-        // Handle remote video (participants)
-        if (!isHost && remoteVideoRef.current && remoteStream) {
-          const video = remoteVideoRef.current;
-          if (video) {
-            log("[VIDEO DEBUG] Handling remote video window resize");
-            debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_START');
-            
-            // Check if stream is still attached
-            if (video.srcObject !== remoteStream) {
-              log("[VIDEO DEBUG] Remote stream detached on window resize - reattaching");
-              video.srcObject = remoteStream;
-            }
-            
-            // Force visibility and dimensions
-            video.style.display = 'block';
-            video.style.visibility = 'visible';
-            video.style.opacity = '1';
-            video.style.width = '100%';
-            video.style.height = '100%';
-            video.style.minWidth = '60px';
-            video.style.minHeight = '60px';
-            video.style.position = 'absolute';
-            video.style.top = '0';
-            video.style.left = '0';
-            
-            // Force play on resize
-            video.play().then(() => {
-              log("[VIDEO DEBUG] ✅ Remote video playing after window resize");
-              debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_SUCCESS');
-            }).catch((err) => {
-              log(`[VIDEO DEBUG] Remote video play failed on window resize: ${err.name}, retrying`);
-              debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_PLAY_FAILED');
-              // Retry after a short delay
-              setTimeout(() => {
-                if (video && video.srcObject === remoteStream) {
-                  video.play().catch(() => {});
-                }
-              }, 100);
-            });
-            
-            // Check dimensions and force layout if needed
-            if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-              log("[VIDEO DEBUG] ⚠️ Remote video has zero dimensions - forcing layout recalculation");
-              const parent = video.parentElement;
-              if (parent) {
-                const parentDisplay = window.getComputedStyle(parent).display;
-                log(`[VIDEO DEBUG] Parent display: ${parentDisplay}, dimensions: ${parent.offsetWidth}x${parent.offsetHeight}`);
-                // Force reflow
-                parent.style.display = 'none';
-                setTimeout(() => {
-                  parent.style.display = parentDisplay || 'flex';
-                  if (video) {
-                    video.play().catch(() => {});
-                    debugVideoState(video, 'REMOTE_VIDEO_AFTER_WINDOW_REFLOW');
-                  }
-                }, 10);
-              }
-            }
-            
-            debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_END');
-          }
-        }
-      }, 150); // Debounce resize events
-    };
-    
-    window.addEventListener('resize', handleWindowResize);
-    // Also listen to orientation change
-    window.addEventListener('orientationchange', () => {
-      log("[VIDEO DEBUG] Orientation change detected");
-      // Immediate handling for orientation change
-      handleWindowResize();
-      // Also handle after orientation change completes
-      setTimeout(handleWindowResize, 500);
-    });
-    
-    return () => {
-      clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleWindowResize);
-      window.removeEventListener('orientationchange', handleWindowResize);
-    };
-  }, [isHost, localStream, isCameraEnabled, remoteStream]);
+  }, [isHost, localStream, isCameraEnabled]);
 
   // Attach remote video when stream is received
   useEffect(() => {
@@ -1272,31 +641,12 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         
-        // Get parent dimensions and set explicit video dimensions
-        const parent = video.parentElement;
-        const parentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
-        
+        // Ensure video is visible and has proper dimensions
         video.style.display = 'block';
-        video.style.visibility = 'visible';
-        video.style.opacity = '1';
-        video.style.position = 'absolute';
-        video.style.top = '0';
-        video.style.left = '0';
-        
-        if (parentRect.width > 0 && parentRect.height > 0) {
-          video.style.width = `${parentRect.width}px`;
-          video.style.height = `${parentRect.height}px`;
-          log(`[VIDEO DEBUG] Setting initial remote video dimensions from parent: ${parentRect.width}x${parentRect.height}`);
-        } else {
-          video.style.width = '100%';
-          video.style.height = '100%';
-          log(`[VIDEO DEBUG] Parent has no dimensions, using 100% with minimums for initial remote video`);
-        }
-        
-        video.style.minWidth = '60px';
-        video.style.minHeight = '60px';
-        video.style.maxWidth = '100%';
-        video.style.maxHeight = '100%';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.minWidth = '100%';
+        video.style.minHeight = '100%';
         
         // Play the video (muted, so should work)
         const playVideo = () => {
@@ -1304,57 +654,27 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             log("✅ Remote video playing (muted for autoplay)");
             video.volume = audioVolume;
           }).catch(err => {
-            log("Remote video play failed, will retry:", err.name);
+            log("Remote video play failed, will retry on user interaction:", err.name);
             
-            // Retry after delay with multiple strategies (works for all screen sizes)
-            setTimeout(() => {
+            // Fallback: play on user interaction (mobile)
+            const playOnClick = () => {
               video.play().then(() => {
-                log("✅ Remote video playing after retry");
+                log("✅ Remote video playing after user interaction");
                 video.volume = audioVolume;
-              }).catch(e => {
-                log("Retry play failed:", e.name);
-                // Strategy 1: Add touch/click handlers directly on video element
-                const handleVideoInteraction = () => {
-                  video.play().then(() => {
-                    log("✅ Remote video playing after video interaction");
-                    video.volume = audioVolume;
-                  }).catch(() => {});
-                  video.removeEventListener('click', handleVideoInteraction);
-                  video.removeEventListener('touchstart', handleVideoInteraction);
-                };
-                video.addEventListener('click', handleVideoInteraction, { once: true });
-                video.addEventListener('touchstart', handleVideoInteraction, { once: true });
-                
-                // Strategy 2: Also try document-level handlers
-                const handleDocInteraction = () => {
-                  video.play().then(() => {
-                    log("✅ Remote video playing after document interaction");
-                    video.volume = audioVolume;
-                  }).catch(() => {});
-                  document.removeEventListener('click', handleDocInteraction);
-                  document.removeEventListener('touchstart', handleDocInteraction);
-                };
-                document.addEventListener('click', handleDocInteraction, { once: true });
-                document.addEventListener('touchstart', handleDocInteraction, { once: true });
-              });
-            }, 200);
+              }).catch(e => log("Play still failed:", e.name));
+              document.removeEventListener('touchstart', playOnClick);
+              document.removeEventListener('click', playOnClick);
+            };
+            document.addEventListener('touchstart', playOnClick, { once: true });
+            document.addEventListener('click', playOnClick, { once: true });
           });
         };
         
+        // Try playing immediately
         playVideo();
-      } else if (video.srcObject === remoteStream && video.paused) {
-        // Stream already attached but paused - try to play
-        video.play().catch(err => {
-          log("Resume remote video play failed:", err.name);
-          // Add interaction handlers (works for all screen sizes)
-          const handleInteraction = () => {
-            video.play().catch(() => {});
-            video.removeEventListener('click', handleInteraction);
-            video.removeEventListener('touchstart', handleInteraction);
-          };
-          video.addEventListener('click', handleInteraction, { once: true });
-          video.addEventListener('touchstart', handleInteraction, { once: true });
-        });
+        
+        // Also try on loadedmetadata for mobile
+        video.addEventListener('loadedmetadata', playVideo, { once: true });
       } else {
         // Stream already attached, update mute state when audioEnabled changes
         log(`Updating video mute state - audioEnabled: ${audioEnabled}, paused: ${video.paused}`);
@@ -1389,24 +709,13 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
     }
   }, [isHost, remoteStream, audioEnabled, audioVolume]);
 
-  // Sync host state and initialize stream on refresh (but don't recreate on screen size changes)
-  const prevHostStateRef = useRef({ hostMicEnabled: false, hostCameraEnabled: false });
-  
+  // Sync host state and initialize stream on refresh
   useEffect(() => {
     if (isHost) {
-      const prevState = prevHostStateRef.current;
-      const micChanged = prevState.hostMicEnabled !== hostMicEnabled;
-      const cameraChanged = prevState.hostCameraEnabled !== hostCameraEnabled;
-      
-      // Only update state if it actually changed (not just screen resize)
-      if (micChanged || cameraChanged) {
-        setIsMicEnabled(hostMicEnabled);
-        setIsCameraEnabled(hostCameraEnabled);
-        prevHostStateRef.current = { hostMicEnabled, hostCameraEnabled };
-      }
+      setIsMicEnabled(hostMicEnabled);
+      setIsCameraEnabled(hostCameraEnabled);
       
       // Initialize stream if host has mic/camera enabled but no stream exists (refresh scenario)
-      // Only initialize if stream doesn't exist - don't recreate on screen size changes
       if ((hostMicEnabled || hostCameraEnabled) && !localStreamRef.current) {
         log("Host refresh detected - initializing stream with mic:", hostMicEnabled, "camera:", hostCameraEnabled);
         // Use async function to call getMediaStream

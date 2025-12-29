@@ -31,7 +31,7 @@ export default function AdminLogin({ onLogin }) {
       
       // Call onLogin and handle any errors it might throw
       try {
-        await onLogin({ token, admin });
+      await onLogin({ token, admin });
       } catch (loginError) {
         console.error("[AdminLogin] Error in onLogin callback:", loginError);
         throw new Error(loginError.message || "Failed to complete login process");

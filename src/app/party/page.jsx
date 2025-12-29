@@ -31,7 +31,7 @@ export default function PartyListPage() {
 
   useEffect(() => {
     if (!hydrated) return;
-
+    
     // If user is already in a party, redirect to that party immediately
     if (currentPartyId) {
       router.replace(`/party/${currentPartyId}`);
