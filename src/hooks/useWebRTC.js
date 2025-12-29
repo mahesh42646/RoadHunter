@@ -794,9 +794,11 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
       }
     }
     
-    // Add resize handler to ensure video continues playing after resize
+    // Add window resize handler to ensure video continues playing after resize
     let resizeTimeout;
-    const handleResize = () => {
+    const handleWindowResize = () => {
+      log(`[VIDEO DEBUG] Window resize detected - screen: ${window.innerWidth}x${window.innerHeight}`);
+      
       // Debounce resize events
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
@@ -804,20 +806,34 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         if (isHost && localVideoRef.current && localStream && isCameraEnabled) {
           const video = localVideoRef.current;
           if (video) {
+            log("[VIDEO DEBUG] Handling local video window resize");
+            debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_START');
+            
             // Check if stream is still attached
             if (video.srcObject !== localStream) {
-              log("Stream detached on resize - reattaching");
+              log("[VIDEO DEBUG] Stream detached on window resize - reattaching");
               video.srcObject = localStream;
             }
             
-            // Ensure video is visible
+            // Force visibility and dimensions
             video.style.display = 'block';
             video.style.visibility = 'visible';
             video.style.opacity = '1';
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.minWidth = '60px';
+            video.style.minHeight = '60px';
+            video.style.position = 'absolute';
+            video.style.top = '0';
+            video.style.left = '0';
             
             // Force play on resize
-            video.play().catch((err) => {
-              log("Play failed on resize, retrying:", err.name);
+            video.play().then(() => {
+              log("[VIDEO DEBUG] ✅ Local video playing after window resize");
+              debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_SUCCESS');
+            }).catch((err) => {
+              log(`[VIDEO DEBUG] Play failed on window resize: ${err.name}, retrying`);
+              debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_PLAY_FAILED');
               // Retry after a short delay
               setTimeout(() => {
                 if (video && video.srcObject === localStream) {
@@ -828,19 +844,24 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             
             // Check dimensions and force layout if needed
             if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-              log("Video has zero dimensions - forcing layout recalculation");
+              log("[VIDEO DEBUG] ⚠️ Video has zero dimensions - forcing layout recalculation");
               const parent = video.parentElement;
               if (parent) {
+                const parentDisplay = window.getComputedStyle(parent).display;
+                log(`[VIDEO DEBUG] Parent display: ${parentDisplay}, dimensions: ${parent.offsetWidth}x${parent.offsetHeight}`);
                 // Force reflow
                 parent.style.display = 'none';
                 setTimeout(() => {
-                  parent.style.display = '';
+                  parent.style.display = parentDisplay || 'flex';
                   if (video) {
                     video.play().catch(() => {});
+                    debugVideoState(video, 'LOCAL_VIDEO_AFTER_WINDOW_REFLOW');
                   }
                 }, 10);
               }
             }
+            
+            debugVideoState(video, 'LOCAL_VIDEO_WINDOW_RESIZE_END');
           }
         }
         
@@ -848,20 +869,34 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         if (!isHost && remoteVideoRef.current && remoteStream) {
           const video = remoteVideoRef.current;
           if (video) {
+            log("[VIDEO DEBUG] Handling remote video window resize");
+            debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_START');
+            
             // Check if stream is still attached
             if (video.srcObject !== remoteStream) {
-              log("Remote stream detached on resize - reattaching");
+              log("[VIDEO DEBUG] Remote stream detached on window resize - reattaching");
               video.srcObject = remoteStream;
             }
             
-            // Ensure video is visible
+            // Force visibility and dimensions
             video.style.display = 'block';
             video.style.visibility = 'visible';
             video.style.opacity = '1';
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.minWidth = '60px';
+            video.style.minHeight = '60px';
+            video.style.position = 'absolute';
+            video.style.top = '0';
+            video.style.left = '0';
             
             // Force play on resize
-            video.play().catch((err) => {
-              log("Remote video play failed on resize, retrying:", err.name);
+            video.play().then(() => {
+              log("[VIDEO DEBUG] ✅ Remote video playing after window resize");
+              debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_SUCCESS');
+            }).catch((err) => {
+              log(`[VIDEO DEBUG] Remote video play failed on window resize: ${err.name}, retrying`);
+              debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_PLAY_FAILED');
               // Retry after a short delay
               setTimeout(() => {
                 if (video && video.srcObject === remoteStream) {
@@ -872,37 +907,43 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             
             // Check dimensions and force layout if needed
             if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-              log("Remote video has zero dimensions - forcing layout recalculation");
+              log("[VIDEO DEBUG] ⚠️ Remote video has zero dimensions - forcing layout recalculation");
               const parent = video.parentElement;
               if (parent) {
+                const parentDisplay = window.getComputedStyle(parent).display;
+                log(`[VIDEO DEBUG] Parent display: ${parentDisplay}, dimensions: ${parent.offsetWidth}x${parent.offsetHeight}`);
                 // Force reflow
                 parent.style.display = 'none';
                 setTimeout(() => {
-                  parent.style.display = '';
+                  parent.style.display = parentDisplay || 'flex';
                   if (video) {
                     video.play().catch(() => {});
+                    debugVideoState(video, 'REMOTE_VIDEO_AFTER_WINDOW_REFLOW');
                   }
                 }, 10);
               }
             }
+            
+            debugVideoState(video, 'REMOTE_VIDEO_WINDOW_RESIZE_END');
           }
         }
       }, 150); // Debounce resize events
     };
     
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleWindowResize);
     // Also listen to orientation change
     window.addEventListener('orientationchange', () => {
+      log("[VIDEO DEBUG] Orientation change detected");
       // Immediate handling for orientation change
-      handleResize();
+      handleWindowResize();
       // Also handle after orientation change completes
-      setTimeout(handleResize, 500);
+      setTimeout(handleWindowResize, 500);
     });
     
     return () => {
       clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener('orientationchange', handleWindowResize);
     };
   }, [isHost, localStream, isCameraEnabled, remoteStream]);
 
