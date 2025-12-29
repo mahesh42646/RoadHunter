@@ -1487,15 +1487,21 @@ export default function PartyRoomPage() {
                             height: "100%",
                             minWidth: "60px",
                             minHeight: "60px",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
                             objectFit: "cover",
                             backgroundColor: "#000",
-                            zIndex: 1,
-                            display: "block",
-                            visibility: "visible",
+                            zIndex: webrtc.remoteStream ? 1 : -1,
+                            display: webrtc.remoteStream ? "block" : "none",
+                            visibility: webrtc.remoteStream ? "visible" : "hidden",
+                            opacity: webrtc.remoteStream ? 1 : 0,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            video.play().catch(() => {});
+                            console.log(`[VIDEO DEBUG PAGE] Remote video metadata loaded - screen: ${window.innerWidth}x${window.innerHeight}, dimensions: ${video.videoWidth}x${video.videoHeight}, offset: ${video.offsetWidth}x${video.offsetHeight}`);
+                            video.play().catch((err) => {
+                              console.log(`[VIDEO DEBUG PAGE] Remote video play failed on metadata: ${err.name}`);
+                            });
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1511,12 +1517,15 @@ export default function PartyRoomPage() {
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Remote video can play - paused: ${video.paused}, readyState: ${video.readyState}`);
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
                             // Ensure video continues playing
                             if (video.paused) {
-                              video.play().catch(() => { });
+                              video.play().catch((err) => {
+                                console.log(`[VIDEO DEBUG PAGE] Remote video play failed on canPlay: ${err.name}`);
+                              });
                             }
                             // Try playing on touch/click
                             const tryPlay = () => {
@@ -1526,6 +1535,19 @@ export default function PartyRoomPage() {
                             };
                             video.addEventListener('touchstart', tryPlay, { once: true });
                             video.addEventListener('click', tryPlay, { once: true });
+                          }}
+                          onResize={(e) => {
+                            const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Remote video resize event - dimensions: ${video.offsetWidth}x${video.offsetHeight}`);
+                            if (video.paused) {
+                              video.play().catch(() => {});
+                            }
+                          }}
+                          onPlay={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Remote video playing - screen: ${window.innerWidth}x${window.innerHeight}`);
+                          }}
+                          onPause={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Remote video paused - screen: ${window.innerWidth}x${window.innerHeight}`);
                           }}
                         />
                       )}
@@ -1788,15 +1810,21 @@ export default function PartyRoomPage() {
                             height: "100%",
                             minWidth: "60px",
                             minHeight: "60px",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
                             objectFit: "cover",
                             backgroundColor: "#000",
-                            zIndex: 1,
-                            display: "block",
-                            visibility: "visible",
+                            zIndex: webrtc.remoteStream ? 1 : -1,
+                            display: webrtc.remoteStream ? "block" : "none",
+                            visibility: webrtc.remoteStream ? "visible" : "hidden",
+                            opacity: webrtc.remoteStream ? 1 : 0,
                           }}
                           onLoadedMetadata={(e) => {
                             const video = e.target;
-                            video.play().catch(() => {});
+                            console.log(`[VIDEO DEBUG PAGE] Remote video metadata loaded - screen: ${window.innerWidth}x${window.innerHeight}, dimensions: ${video.videoWidth}x${video.videoHeight}, offset: ${video.offsetWidth}x${video.offsetHeight}`);
+                            video.play().catch((err) => {
+                              console.log(`[VIDEO DEBUG PAGE] Remote video play failed on metadata: ${err.name}`);
+                            });
                             const reduceBuffer = () => {
                               if (video.buffered.length > 0) {
                                 const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -1812,12 +1840,15 @@ export default function PartyRoomPage() {
                           }}
                           onCanPlay={(e) => {
                             const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Remote video can play - paused: ${video.paused}, readyState: ${video.readyState}`);
                             // DON'T unmute here - it causes video to pause due to autoplay policy
                             // Keep video muted, user can toggle audio via audio controls
                             video.volume = webrtc.audioVolume;
                             // Ensure video continues playing
                             if (video.paused) {
-                              video.play().catch(() => { });
+                              video.play().catch((err) => {
+                                console.log(`[VIDEO DEBUG PAGE] Remote video play failed on canPlay: ${err.name}`);
+                              });
                             }
                             // Try playing on touch/click
                             const tryPlay = () => {
@@ -1827,6 +1858,19 @@ export default function PartyRoomPage() {
                             };
                             video.addEventListener('touchstart', tryPlay, { once: true });
                             video.addEventListener('click', tryPlay, { once: true });
+                          }}
+                          onResize={(e) => {
+                            const video = e.target;
+                            console.log(`[VIDEO DEBUG PAGE] Remote video resize event - dimensions: ${video.offsetWidth}x${video.offsetHeight}`);
+                            if (video.paused) {
+                              video.play().catch(() => {});
+                            }
+                          }}
+                          onPlay={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Remote video playing - screen: ${window.innerWidth}x${window.innerHeight}`);
+                          }}
+                          onPause={() => {
+                            console.log(`[VIDEO DEBUG PAGE] Remote video paused - screen: ${window.innerWidth}x${window.innerHeight}`);
                           }}
                         />
                       )}
