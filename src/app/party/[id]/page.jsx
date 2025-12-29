@@ -1338,6 +1338,7 @@ export default function PartyRoomPage() {
                 style={{
                   position: "relative",
                   width: "100%",
+                  minWidth: "60px",
                   cursor: !isCurrentUser ? "pointer" : "default",
                   border: isParticipantHost
                     ? "1px solid var(--accent)"
@@ -1346,8 +1347,9 @@ export default function PartyRoomPage() {
                   display: "flex",
                   flexDirection: "column",
                   height: "100%",
-                  width: "auto",
                   aspectRatio: "1",
+                  flexShrink: 0,
+                  flexGrow: 0,
                 }}
                 onClick={async () => {
                   if (!isCurrentUser) {
