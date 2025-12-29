@@ -801,57 +801,76 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
                 
                 // Now fix parent container (video container) to match card
                 if (cardWidth > 0 && cardHeight > 0) {
-                  // Force card to actually render with calculated dimensions
-                  grandParent.style.width = `${cardWidth}px`;
-                  grandParent.style.height = `${cardHeight}px`;
-                  grandParent.style.minWidth = '60px';
-                  grandParent.style.minHeight = '60px';
-                  grandParent.style.display = 'flex';
-                  grandParent.style.flexDirection = 'column';
+                  // AGGRESSIVE FIX: Force entire chain with !important and explicit pixels
+                  log(`[VIDEO DEBUG] Applying aggressive fix - card: ${cardWidth}x${cardHeight}px`);
                   
-                  // Force parent container to fill card
-                  parent.style.width = '100%';
-                  parent.style.height = '100%';
-                  parent.style.minWidth = '60px';
-                  parent.style.minHeight = '60px';
-                  parent.style.display = 'flex';
+                  // Force card with !important via setProperty
+                  grandParent.style.setProperty('width', `${cardWidth}px`, 'important');
+                  grandParent.style.setProperty('height', `${cardHeight}px`, 'important');
+                  grandParent.style.setProperty('min-width', '60px', 'important');
+                  grandParent.style.setProperty('min-height', '60px', 'important');
+                  grandParent.style.setProperty('display', 'flex', 'important');
+                  grandParent.style.setProperty('flex-direction', 'column', 'important');
+                  grandParent.style.setProperty('visibility', 'visible', 'important');
+                  grandParent.style.setProperty('opacity', '1', 'important');
                   
-                  // Force layout recalculation using requestAnimationFrame
+                  // Force parent container with explicit pixel dimensions (not percentage)
+                  const containerWidth = cardWidth - 8; // Account for padding
+                  const containerHeight = cardHeight - 8;
+                  parent.style.setProperty('width', `${containerWidth}px`, 'important');
+                  parent.style.setProperty('height', `${containerHeight}px`, 'important');
+                  parent.style.setProperty('min-width', '60px', 'important');
+                  parent.style.setProperty('min-height', '60px', 'important');
+                  parent.style.setProperty('display', 'flex', 'important');
+                  parent.style.setProperty('visibility', 'visible', 'important');
+                  parent.style.setProperty('opacity', '1', 'important');
+                  
+                  // Force video with explicit pixel dimensions
+                  video.style.setProperty('width', `${containerWidth}px`, 'important');
+                  video.style.setProperty('height', `${containerHeight}px`, 'important');
+                  video.style.setProperty('min-width', '60px', 'important');
+                  video.style.setProperty('min-height', '60px', 'important');
+                  video.style.setProperty('position', 'absolute', 'important');
+                  video.style.setProperty('top', '0', 'important');
+                  video.style.setProperty('left', '0', 'important');
+                  video.style.setProperty('display', 'block', 'important');
+                  video.style.setProperty('visibility', 'visible', 'important');
+                  video.style.setProperty('opacity', '1', 'important');
+                  
+                  log(`[VIDEO DEBUG] Applied !important styles - card: ${cardWidth}x${cardHeight}, container: ${containerWidth}x${containerHeight}, video: ${containerWidth}x${containerHeight}`);
+                  
+                  // Force layout recalculation
                   requestAnimationFrame(() => {
-                    // Force another frame to ensure layout is complete
                     requestAnimationFrame(() => {
-                      // Get actual dimensions after layout
+                      // Force a reflow by reading dimensions
+                      grandParent.offsetHeight;
+                      parent.offsetHeight;
+                      video.offsetHeight;
+                      
+                      // Get actual dimensions
                       const cardRect = grandParent.getBoundingClientRect();
                       const parentRect = parent.getBoundingClientRect();
+                      const videoRect = video.getBoundingClientRect();
                       
-                      log(`[VIDEO DEBUG] After layout - card: ${cardRect.width}x${cardRect.height}, parent: ${parentRect.width}x${parentRect.height}`);
+                      log(`[VIDEO DEBUG] After !important fix - card: ${cardRect.width}x${cardRect.height}, parent: ${parentRect.width}x${parentRect.height}, video: ${videoRect.width}x${videoRect.height}`);
                       
-                      // Use actual rendered dimensions, fallback to calculated
-                      const finalWidth = parentRect.width > 0 ? parentRect.width : cardRect.width > 0 ? cardRect.width : cardWidth;
-                      const finalHeight = parentRect.height > 0 ? parentRect.height : cardRect.height > 0 ? cardRect.height : cardHeight;
-                      
-                      // Set video to explicit pixel dimensions
-                      video.style.width = `${finalWidth}px`;
-                      video.style.height = `${finalHeight}px`;
-                      video.style.minWidth = '60px';
-                      video.style.minHeight = '60px';
-                      video.style.position = 'absolute';
-                      video.style.top = '0';
-                      video.style.left = '0';
-                      
-                      log(`[VIDEO DEBUG] Set video to explicit dimensions: ${finalWidth}x${finalHeight}px`);
-                      
-                      // Verify after a short delay
-                      setTimeout(() => {
-                        const videoRect = video.getBoundingClientRect();
-                        log(`[VIDEO DEBUG] Video dimensions after explicit set: ${video.offsetWidth}x${video.offsetHeight}, rect: ${videoRect.width}x${videoRect.height}`);
-                        if (videoRect.width === 0 || videoRect.height === 0) {
-                          log(`[VIDEO DEBUG] ⚠️ Still zero - forcing minimum and triggering play`);
-                          video.style.width = '60px';
-                          video.style.height = '60px';
-                          video.play().catch(() => {});
-                        }
-                      }, 50);
+                      // If still zero, try one more aggressive approach
+                      if (videoRect.width === 0 || videoRect.height === 0) {
+                        log(`[VIDEO DEBUG] ⚠️ Still zero after !important - trying direct DOM manipulation`);
+                        
+                        // Remove and re-add video element to force reflow
+                        const videoParent = video.parentElement;
+                        const nextSibling = video.nextSibling;
+                        videoParent.removeChild(video);
+                        videoParent.appendChild(video);
+                        
+                        // Set dimensions again
+                        video.style.width = `${containerWidth}px`;
+                        video.style.height = `${containerHeight}px`;
+                        
+                        // Force play
+                        video.play().catch(() => {});
+                      }
                     });
                   });
                   return; // Exit early, will be fixed in requestAnimationFrame
