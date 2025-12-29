@@ -844,20 +844,73 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
             
             // Check dimensions and force layout if needed
             if (video.offsetWidth === 0 || video.offsetHeight === 0) {
-              log("[VIDEO DEBUG] ⚠️ Video has zero dimensions - forcing layout recalculation");
+              log("[VIDEO DEBUG] ⚠️ Local video has zero dimensions - forcing layout recalculation");
               const parent = video.parentElement;
               if (parent) {
                 const parentDisplay = window.getComputedStyle(parent).display;
-                log(`[VIDEO DEBUG] Parent display: ${parentDisplay}, dimensions: ${parent.offsetWidth}x${parent.offsetHeight}`);
-                // Force reflow
-                parent.style.display = 'none';
-                setTimeout(() => {
-                  parent.style.display = parentDisplay || 'flex';
-                  if (video) {
-                    video.play().catch(() => {});
-                    debugVideoState(video, 'LOCAL_VIDEO_AFTER_WINDOW_REFLOW');
+                const parentRect = parent.getBoundingClientRect();
+                log(`[VIDEO DEBUG] Parent display: ${parentDisplay}, dimensions: ${parent.offsetWidth}x${parent.offsetHeight}, rect: ${parentRect.width}x${parentRect.height}`);
+                
+                // If parent also has zero dimensions, fix it first
+                if (parent.offsetWidth === 0 || parent.offsetHeight === 0) {
+                  log("[VIDEO DEBUG] ⚠️ Parent container also has zero dimensions - fixing parent first");
+                  
+                  // Force parent to have dimensions
+                  const parentComputed = window.getComputedStyle(parent);
+                  parent.style.width = parentComputed.width || '100%';
+                  parent.style.height = parentComputed.height || 'auto';
+                  parent.style.minWidth = '60px';
+                  parent.style.minHeight = '60px';
+                  
+                  // If parent's parent exists, check it too
+                  const grandParent = parent.parentElement;
+                  if (grandParent) {
+                    const grandParentRect = grandParent.getBoundingClientRect();
+                    log(`[VIDEO DEBUG] Grandparent dimensions: ${grandParent.offsetWidth}x${grandParent.offsetHeight}, rect: ${grandParentRect.width}x${grandParentRect.height}`);
+                    
+                    if (grandParent.offsetWidth === 0 || grandParent.offsetHeight === 0) {
+                      log("[VIDEO DEBUG] ⚠️ Grandparent also has zero dimensions - fixing grandparent");
+                      const grandParentComputed = window.getComputedStyle(grandParent);
+                      grandParent.style.width = grandParentComputed.width || '100%';
+                      grandParent.style.minWidth = '60px';
+                    }
                   }
-                }, 10);
+                  
+                  // Force reflow on parent
+                  parent.style.display = 'none';
+                  setTimeout(() => {
+                    parent.style.display = parentDisplay || 'flex';
+                    // Force dimensions again after reflow
+                    if (parent.offsetWidth === 0) {
+                      parent.style.width = '100%';
+                      parent.style.minWidth = '60px';
+                    }
+                    if (parent.offsetHeight === 0) {
+                      parent.style.height = parent.offsetWidth + 'px'; // Use aspect ratio
+                      parent.style.minHeight = '60px';
+                    }
+                    
+                    if (video) {
+                      // Force video dimensions
+                      video.style.width = '100%';
+                      video.style.height = '100%';
+                      video.style.minWidth = '60px';
+                      video.style.minHeight = '60px';
+                      video.play().catch(() => {});
+                      debugVideoState(video, 'LOCAL_VIDEO_AFTER_PARENT_FIX');
+                    }
+                  }, 10);
+                } else {
+                  // Just force reflow on parent
+                  parent.style.display = 'none';
+                  setTimeout(() => {
+                    parent.style.display = parentDisplay || 'flex';
+                    if (video) {
+                      video.play().catch(() => {});
+                      debugVideoState(video, 'LOCAL_VIDEO_AFTER_WINDOW_REFLOW');
+                    }
+                  }, 10);
+                }
               }
             }
             

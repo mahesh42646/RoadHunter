@@ -1396,9 +1396,40 @@ export default function PartyRoomPage() {
                 {/* Avatar/Video Container */}
                 <div
                   className="rounded-2 "
+                  ref={(el) => {
+                    if (el && isParticipantHost) {
+                      // Debug parent container dimensions
+                      const checkParent = () => {
+                        const rect = el.getBoundingClientRect();
+                        const computedStyle = window.getComputedStyle(el);
+                        if (rect.width === 0 || rect.height === 0) {
+                          console.log(`[CONTAINER DEBUG] Parent container has zero dimensions!`, {
+                            screenSize: `${window.innerWidth}x${window.innerHeight}`,
+                            rect: `${rect.width}x${rect.height}`,
+                            styles: {
+                              width: computedStyle.width,
+                              height: computedStyle.height,
+                              display: computedStyle.display,
+                              aspectRatio: computedStyle.aspectRatio,
+                            },
+                            parent: el.parentElement ? {
+                              width: el.parentElement.offsetWidth,
+                              height: el.parentElement.offsetHeight,
+                            } : null,
+                          });
+                        }
+                      };
+                      // Check immediately and on resize
+                      checkParent();
+                      const observer = new ResizeObserver(checkParent);
+                      observer.observe(el);
+                      return () => observer.disconnect();
+                    }
+                  }}
                   style={{
                     position: "relative",
                     width: "100%",
+                    height: "100%",
                     minWidth: "60px",
                     minHeight: "60px",
                     aspectRatio: "1",
@@ -1407,6 +1438,8 @@ export default function PartyRoomPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
+                    flexGrow: 0,
                   }}
                 >
                   {/* Host Video (for participants) or Host Local Video */}
@@ -1719,9 +1752,40 @@ export default function PartyRoomPage() {
                 {/* Avatar/Video Container */}
                 <div
                   className="rounded-2 "
+                  ref={(el) => {
+                    if (el && isParticipantHost) {
+                      // Debug parent container dimensions
+                      const checkParent = () => {
+                        const rect = el.getBoundingClientRect();
+                        const computedStyle = window.getComputedStyle(el);
+                        if (rect.width === 0 || rect.height === 0) {
+                          console.log(`[CONTAINER DEBUG] Parent container has zero dimensions!`, {
+                            screenSize: `${window.innerWidth}x${window.innerHeight}`,
+                            rect: `${rect.width}x${rect.height}`,
+                            styles: {
+                              width: computedStyle.width,
+                              height: computedStyle.height,
+                              display: computedStyle.display,
+                              aspectRatio: computedStyle.aspectRatio,
+                            },
+                            parent: el.parentElement ? {
+                              width: el.parentElement.offsetWidth,
+                              height: el.parentElement.offsetHeight,
+                            } : null,
+                          });
+                        }
+                      };
+                      // Check immediately and on resize
+                      checkParent();
+                      const observer = new ResizeObserver(checkParent);
+                      observer.observe(el);
+                      return () => observer.disconnect();
+                    }
+                  }}
                   style={{
                     position: "relative",
                     width: "100%",
+                    height: "100%",
                     minWidth: "60px",
                     minHeight: "60px",
                     aspectRatio: "1",
@@ -1730,6 +1794,8 @@ export default function PartyRoomPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    flexShrink: 0,
+                    flexGrow: 0,
                   }}
                 >
                   {/* Host Video (for participants) or Host Local Video */}
