@@ -1092,6 +1092,32 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         
+        // Get parent dimensions and set explicit video dimensions
+        const parent = video.parentElement;
+        const parentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
+        
+        video.style.display = 'block';
+        video.style.visibility = 'visible';
+        video.style.opacity = '1';
+        video.style.position = 'absolute';
+        video.style.top = '0';
+        video.style.left = '0';
+        
+        if (parentRect.width > 0 && parentRect.height > 0) {
+          video.style.width = `${parentRect.width}px`;
+          video.style.height = `${parentRect.height}px`;
+          log(`[VIDEO DEBUG] Setting initial remote video dimensions from parent: ${parentRect.width}x${parentRect.height}`);
+        } else {
+          video.style.width = '100%';
+          video.style.height = '100%';
+          log(`[VIDEO DEBUG] Parent has no dimensions, using 100% with minimums for initial remote video`);
+        }
+        
+        video.style.minWidth = '60px';
+        video.style.minHeight = '60px';
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '100%';
+        
         // Play the video (muted, so should work)
         const playVideo = () => {
           video.play().then(() => {
