@@ -1186,6 +1186,58 @@ export default function PartyRoomPage() {
     }
   }, [party, socket, isParticipant, isHost, partyId]);
 
+  // Monitor and fix video container dimensions on small screens
+  useEffect(() => {
+    const fixContainerDimensions = () => {
+      // Find all video containers
+      const videoContainers = document.querySelectorAll('[data-participant-container]');
+      videoContainers.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          console.log(`[CONTAINER FIX] Fixing collapsed container - screen: ${window.innerWidth}x${window.innerHeight}`);
+          const computedStyle = window.getComputedStyle(card);
+          
+          // Force dimensions
+          card.style.width = computedStyle.width || '100%';
+          card.style.minWidth = '60px';
+          card.style.minHeight = '60px';
+          
+          // Find the video container inside
+          const videoContainer = card.querySelector('.rounded-2[style*="position: relative"]');
+          if (videoContainer) {
+            const videoContainerRect = videoContainer.getBoundingClientRect();
+            if (videoContainerRect.width === 0 || videoContainerRect.height === 0) {
+              console.log(`[CONTAINER FIX] Fixing video container inside card`);
+              const videoContainerStyle = window.getComputedStyle(videoContainer);
+              videoContainer.style.width = videoContainerStyle.width || '100%';
+              videoContainer.style.height = videoContainerStyle.height || '100%';
+              videoContainer.style.minWidth = '60px';
+              videoContainer.style.minHeight = '60px';
+            }
+          }
+        }
+      });
+    };
+
+    // Check immediately
+    fixContainerDimensions();
+    
+    // Check on resize
+    const handleResize = () => {
+      setTimeout(fixContainerDimensions, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Check periodically (every 500ms) to catch any collapse
+    const interval = setInterval(fixContainerDimensions, 500);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearInterval(interval);
+    };
+  }, [topParticipants]);
+
 
   useEffect(() => {
     if (party?.chatMessages) {
