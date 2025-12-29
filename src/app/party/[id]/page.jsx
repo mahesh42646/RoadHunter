@@ -1323,7 +1323,8 @@ export default function PartyRoomPage() {
             gap: "0.5rem",
             padding: "0.1rem",
             alignContent: "flex-start",
-
+            minWidth: 0,
+            width: "100%",
           }}
         >
           {topParticipants.map((participant, idx) => {
@@ -1337,8 +1338,10 @@ export default function PartyRoomPage() {
                 className=" rounded-2  p-1"
                 style={{
                   position: "relative",
-                  width: "100%",
+                  flex: "0 0 auto",
+                  width: `calc((100% - ${(topParticipants.length - 1) * 0.5}rem) / ${topParticipants.length})`,
                   minWidth: "60px",
+                  maxWidth: "150px",
                   cursor: !isCurrentUser ? "pointer" : "default",
                   border: isParticipantHost
                     ? "1px solid var(--accent)"
@@ -1350,6 +1353,7 @@ export default function PartyRoomPage() {
                   aspectRatio: "1",
                   flexShrink: 0,
                   flexGrow: 0,
+                  boxSizing: "border-box",
                 }}
                 onClick={async () => {
                   if (!isCurrentUser) {
@@ -1395,45 +1399,17 @@ export default function PartyRoomPage() {
                   </div>
                 )}
 
-                {/* Avatar/Video Container */}
+                {/* Avatar/Video Container - Force explicit dimensions to prevent collapse */}
                 <div
-                  className="rounded-2 "
-                  ref={(el) => {
-                    if (el && isParticipantHost) {
-                      // Debug parent container dimensions
-                      const checkParent = () => {
-                        const rect = el.getBoundingClientRect();
-                        const computedStyle = window.getComputedStyle(el);
-                        if (rect.width === 0 || rect.height === 0) {
-                          console.log(`[CONTAINER DEBUG] Parent container has zero dimensions!`, {
-                            screenSize: `${window.innerWidth}x${window.innerHeight}`,
-                            rect: `${rect.width}x${rect.height}`,
-                            styles: {
-                              width: computedStyle.width,
-                              height: computedStyle.height,
-                              display: computedStyle.display,
-                              aspectRatio: computedStyle.aspectRatio,
-                            },
-                            parent: el.parentElement ? {
-                              width: el.parentElement.offsetWidth,
-                              height: el.parentElement.offsetHeight,
-                            } : null,
-                          });
-                        }
-                      };
-                      // Check immediately and on resize
-                      checkParent();
-                      const observer = new ResizeObserver(checkParent);
-                      observer.observe(el);
-                      return () => observer.disconnect();
-                    }
-                  }}
+                  className="rounded-2"
                   style={{
                     position: "relative",
                     width: "100%",
                     height: "100%",
                     minWidth: "60px",
                     minHeight: "60px",
+                    maxWidth: "100%",
+                    maxHeight: "100%",
                     aspectRatio: "1",
                     overflow: "hidden",
                     background: "#1a2332",
@@ -1442,6 +1418,7 @@ export default function PartyRoomPage() {
                     justifyContent: "center",
                     flexShrink: 0,
                     flexGrow: 0,
+                    boxSizing: "border-box",
                   }}
                 >
                   {/* Host Video (for participants) or Host Local Video */}
@@ -1751,45 +1728,17 @@ export default function PartyRoomPage() {
                   </div>
                 )}
 
-                {/* Avatar/Video Container */}
+                {/* Avatar/Video Container - Force explicit dimensions to prevent collapse */}
                 <div
-                  className="rounded-2 "
-                  ref={(el) => {
-                    if (el && isParticipantHost) {
-                      // Debug parent container dimensions
-                      const checkParent = () => {
-                        const rect = el.getBoundingClientRect();
-                        const computedStyle = window.getComputedStyle(el);
-                        if (rect.width === 0 || rect.height === 0) {
-                          console.log(`[CONTAINER DEBUG] Parent container has zero dimensions!`, {
-                            screenSize: `${window.innerWidth}x${window.innerHeight}`,
-                            rect: `${rect.width}x${rect.height}`,
-                            styles: {
-                              width: computedStyle.width,
-                              height: computedStyle.height,
-                              display: computedStyle.display,
-                              aspectRatio: computedStyle.aspectRatio,
-                            },
-                            parent: el.parentElement ? {
-                              width: el.parentElement.offsetWidth,
-                              height: el.parentElement.offsetHeight,
-                            } : null,
-                          });
-                        }
-                      };
-                      // Check immediately and on resize
-                      checkParent();
-                      const observer = new ResizeObserver(checkParent);
-                      observer.observe(el);
-                      return () => observer.disconnect();
-                    }
-                  }}
+                  className="rounded-2"
                   style={{
                     position: "relative",
                     width: "100%",
                     height: "100%",
                     minWidth: "60px",
                     minHeight: "60px",
+                    maxWidth: "100%",
+                    maxHeight: "100%",
                     aspectRatio: "1",
                     overflow: "hidden",
                     background: "#1a2332",
@@ -1798,6 +1747,7 @@ export default function PartyRoomPage() {
                     justifyContent: "center",
                     flexShrink: 0,
                     flexGrow: 0,
+                    boxSizing: "border-box",
                   }}
                 >
                   {/* Host Video (for participants) or Host Local Video */}
