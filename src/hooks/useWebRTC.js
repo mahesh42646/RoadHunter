@@ -721,25 +721,84 @@ export default function useWebRTC(partyId, socket, isHost, hostMicEnabled, hostC
         const checkAndPlay = () => {
           if (!video || video.srcObject !== localStream || !isCameraEnabled) return;
           
+          const rect = video.getBoundingClientRect();
+          const computedStyle = window.getComputedStyle(video);
+          const parent = video.parentElement;
+          const parentRect = parent ? parent.getBoundingClientRect() : { width: 0, height: 0 };
+          
           const needsFix = video.paused || 
                           video.offsetWidth === 0 || 
                           video.offsetHeight === 0 ||
-                          window.getComputedStyle(video).display === 'none' ||
-                          window.getComputedStyle(video).visibility === 'hidden';
+                          rect.width === 0 ||
+                          rect.height === 0 ||
+                          computedStyle.display === 'none' ||
+                          computedStyle.visibility === 'hidden';
           
           if (needsFix) {
-            log(`[VIDEO DEBUG] Video needs fix - paused: ${video.paused}, dimensions: ${video.offsetWidth}x${video.offsetHeight}`);
+            log(`[VIDEO DEBUG] Video needs fix - paused: ${video.paused}, dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${rect.width}x${rect.height}, parent: ${parentRect.width}x${parentRect.height}`);
             debugVideoState(video, 'LOCAL_VIDEO_NEEDS_FIX');
+            
+            // If parent has dimensions, use them
+            if (parentRect.width > 0 && parentRect.height > 0) {
+              log(`[VIDEO DEBUG] Parent has dimensions - forcing video to match`);
+              video.style.width = `${parentRect.width}px`;
+              video.style.height = `${parentRect.height}px`;
+              video.style.minWidth = '60px';
+              video.style.minHeight = '60px';
+            } else if (parent) {
+              // Parent also collapsed - fix parent first
+              log(`[VIDEO DEBUG] Parent also collapsed - fixing parent first`);
+              const parentStyle = window.getComputedStyle(parent);
+              
+              // Try to get dimensions from parent's computed style or force minimum
+              const parentWidth = parseFloat(parentStyle.width) || 60;
+              const parentHeight = parseFloat(parentStyle.height) || 60;
+              
+              if (parentWidth === 0 || parentHeight === 0) {
+                // Force parent to have minimum dimensions
+                parent.style.width = '60px';
+                parent.style.height = '60px';
+                parent.style.minWidth = '60px';
+                parent.style.minHeight = '60px';
+                
+                // Then set video to match
+                video.style.width = '60px';
+                video.style.height = '60px';
+              } else {
+                video.style.width = `${parentWidth}px`;
+                video.style.height = `${parentHeight}px`;
+              }
+              
+              video.style.minWidth = '60px';
+              video.style.minHeight = '60px';
+            } else {
+              // No parent - force minimum dimensions
+              log(`[VIDEO DEBUG] No parent - forcing minimum dimensions`);
+              video.style.width = '60px';
+              video.style.height = '60px';
+              video.style.minWidth = '60px';
+              video.style.minHeight = '60px';
+            }
             
             // Force visibility
             video.style.display = 'block';
             video.style.visibility = 'visible';
             video.style.opacity = '1';
+            video.style.position = 'absolute';
+            video.style.top = '0';
+            video.style.left = '0';
             
             // Try to play
             if (video.paused) {
               video.play().catch(() => {});
             }
+            
+            // Log after fix
+            setTimeout(() => {
+              const newRect = video.getBoundingClientRect();
+              log(`[VIDEO DEBUG] After fix - dimensions: ${video.offsetWidth}x${video.offsetHeight}, rect: ${newRect.width}x${newRect.height}`);
+              debugVideoState(video, 'LOCAL_VIDEO_AFTER_FIX');
+            }, 50);
           }
         };
         
